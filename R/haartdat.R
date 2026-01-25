@@ -1,0 +1,47 @@
+#' HAART and Survival in HIV Patients
+#'
+#' @description
+#' Survival data measured in 1200 HIV positive patients. Start of follow-up is HIV seroconversion. Each row corresponds to a 100 day interval of follow-up time, using the counting process notation. Patients can initiate HAART therapy. CD4 count is a confounder for the effect of HAART on mortality.
+#' @docType data
+#' @keywords datasets
+#' @name haartdat
+#' @usage data(haartdat)
+#'
+#' @format A data frame with 1200 patients and multiple observations per
+#'   patient (counting process notation) on the following 8 variables:
+#' \describe{
+#'   \item{patient}{Patient ID.}
+#'   \item{tstart}{Starting time for each interval of follow-up, measured in
+#'     days since HIV seroconversion.}
+#'   \item{fuptime}{End time for each interval of follow-up, measured in days
+#'     since HIV seroconversion.}
+#'   \item{haartind}{Indicator for the initiation of HAART therapy at the end
+#'     of the interval (0 = HAART not initiated / 1 = HAART initiated).}
+#'   \item{event}{Indicator for death at the end of the interval (0 = alive / 1 = died).}
+#'   \item{sex}{Sex (0 = male / 1 = female).}
+#'   \item{age}{Age at the start of follow-up (years).}
+#'   \item{cd4.sqrt}{Square root of CD4 count, measured at \code{fuptime},
+#'     before \code{haartind}.}
+#' }
+#'
+#' @details
+#' These data were simulated to demonstrate Inverse Probability Weighting (IPW).
+#' To allow for models predicting the initiation of HAART at \code{fuptime = 0},
+#' the starting time for the first interval of each patient is set to -100.
+#'
+#'
+#'
+#' @author Willem M. van der Wal \email{willem@@vanderwalresearch.com},
+#'   Ronald B. Geskus \email{rgeskus@@oucru.org}
+#'
+#' @references
+#' Van der Wal W.M. & Geskus R.B. (2011). ipw: An R Package for Inverse Probability Weighting.
+#' \emph{Journal of Statistical Software}, \bold{43}(13), 1-23. \url{https://doi.org/10.18637/jss.v043.i13}.
+#'
+#' @seealso \code{\link{basdat}}, \code{\link{ipwplot}}, \code{\link{ipwpoint}},
+#'   \code{\link{ipwtm}}, \code{\link{timedat}}, \code{\link{tstartfun}}
+#'
+#' @examples
+#' # For a full example of how to use this data with ipwtm, see:
+#' # ?ipwtm
+"haartdat"

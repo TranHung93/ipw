@@ -3,7 +3,7 @@
 #' For time varying weights: display boxplots within strata of follow-up time. For point treatment weights: display density plot.
 #'
 #' @param weights numerical vector of inverse probability weights to plot.
-#' @param timevar within strata of follow-up time are displayed. When left unspecified, a density plot is displayed.
+#' @param timevar numerical vector representing follow-up time. When specified, boxplots within strata of follow-up time are displayed. When left unspecified, a density plot is displayed.
 #' @param binwidth numerical value indicating the width of the intervals of follow-up time; for each interval a boxplot is made. Ignored when \code{timevar} is not specified.
 #' @param logscale logical value. If \code{TRUE}, weights are plotted on a logarithmic scale.
 #' @param xlab label for the horizontal axis.

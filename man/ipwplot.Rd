@@ -19,7 +19,7 @@ ipwplot(
 \arguments{
 \item{weights}{numerical vector of inverse probability weights to plot.}
 
-\item{timevar}{within strata of follow-up time are displayed. When left unspecified, a density plot is displayed.}
+\item{timevar}{numerical vector representing follow-up time. When specified, boxplots within strata of follow-up time are displayed. When left unspecified, a density plot is displayed.}
 
 \item{binwidth}{numerical value indicating the width of the intervals of follow-up time; for each interval a boxplot is made. Ignored when \code{timevar} is not specified.}
 

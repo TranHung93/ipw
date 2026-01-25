@@ -1,0 +1,39 @@
+#' HIV: TB and Survival (Baseline Data)
+#'
+#' @description
+#' Simulated dataset. Baseline data of 386 HIV positive individuals, including time of first active tuberculosis, time of death, individual end time. Time varying CD4 measurements of these patients are included in dataset \code{\link{timedat}}.
+#'
+#' @docType data
+#' @keywords datasets
+#' @name basdat
+#' @usage data(basdat)
+#'
+#' @format A data frame with 386 observations on the following 4 variables:
+#' \describe{
+#'   \item{id}{Patient ID.}
+#'   \item{Ttb}{Time of first active tuberculosis, measured in days since HIV seroconversion.}
+#'   \item{Tdeath}{Time of death, measured in days since HIV seroconversion.}
+#'   \item{Tend}{Individual end time (either death or censoring), measured in days since HIV seroconversion.}
+#' }
+#'
+#' @details
+#' These simulated data are used together with data in \code{\link{timedat}} in a detailed causal modelling example using inverse probability weighting (IPW). See \code{\link{ipwtm}} for the example. Data were simulated using the algorithm described in Van der Wal e.a. (2009).#'
+#' [Image of a multistate model for HIV, TB, and death]
+#'
+#' @author Willem M. van der Wal \email{willem@@vanderwalresearch.com},
+#'   Ronald B. Geskus \email{rgeskus@@oucru.org}
+#'
+#' @references
+#' Van der Wal W.M. & Geskus R.B. (2011). ipw: An R Package for Inverse Probability Weighting.
+#' \emph{Journal of Statistical Software}, \bold{43}(13), 1-23. \url{https://doi.org/10.18637/jss.v043.i13}.
+#'
+#' Van der Wal W.M., Prins M., Lumbreras B. & Geskus R.B. (2009). A simple G-computation
+#' algorithm to quantify the causal effect of a secondary illness on the progression
+#' of a chronic disease. \emph{Statistics in Medicine}, \bold{28}(18), 2325-2337.
+#'
+#' @seealso \code{\link{haartdat}}, \code{\link{ipwplot}}, \code{\link{ipwpoint}},
+#'   \code{\link{ipwtm}}, \code{\link{timedat}}, \code{\link{tstartfun}}
+#' @examples
+#' # Detailed examples can be found in the ipwtm documentation:
+#' # ?ipwtm
+"basdat"

@@ -25,3 +25,4 @@ Encoding: UTF-8
 License: MIT + file LICENSE
 NeedsCompilation: no
 RoxygenNote: 7.3.3.9000
+LazyData: true
