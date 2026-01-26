@@ -1,0 +1,14 @@
+citHeader("To cite ipw in publications use:")
+
+bibentry("Article",
+  title        = "{ipw}: An {R} Package for Inverse Probability Weighting",
+  author       = c(person(c("Willem", "M."), "van der Wal"),
+                   as.person("Ronald B. Geskus")),
+  journal      = "Journal of Statistical Software",
+  year         = "2011",
+  volume       = "43",
+  number       = "13",
+  pages        = "1--23",
+  doi          = "10.18637/jss.v043.i13",
+)
+

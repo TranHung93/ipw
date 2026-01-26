@@ -2,6 +2,7 @@
 #' @description
 #' Estimate inverse probability weights to fit marginal structural models, with a time-varying exposure and time-varying confounders. Within each unit under observation this function computes inverse probability weights at each time point during follow-up. The exposure can be binomial, multinomial, ordinal or continuous. Both stabilized and unstabilized weights can be estimated.
 #'
+#' @import MASS nnet survival geepack graphics methods stats
 #' @param exposure vector, representing the exposure of interest. Both numerical and categorical variables can be used. A binomial exposure variable should be coded using values \code{0}/\code{1}.
 #' @param family specifies a family of link functions, used to model the relationship between the variables in \code{numerator} or \code{denominator} and \code{exposure}, respectively. Alternatives are \code{"binomial"}, \code{"survival"}, \code{"multinomial"}, \code{"ordinal"} and \code{"gaussian"}. A specific link function is then chosen using the argument \code{link}, as explained below. Regression models are fitted using \code{\link{glm}}, \code{\link{coxph}}, \code{\link{multinom}}, \code{\link{polr}} or \code{\link{geeglm}}, respectively.
 #' @param link specifies the specific link function between the variables in \code{numerator} or \code{denominator} and exposure, respectively. For \code{family="binomial"} (fitted using \code{\link{glm}}) alternatives are \code{"logit"}, \code{"probit"}, \code{"cauchit"}, \code{"log"} and \code{"cloglog"}. For \code{family="survival"} this argument is ignored, and Cox proportional hazards models are always used (fitted using \code{\link{coxph}}). For \code{family="multinomial"} this argument is ignored, and multinomial logistic regression models are always used (fitted using \code{\link{multinom}}). For \code{family=} \code{"ordinal"} (fitted using \code{\link{polr}}) alternatives are \code{"logit"}, \code{"probit"}, \code{"cauchit"}, and \code{"cloglog"}. For \code{family="gaussian"} this argument is ignored, and GEE models with an identity link are always used (fitted using \code{\link{geeglm}}.)
@@ -89,7 +90,8 @@
 #' #plot inverse probability of censoring weights
 #' graphics.off()
 #' ipwplot(weights = temp2$ipw.weights, timevar = haartdat$fuptime,
-#'         binwidth = 100, ylim = c(-1.5, 1.5), main = "Stabilized inverse probability of censoring weights")
+#'         binwidth = 100, ylim = c(-1.5, 1.5),
+#'         main = "Stabilized inverse probability of censoring weights")
 #'
 #' #MSM for the causal effect of initiation of HAART on mortality.
 #' #Corrected both for confounding and informative censoring.
@@ -143,9 +145,10 @@
 #' startstop$event <- ifelse(with(startstop, !is.na(Tdeath) & fuptime >= Tdeath),
 #'                           1, 0)
 #' #impute CD4, based on TB status at previous time point.
-#' startstop$cd4.sqrt <- predict(cd4.lme, newdata = data.frame(id = startstop$id,
-#'                                                             fuptime = startstop$fuptime, tb.lag = startstop$tb.lag))
-#'
+#' startstop$cd4.sqrt <- predict(cd4.lme,
+#'                               newdata = data.frame(id = startstop$id,
+#'                                                    fuptime = startstop$fuptime,
+#'                                                    tb.lag = startstop$tb.lag))
 #' #compute inverse probability weights
 #' temp <- ipwtm(
 #'   exposure = tb,

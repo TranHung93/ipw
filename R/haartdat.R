@@ -22,7 +22,8 @@
 #'   \item{age}{Age at the start of follow-up (years).}
 #'   \item{cd4.sqrt}{Square root of CD4 count, measured at \code{fuptime},
 #'     before \code{haartind}.}
-#' }
+#'   \item{endtime}{The final observed time point for the individual.}
+#'   \item{dropout}{Indicator for dropout/censoring at the end of the interval (0 = no, 1 = yes).}#' }
 #'
 #' @details
 #' These data were simulated to demonstrate Inverse Probability Weighting (IPW).

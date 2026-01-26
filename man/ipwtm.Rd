@@ -117,7 +117,8 @@ temp2 <- ipwtm(
 #plot inverse probability of censoring weights
 graphics.off()
 ipwplot(weights = temp2$ipw.weights, timevar = haartdat$fuptime,
-        binwidth = 100, ylim = c(-1.5, 1.5), main = "Stabilized inverse probability of censoring weights")
+        binwidth = 100, ylim = c(-1.5, 1.5),
+        main = "Stabilized inverse probability of censoring weights")
 
 #MSM for the causal effect of initiation of HAART on mortality.
 #Corrected both for confounding and informative censoring.
@@ -171,9 +172,10 @@ startstop$tb.lag <- ifelse(with(startstop, !is.na(Ttb) & fuptime > Ttb), 1, 0)
 startstop$event <- ifelse(with(startstop, !is.na(Tdeath) & fuptime >= Tdeath),
                           1, 0)
 #impute CD4, based on TB status at previous time point.
-startstop$cd4.sqrt <- predict(cd4.lme, newdata = data.frame(id = startstop$id,
-                                                            fuptime = startstop$fuptime, tb.lag = startstop$tb.lag))
-
+startstop$cd4.sqrt <- predict(cd4.lme,
+                              newdata = data.frame(id = startstop$id,
+                                                   fuptime = startstop$fuptime,
+                                                   tb.lag = startstop$tb.lag))
 #compute inverse probability weights
 temp <- ipwtm(
   exposure = tb,
