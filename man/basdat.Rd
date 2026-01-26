@@ -29,7 +29,7 @@ These simulated data are used together with data in \code{\link{timedat}} in a d
 }
 \references{
 Van der Wal W.M. & Geskus R.B. (2011). ipw: An R Package for Inverse Probability Weighting.
-\emph{Journal of Statistical Software}, \bold{43}(13), 1-23. \url{https://doi.org/10.18637/jss.v043.i13}.
+\emph{Journal of Statistical Software}, \bold{43}(13), 1-23. \doi{10.18637/jss.v043.i13}.
 
 Van der Wal W.M., Prins M., Lumbreras B. & Geskus R.B. (2009). A simple G-computation
 algorithm to quantify the causal effect of a secondary illness on the progression

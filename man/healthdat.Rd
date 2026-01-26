@@ -32,7 +32,7 @@ point-treatment inverse probability weighting.
 }
 \references{
 Van der Wal W.M. & Geskus R.B. (2011). ipw: An R Package for Inverse Probability Weighting.
-\emph{Journal of Statistical Software}, \bold{43}(13), 1-23. \url{https://doi.org/10.18637/jss.v043.i13}
+\emph{Journal of Statistical Software}, \bold{43}(13), 1-23. \doi{10.18637/jss.v043.i13}
 }
 \seealso{
 \code{\link{basdat}}, \code{\link{haartdat}}, \code{\link{ipwplot}},
