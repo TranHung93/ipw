@@ -31,3 +31,5 @@ NeedsCompilation: no
 RoxygenNote: 7.3.3.9000
 LazyData: true
 Config/testthat/edition: 3
+URL: https://github.com/TranHung93/ipw1.3
+BugReports: https://github.com/TranHung93/ipw1.3/issues
