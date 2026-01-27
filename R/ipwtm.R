@@ -4,8 +4,31 @@
 #'
 #' @import MASS nnet survival geepack graphics methods stats
 #' @param exposure vector, representing the exposure of interest. Both numerical and categorical variables can be used. A binomial exposure variable should be coded using values \code{0}/\code{1}.
-#' @param family specifies a family of link functions, used to model the relationship between the variables in \code{numerator} or \code{denominator} and \code{exposure}, respectively. Alternatives are \code{"binomial"}, \code{"survival"}, \code{"multinomial"}, \code{"ordinal"} and \code{"gaussian"}. A specific link function is then chosen using the argument \code{link}, as explained below. Regression models are fitted using \code{\link{glm}}, \code{\link{coxph}}, \code{\link{multinom}}, \code{\link{polr}} or \code{\link{geeglm}}, respectively.
-#' @param link specifies the specific link function between the variables in \code{numerator} or \code{denominator} and exposure, respectively. For \code{family="binomial"} (fitted using \code{\link{glm}}) alternatives are \code{"logit"}, \code{"probit"}, \code{"cauchit"}, \code{"log"} and \code{"cloglog"}. For \code{family="survival"} this argument is ignored, and Cox proportional hazards models are always used (fitted using \code{\link{coxph}}). For \code{family="multinomial"} this argument is ignored, and multinomial logistic regression models are always used (fitted using \code{\link{multinom}}). For \code{family=} \code{"ordinal"} (fitted using \code{\link{polr}}) alternatives are \code{"logit"}, \code{"probit"}, \code{"cauchit"}, and \code{"cloglog"}. For \code{family="gaussian"} this argument is ignored, and GEE models with an identity link are always used (fitted using \code{\link{geeglm}}.)
+#' @param family specifies a family of link functions, used to model the relationship
+#'   between the variables in \code{numerator} or \code{denominator} and \code{exposure},
+#'   respectively. Alternatives are \code{"binomial"}, \code{"survival"},
+#'   \code{"multinomial"}, \code{"ordinal"} and \code{"gaussian"}. A specific link
+#'   function is then chosen using the argument \code{link}, as explained below.
+#'   Regression models are fitted using \code{\link[stats:glm]{stats::glm}},
+#'   \code{\link[survival:coxph]{survival::coxph}},
+#'   \code{\link[nnet:multinom]{nnet::multinom}},
+#'   \code{\link[MASS:polr]{MASS::polr}} or
+#'   \code{\link[geepack:geeglm]{geepack::geeglm}}, respectively.
+#' @param link specifies the specific link function between the variables in
+#'   \code{numerator} or \code{denominator} and exposure, respectively. For
+#'   \code{family="binomial"} (fitted using \code{\link[stats:glm]{stats::glm}})
+#'   alternatives are \code{"logit"}, \code{"probit"}, \code{"cauchit"}, \code{"log"}
+#'   and \code{"cloglog"}. For \code{family="survival"} this argument is ignored,
+#'   and Cox proportional hazards models are always used (fitted using
+#'   \code{\link[survival:coxph]{survival::coxph}}). For \code{family="multinomial"}
+#'   this argument is ignored, and multinomial logistic regression models are
+#'   always used (fitted using \code{\link[nnet:multinom]{nnet::multinom}}).
+#'   For \code{family="ordinal"} (fitted using \code{\link[MASS:polr]{MASS::polr}})
+#'   alternatives are \code{"logit"}, \code{"probit"}, \code{"cauchit"}, and
+#'   \code{"cloglog"}. For \code{family="gaussian"} this argument is ignored,
+#'   and GEE models with an identity link are always used (fitted using
+#'   \code{\link[geepack:geeglm]{geepack::geeglm}}).
+#'
 #' @param numerator is a formula, specifying the right-hand side of the model used to estimate the elements in the numerator of the inverse probability weights. When left unspecified, unstabilized weights with a numerator of 1 are estimated.
 #' @param denominator is a formula, specifying the right-hand side of the model used to estimate the elements in the denominator of the inverse probability weights.
 #' @param id vector, uniquely identifying the units under observation (typically patients) within which the longitudinal measurements are taken.
@@ -13,7 +36,8 @@
 #' @param timevar numerical vector, representing follow-up time, starting at \code{0}. This variable is used as the end time of follow-up intervals, using the counting process notation, when \code{family="survival"}.
 #' @param type specifies the type of exposure. Alternatives are \code{"first"}, \code{"cens"} and \code{"all"}. With \code{type="first"}, weights are estimated up to the first switch from the lowest exposure value (typically \code{0} or the first factor level) to any other value. After this switch, weights will then be constant. Such a weight is e.g. used when estimating the effect of ``initiation of HAART'' on mortality (see example 1 below). \code{type="first"} is currently only implemented for \code{"binomial"}, \code{"survival"}, \code{"multinomial"} and \code{"ordinal"} families. With \code{type="cens"} inverse probability of censoring weights (IPCW) are estimated as defined in appendix 1 in Cole & Hernán (2008). IPCW is illustrated in example 1 below. \code{type="cens"} is currently only implemented for \code{"binomial"} and \code{"survival"} families. With \code{type="all"}, all time points are used to estimate weights. \code{type="all"} is implemented only for the \code{"binomial"} and \code{"gaussian"} family.
 #' @param data dataframe containing \code{exposure}, variables in \code{numerator} and \code{denominator}, \code{id}, \code{tstart} and \code{timevar}.
-#' @param corstr correlation structure, only needed when using \code{family = "gaussian"}. Defaults to "ar1". See \code{\link{geeglm}} for details.
+#' @param corstr correlation structure, only needed when using \code{family = "gaussian"}.
+#'   Defaults to "ar1". See \code{\link[geepack:geeglm]{geepack::geeglm}} for details.
 #' @param trunc optional truncation percentile (0-0.5). E.g. when \code{trunc = 0.01}, the left tail is truncated to the 1st percentile, and the right tail is truncated to the 99th percentile. When specified, both un-truncated and truncated weights are returned.
 #' @param ... are further arguments passed to the function that is used to estimate the numerator and denominator models (the function is chosen using \code{family}).
 #' @details
