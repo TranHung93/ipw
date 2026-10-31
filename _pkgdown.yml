@@ -1,0 +1,48 @@
+url: https://tranhung93.github.io/ipw/
+
+template:
+  bootstrap: 5
+
+home:
+  title: "ipw: Estimate Inverse Probability Weights"
+  description: >
+    Estimate inverse probability weights for marginal structural models,
+    for point treatment and longitudinal data, and to correct for
+    informative censoring.
+  links:
+  - text: JSS paper (2011)
+    href: https://doi.org/10.18637/jss.v043.i13
+
+navbar:
+  structure:
+    left:  [intro, reference, news]
+    right: [search, github]
+  components:
+    github:
+      icon: fa-github
+      href: https://github.com/TranHung93/ipw
+      aria-label: GitHub
+
+reference:
+- title: Estimate weights
+  desc: >
+    Fit the exposure (or censoring) models and compute inverse probability
+    weights.
+  contents:
+  - ipwpoint
+  - ipwtm
+- title: Diagnostics
+  contents:
+  - ipwplot
+- title: Data preparation
+  contents:
+  - tstartfun
+- title: Example data
+  contents:
+  - haartdat
+  - basdat
+  - timedat
+  - healthdat
+
+news:
+  cran_dates: true
