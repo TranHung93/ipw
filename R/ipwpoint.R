@@ -5,6 +5,17 @@
 #' point treatment situation. Exposure can be binomial, multinomial, ordinal,
 #' or continuous (gaussian). Both stabilized and unstabilized weights can be estimated.
 #'
+#' @details
+#' Standard errors: \code{ipwpoint} only estimates the weights. Standard errors
+#' for the marginal structural model have to be obtained when that model is fitted.
+#' Robust (sandwich) standard errors, for example from \code{svyglm()} in the survey
+#' package as in Van der Wal and Geskus (2011), treat the weights as known and tend to
+#' be conservative (too large). Austin (2016) compared naive, robust and bootstrap
+#' standard errors in simulations and recommends the bootstrap, in which the weights
+#' are re-estimated in each bootstrap sample. This takes the uncertainty in the
+#' estimated weights into account; see the bootstrap example below. About 200
+#' bootstrap samples are usually enough to estimate a standard error.
+#'
 #' @param exposure Name of the exposure column in \code{data} (unquoted or as a string).
 #'   Binomial exposure variables should be coded as 0/1.
 #' @param family Model family for exposure: \code{"binomial"}, \code{"multinomial"},
@@ -33,6 +44,8 @@
 #' Robins, J.M., Hernán, M.A. & Brumback, B.A. (2000). Marginal structural models and causal inference in epidemiology. \emph{Epidemiology}, \bold{11}, 550-560.
 #'
 #' Van der Wal W.M. & Geskus R.B. (2011). ipw: An R Package for Inverse Probability Weighting. \emph{Journal of Statistical Software}, \bold{43}(13), 1-23. \doi{10.18637/jss.v043.i13}.
+#'
+#' Austin, P.C. (2016). Variance estimation when using inverse probability of treatment weighting (IPTW) with survival analysis. \emph{Statistics in Medicine}, \bold{35}, 5642-5655. \doi{10.1002/sim.7084}.
 #' @export
 #' @seealso \code{\link{basdat}}, \code{\link{haartdat}}, \code{\link{ipwplot}}, \code{\link{ipwpoint}}, \code{\link{ipwtm}}, \code{\link{timedat}}, \code{\link{tstartfun}}.
 #'
@@ -77,6 +90,34 @@
 #'                 design = svydesign(~1, weights = ~temp$ipw.weights,
 #'                 data = simdat))
 #'   summary(msm)
+#' }
+#'
+#' # Bootstrap standard error and percentile confidence interval for the MSM.
+#' # The robust standard error from svyglm() treats the weights as known and
+#' # tends to be conservative. Austin (2016) recommends the bootstrap, with the
+#' # weights re-estimated in each bootstrap sample: each bootstrap sample below
+#' # re-fits ipwpoint() and the MSM. (A weighted lm() gives the same point
+#' # estimate as svyglm() and is faster.)
+#' if (requireNamespace("boot", quietly = TRUE)) {
+#'   boot.fun <- function(data, index) {
+#'     d <- data[index, ]
+#'     w <- ipwpoint(
+#'       exposure = a,
+#'       family = "binomial",
+#'       link = "logit",
+#'       numerator = ~ 1,
+#'       denominator = ~ l,
+#'       data = d)
+#'     d$sw <- w$ipw.weights
+#'     coef(lm(y ~ a, data = d, weights = sw))["a"]
+#'   }
+#'   set.seed(1)
+#'   bootres <- boot::boot(data = simdat, statistic = boot.fun, R = 200)
+#'   print(bootres)
+#'   # bootstrap standard error
+#'   print(sd(bootres$t[, 1]))
+#'   # percentile 95 percent confidence interval
+#'   print(boot::boot.ci(bootres, type = "perc"))
 #' }
 ipwpoint <- function(
     exposure,
