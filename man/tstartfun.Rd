@@ -7,50 +7,28 @@
 tstartfun(id, timevar, data)
 }
 \arguments{
-\item{id}{numerical vector, uniquely identifying the units under observation, within which the longitudinal measurements are taken.}
+\item{id}{Patient or unit identifier (unquoted symbol, string, or vector).}
 
-\item{timevar}{numerical vector, representing follow-up time, starting at 0.}
+\item{timevar}{Follow-up time variable (unquoted symbol, string, or vector).}
 
-\item{data}{dataframe containing \code{id} and \code{timevar}}
+\item{data}{Data frame containing \code{id} and \code{timevar}.}
 }
 \value{
-Numerical vector containing starting time for each record. In the same order as the records in \code{data}, to facilitate merging.
+Numeric vector of starting times in the same row order as \code{data}.
 }
 \description{
-Function to compute starting time for intervals of follow-up, when using the counting process notation. Within each unit under observation (usually individuals), computes starting time equal to:
-\itemize{
-  \item time of previous record when there is a previous record.
-  \item -1 for first record.
+Computes starting time for follow-up intervals in longitudinal data using
+counting process notation. Within each subject, starting time equals -1 for the
+initial record and the previous record's follow-up time for subsequent records.
 }
-}
-\section{Missing values}{
-
-Currently, \code{id} and \code{timevar} should not contain missing values.
-}
-
 \examples{
-#data
 mydata1 <- data.frame(
   patient = c(1, 1, 1, 1, 1, 1, 2, 2, 2, 2),
-  time.days = c(14, 34, 41, 56, 72, 98, 0, 11, 28, 35))
-
-#compute starting time for each interval
+  time.days = c(14, 34, 41, 56, 72, 98, 0, 11, 28, 35)
+)
 mydata1$tstart <- tstartfun(patient, time.days, mydata1)
-
-#result
 mydata1
-
-#see also ?ipwtm for example
-
-}
-\references{
-Van der Wal W.M. & Geskus R.B. (2011). ipw: An R Package for Inverse  Probability Weighting. \emph{Journal of Statistical Software}, \bold{43}(13), 1-23. \doi{10.18637/jss.v043.i13}.
-}
-\seealso{
-\code{\link{basdat}}, \code{\link{haartdat}}, \code{\link{ipwplot}}, \code{\link{ipwpoint}}, \code{\link{ipwtm}}, \code{\link{timedat}}, \code{\link{tstartfun}}.
 }
 \author{
 Willem M. van der Wal \email{willem@vanderwalresearch.com}, Ronald B. Geskus \email{rgeskus@oucru.org}
 }
-\keyword{methods}
-\keyword{survival}

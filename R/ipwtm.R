@@ -1,75 +1,35 @@
 #' Estimate Inverse Probability Weights (Time Varying)
+#'
 #' @description
-#' Estimate inverse probability weights to fit marginal structural models, with a time-varying exposure and time-varying confounders. Within each unit under observation this function computes inverse probability weights at each time point during follow-up. The exposure can be binomial, multinomial, ordinal or continuous. Both stabilized and unstabilized weights can be estimated.
+#' Estimates inverse probability weights to fit marginal structural models with
+#' time-varying exposures and time-varying confounders across follow-up intervals.
+#' Supports binomial, survival, multinomial, ordinal, and gaussian families.
 #'
 #' @import MASS nnet survival geepack graphics methods stats
-#' @param exposure vector, representing the exposure of interest. Both numerical and categorical variables can be used. A binomial exposure variable should be coded using values \code{0}/\code{1}.
-#' @param family specifies a family of link functions, used to model the relationship
-#'   between the variables in \code{numerator} or \code{denominator} and \code{exposure},
-#'   respectively. Alternatives are \code{"binomial"}, \code{"survival"},
-#'   \code{"multinomial"}, \code{"ordinal"} and \code{"gaussian"}. A specific link
-#'   function is then chosen using the argument \code{link}, as explained below.
-#'   Regression models are fitted using \code{\link[stats:glm]{stats::glm}},
-#'   \code{\link[survival:coxph]{survival::coxph}},
-#'   \code{\link[nnet:multinom]{nnet::multinom}},
-#'   \code{\link[MASS:polr]{MASS::polr}} or
-#'   \code{\link[geepack:geeglm]{geepack::geeglm}}, respectively.
-#' @param link specifies the specific link function between the variables in
-#'   \code{numerator} or \code{denominator} and exposure, respectively. For
-#'   \code{family="binomial"} (fitted using \code{\link[stats:glm]{stats::glm}})
-#'   alternatives are \code{"logit"}, \code{"probit"}, \code{"cauchit"}, \code{"log"}
-#'   and \code{"cloglog"}. For \code{family="survival"} this argument is ignored,
-#'   and Cox proportional hazards models are always used (fitted using
-#'   \code{\link[survival:coxph]{survival::coxph}}). For \code{family="multinomial"}
-#'   this argument is ignored, and multinomial logistic regression models are
-#'   always used (fitted using \code{\link[nnet:multinom]{nnet::multinom}}).
-#'   For \code{family="ordinal"} (fitted using \code{\link[MASS:polr]{MASS::polr}})
-#'   alternatives are \code{"logit"}, \code{"probit"}, \code{"cauchit"}, and
-#'   \code{"cloglog"}. For \code{family="gaussian"} this argument is ignored,
-#'   and GEE models with an identity link are always used (fitted using
-#'   \code{\link[geepack:geeglm]{geepack::geeglm}}).
+#' @param exposure Exposure variable (unquoted symbol, string, or vector).
+#' @param family Model family: \code{"binomial"}, \code{"survival"}, \code{"multinomial"},
+#'   \code{"ordinal"}, or \code{"gaussian"}.
+#' @param link Link function for binomial or ordinal models.
+#' @param numerator Formula for numerator model. If \code{NULL}, unstabilized weights are computed.
+#' @param denominator Formula for denominator model.
+#' @param id Patient/subject identifier variable.
+#' @param tstart Start time variable for counting process format (required for \code{family = "survival"}).
+#' @param timevar End time/follow-up time variable.
+#' @param type Exposure switch type: \code{"first"}, \code{"cens"}, or \code{"all"}.
+#' @param data Data frame containing all required variables.
+#' @param corstr Correlation structure for GEE when \code{family = "gaussian"} (default: \code{"ar1"}).
+#' @param trunc Optional truncation percentile between 0 and 0.5.
+#' @param ... Additional arguments passed to model fitting engines.
 #'
-#' @param numerator is a formula, specifying the right-hand side of the model used to estimate the elements in the numerator of the inverse probability weights. When left unspecified, unstabilized weights with a numerator of 1 are estimated.
-#' @param denominator is a formula, specifying the right-hand side of the model used to estimate the elements in the denominator of the inverse probability weights.
-#' @param id vector, uniquely identifying the units under observation (typically patients) within which the longitudinal measurements are taken.
-#' @param tstart numerical vector, representing the starting time of follow-up intervals, using the counting process notation. This argument is only needed when \code{family=} \code{"survival"}, otherwise it is ignored. The Cox proportional hazards models are fitted using counting process data. Since a switch in exposure level can occur at the start of follow-up, \code{tstart} should be negative for the first interval (with \code{timevar=0}) within each patient.
-#' @param timevar numerical vector, representing follow-up time, starting at \code{0}. This variable is used as the end time of follow-up intervals, using the counting process notation, when \code{family="survival"}.
-#' @param type specifies the type of exposure. Alternatives are \code{"first"}, \code{"cens"} and \code{"all"}. With \code{type="first"}, weights are estimated up to the first switch from the lowest exposure value (typically \code{0} or the first factor level) to any other value. After this switch, weights will then be constant. Such a weight is e.g. used when estimating the effect of ``initiation of HAART'' on mortality (see example 1 below). \code{type="first"} is currently only implemented for \code{"binomial"}, \code{"survival"}, \code{"multinomial"} and \code{"ordinal"} families. With \code{type="cens"} inverse probability of censoring weights (IPCW) are estimated as defined in appendix 1 in Cole & Hernán (2008). IPCW is illustrated in example 1 below. \code{type="cens"} is currently only implemented for \code{"binomial"} and \code{"survival"} families. With \code{type="all"}, all time points are used to estimate weights. \code{type="all"} is implemented only for the \code{"binomial"} and \code{"gaussian"} family.
-#' @param data dataframe containing \code{exposure}, variables in \code{numerator} and \code{denominator}, \code{id}, \code{tstart} and \code{timevar}.
-#' @param corstr correlation structure, only needed when using \code{family = "gaussian"}.
-#'   Defaults to "ar1". See \code{\link[geepack:geeglm]{geepack::geeglm}} for details.
-#' @param trunc optional truncation percentile (0-0.5). E.g. when \code{trunc = 0.01}, the left tail is truncated to the 1st percentile, and the right tail is truncated to the 99th percentile. When specified, both un-truncated and truncated weights are returned.
-#' @param ... are further arguments passed to the function that is used to estimate the numerator and denominator models (the function is chosen using \code{family}).
-#' @details
-#' Within each unit under observation i (usually patients), this function computes inverse probability weights at each time point j during follow-up. These weights are the cumulative product over all previous time points up to j of the ratio of two probabilities:
-#' \itemize{
-#' \item the numerator contains at each time point the probability of the observed exposure level given observed values of stabilization factors and the observed exposure history up to the time point before j. These probabilities are estimated using the model regressing \code{exposure} on the terms in \code{numerator}, using the link function indicated by \code{family} and \code{link}.
-#' \item the denominator contains at each time point the probability of the observed exposure level given the observed history of time varying confounders up to j, as well as the stabilization factors in the numerator and the observed exposure history up to the time point before j. These probabilities are estimated using the model regressing \code{exposure} on the terms in \code{denominator}, using the link function indicated by \code{family} and \code{link}.}
-#'
-#' When the models from which the elements in the numerator and denominator are predicted are correctly specified, and there is no unmeasured confounding, weighting observations ij by the inverse probability weights adjusts for confounding of the effect of the exposure of interest. On the weighted dataset a marginal structural model can then be fitted, quantifying the causal effect of the exposure on the outcome of interest.
-#'
-#' With \code{numerator} specified, stabilized weights are computed, otherwise unstabilized weights with a numerator of 1 are computed. With a continuous exposure, using \code{family = "gaussian"}, weights are computed using the ratio of predicted densities at each time point. Therefore, for \code{family = "gaussian"} only stabilized weights can be used, since unstabilized weights would have infinity variance.
-#'
-#'
-#' @return A list containing the following elements:
-#' \item{ipw.weights }{vector containing inverse probability weights for each observation. Returned in the same order as the observations in \code{data}, to facilitate merging.}
-#' \item{weights.trunc }{vector containing truncated inverse probability weights, only returned when \code{trunc} is specified.}
-#' \item{call }{the original function call.}
-#' \item{selvar }{selection variable. With \code{type = "first"}, \code{selvar = 1} within each unit under observation, up to and including the first time point at which a switch from the lowest value of \code{exposure} to any other value is made, and \code{selvar = 0} after the first switch. For \code{type = "all"}, \code{selvar = 1} for all measurements. The numerator and denominator models are fitted only on observations with \code{selvar = 1}. Returned in the same order as observations in \code{data}, to facilitate merging.}
-#' \item{num.mod }{the numerator model, only returned when \code{numerator} is specified.}
-#' \item{den.mod }{the denominator model.}
-#'
-#' @section Missing values:
-#' Currently, the \code{exposure} variable and the variables used in \code{numerator} and \code{denominator}, \code{id}, \code{tstart} and \code{timevar} should not contain missing values.
-#'
-#' @author Willem M. van der Wal \email{willem@vanderwalresearch.com}, Ronald B. Geskus \email{rgeskus@oucru.org}
-#' @references Cole, S.R. & Hernán, M.A. (2008). Constructing inverse probability weights for marginal structural models. \emph{American Journal of Epidemiology}, \bold{168}(6), 656-664. \url{https://pubmed.ncbi.nlm.nih.gov:443/18682488/}.
-#'
-#' Robins, J.M., Hernán, M.A. & Brumback, B.A. (2000). Marginal structural models and causal inference in epidemiology. \emph{Epidemiology}, \bold{11}, 550-560. \url{https://pubmed.ncbi.nlm.nih.gov/10955408/}.
-#'
-#' Van der Wal W.M. & Geskus R.B. (2011). ipw: An R Package for Inverse  Probability Weighting. \emph{Journal of Statistical Software}, \bold{43}(13), 1-23. \doi{10.18637/jss.v043.i13}
-#' @seealso \code{\link{basdat}}, \code{\link{haartdat}}, \code{\link{ipwplot}}, \code{\link{ipwpoint}}, \code{\link{ipwtm}}, \code{\link{timedat}}, \code{\link{tstartfun}}.
+#' @return A list of class \code{"ipwtm"} containing:
+#' \item{ipw.weights}{Numeric vector of inverse probability weights in original row order.}
+#' \item{weights.trunc}{Numeric vector of truncated weights (if \code{trunc} is specified).}
+#' \item{call}{Original function call.}
+#' \item{selvar}{Selection indicator vector (1 = active observation, 0 = post-switch).}
+#' \item{num.mod}{Numerator model object.}
+#' \item{den.mod}{Denominator model object.}
 #' @export
+#'
 #'
 #' @examples
 #' ########################################################################
@@ -244,326 +204,451 @@
 #' @keywords htest models
 ipwtm <- function(
     exposure,
-    family,
-    link,
+    family = c("binomial", "survival", "multinomial", "ordinal", "gaussian"),
+    link = NULL,
     numerator = NULL,
     denominator,
     id,
     tstart,
     timevar,
-    type,
+    type = c("first", "cens", "all"),
     data,
     corstr = "ar1",
     trunc = NULL,
-    ...)
-{
-  #save input
-  tempcall <- match.call()
-  #some basic input checks
-  if (!("exposure" %in% names(tempcall))) stop("No exposure variable specified")
-  if (!("family" %in% names(tempcall)) | ("family" %in% names(tempcall) & !(tempcall$family %in% c("binomial", "survival", "multinomial", "ordinal", "gaussian")))) stop("No valid family specified (\"binomial\", \"survival\", \"multinomial\", \"ordinal\", \"gaussian\")")
-  if (tempcall$family == "binomial") {if(!(tempcall$link %in% c("logit", "probit", "cauchit", "log", "cloglog"))) stop("No valid link function specified for family = binomial (\"logit\", \"probit\", \"cauchit\", \"log\", \"cloglog\")")}
-  if (tempcall$family == "ordinal" ) {if(!(tempcall$link %in% c("logit", "probit", "cauchit", "cloglog"))) stop("No valid link function specified for family = ordinal (\"logit\", \"probit\", \"cauchit\", \"cloglog\")")}
-  if (!("denominator" %in% names(tempcall))) stop("No denominator model specified")
-  if (!is.null(tempcall$numerator) & !is(eval(tempcall$numerator), "formula")) stop("Invalid numerator formula specified")
-  if (!is.null(tempcall$denominator) & !is(eval(tempcall$denominator), "formula")) stop("Invalid denominator formula specified")
-  if (!("id" %in% names(tempcall))) stop("No patient id specified")
-  if (tempcall$family == "survival" & !("tstart" %in% names(tempcall))) stop("No tstart specified, is necessary for family = \"survival\"")
-  if (!("timevar" %in% names(tempcall))) stop("No timevar specified")
-  if (!("type" %in% names(tempcall))) stop("No type specified (\"first\" or \"all\")")
-  if (!(tempcall$type %in% c("first", "all", "cens"))) stop("No type specified (\"first\", \"all\" or \"cens\")")
-  if (tempcall$family %in% c("survival", "multinomial", "ordinal") & tempcall$type == "all") stop(paste("Type \"all\" not yet implemented for family = ", deparse(tempcall$family, width.cutoff = 500), sep = ""))
-  if (tempcall$family %in% c("multinomial", "ordinal", "gaussian") & tempcall$type == "cens") stop(paste("Type \"cens\" not yet implemented for family = ", deparse(tempcall$family, width.cutoff = 500), sep = ""))
-  if (tempcall$family %in% c("gaussian") & tempcall$type == "first") stop(paste("Type \"first\" not implemented for family = ", deparse(tempcall$family, width.cutoff = 500), sep = ""))
-  if (tempcall$family %in% c("gaussian") & !("numerator" %in% names(tempcall))) stop("Numerator necessary for family = \"gaussian\"")
-  if (!("data" %in% names(tempcall))) stop("No data specified")
-  if (!is.null(tempcall$trunc)) {if(tempcall$trunc < 0 | tempcall$trunc > 0.5) stop("Invalid truncation percentage specified (0-0.5)")}
-  #record original order of dataframe so that the output can be returned in the same order
-  order.orig <- 1:nrow(data)
-  order.orig <- order.orig[order(
-    eval(parse(text = paste("data$", deparse(tempcall$id, width.cutoff = 500), sep = ""))),
-    eval(parse(text = paste("data$", deparse(tempcall$timevar, width.cutoff = 500), sep = "")))
-  )] #sort as below
-  #sort dataframe on follow-up time within each individual, necessary for cumulative products below
-  data <- data[order(
-    eval(parse(text = paste("data$", deparse(tempcall$id, width.cutoff = 500), sep = ""))),
-    eval(parse(text = paste("data$", deparse(tempcall$timevar, width.cutoff = 500), sep = "")))
-  ),]
-  #make new dataframe for newly computed variables, to prevent variable name conflicts
-  tempdat <- data.frame(
-    id = data[,as.character(tempcall$id)],
-    timevar = data[,as.character(tempcall$timevar)],
-    exposure = data[,as.character(tempcall$exposure)]
+    ...) {
+  call_obj <- match.call()
+
+  # 1. Capture Column Identifiers Without Caller Evaluation -----------------
+  var_names <- list(
+    exposure = if (!missing(exposure)) .get_col_name(substitute(exposure)) else NULL,
+    id       = if (!missing(id)) .get_col_name(substitute(id)) else NULL,
+    timevar  = if (!missing(timevar)) .get_col_name(substitute(timevar)) else NULL,
+    tstart   = if (!missing(tstart)) .get_col_name(substitute(tstart)) else NULL
   )
-  #make selection variable, time points up to first switch from lowest value, or all time points
-  if (type %in% c("first", "cens") & (family == "binomial" | family == "survival"))
-  {tempdat$selvar <- do.call("c", lapply(split(tempdat$exposure, tempdat$id),function(x)if (!is.na(match(1, x))) return(c(rep(1,match(1, x)),rep(0,length(x)-match(1, x)))) else return(rep(1,length(x)))))}
-  if (type %in% c("first", "cens") & (family == "multinomial" | family == "ordinal")){
-    z <- unique(tempdat$exposure)[unique(tempdat$exposure) != sort(unique(tempdat$exposure))[1]]
-    min2 <- function(x)ifelse(min(is.na(unique(x))) == 1, NA, min(x, na.rm = TRUE))
-    tempdat$selvar <- do.call("c", lapply(split(tempdat$exposure, tempdat$id),function(x)if (!is.na(min2(match(z, x)))) return(c(rep(1,min2(match(z, x))),rep(0,length(x)-min2(match(z, x))))) else return(rep(1,length(x)))))
+
+  # 2. Input Validation -----------------------------------------------------
+  family <- match.arg(family)
+  type <- match.arg(type)
+
+  .validate_inputs(
+    family      = family,
+    type        = type,
+    link        = link,
+    numerator   = numerator,
+    denominator = denominator,
+    var_names   = var_names,
+    data        = data,
+    trunc       = trunc
+  )
+
+  # 3. Sorting & Preserving Original Order ----------------------------------
+  ord <- order(data[[var_names$id]], data[[var_names$timevar]])
+  order_orig <- seq_len(nrow(data))[ord]
+  sorted_data <- data[ord, , drop = FALSE]
+
+  # 4. Selection Variable Generation (selvar) -------------------------------
+  selvar <- .compute_selvar(
+    exposure = sorted_data[[var_names$exposure]],
+    id       = sorted_data[[var_names$id]],
+    type     = type,
+    family   = family
+  )
+  sorted_data$selvar <- selvar
+
+  # 5. Model Fitting & Probability Estimation -------------------------------
+  engine_args <- list(
+    data        = sorted_data,
+    var_names   = var_names,
+    numerator   = numerator,
+    denominator = denominator,
+    type        = type,
+    link        = link,
+    corstr      = corstr,
+    dots        = list(...)
+  )
+
+  res_engine <- switch(family,
+                       "binomial"    = do.call(.fit_ipw_binomial, engine_args),
+                       "survival"    = do.call(.fit_ipw_survival, engine_args),
+                       "multinomial" = do.call(.fit_ipw_categorical, c(engine_args, list(is_ordinal = FALSE))),
+                       "ordinal"     = do.call(.fit_ipw_categorical, c(engine_args, list(is_ordinal = TRUE))),
+                       "gaussian"    = do.call(.fit_ipw_gaussian, engine_args)
+  )
+
+  # 6. Cumulative Weights & Safety Checks -----------------------------------
+  weights_sorted <- res_engine$weights
+  if (anyNA(weights_sorted) || any(is.infinite(weights_sorted))) {
+    stop("NA's in weights!", call. = FALSE)
   }
-  if (type == "all")
-  {tempdat$selvar <- rep(1, nrow(tempdat))}
-  #weights binomial, type "first"
-  if (tempcall$family == "binomial" & tempcall$type %in% c("first", "cens")) {
-    if(tempcall$link == "logit") lf <- binomial(link = logit)
-    if(tempcall$link == "probit") lf  <- binomial(link = probit)
-    if(tempcall$link == "cauchit") lf  <- binomial(link = cauchit)
-    if(tempcall$link == "log") lf  <- binomial(link = log)
-    if(tempcall$link == "cloglog") lf  <- binomial(link = cloglog)
-    if (is.null(tempcall$numerator)) tempdat$w.numerator <- 1
-    else {
-      mod1 <- glm(
-        formula = eval(parse(text = paste(deparse(tempcall$exposure, width.cutoff = 500), deparse(tempcall$numerator, width.cutoff = 500), sep = ""))),
-        family = lf,
-        data = data,
-        subset = tempdat$selvar == 1,
-        na.action = na.fail,
-        ...)
-      tempdat$p.numerator <- vector("numeric", nrow(tempdat))
-      tempdat$p.numerator[tempdat$exposure == 0 & tempdat$selvar == 1] <- 1 - predict.glm(mod1, type = "response")[tempdat$exposure[tempdat$selvar == 1] == 0]
-      if(type == "first"){tempdat$p.numerator[tempdat$exposure == 1 & tempdat$selvar == 1] <- predict.glm(mod1, type = "response")[tempdat$exposure[tempdat$selvar == 1] == 1]}
-      if(type == "cens"){tempdat$p.numerator[tempdat$exposure == 1 & tempdat$selvar == 1] <- 1 - predict.glm(mod1, type = "response")[tempdat$exposure[tempdat$selvar == 1] == 1]}
-      tempdat$p.numerator[tempdat$selvar == 0] <- 1
-      tempdat$w.numerator <- unlist(lapply(split(tempdat$p.numerator, tempdat$id), function(x)cumprod(x)))
-      mod1$call$formula <- eval(parse(text = paste(deparse(tempcall$exposure, width.cutoff = 500), deparse(tempcall$numerator, width.cutoff = 500), sep = "")))
-      mod1$call$family <- tempcall$link
-      mod1$call$data <- tempcall$data
-      mod1$call$subset <- paste("up to first instance of ", deparse(tempcall$exposure, width.cutoff = 500), " = 1 (selvar == 1)", sep = "")
+
+  # 7. Weight Truncation ----------------------------------------------------
+  trunc_sorted <- NULL
+  if (!is.null(trunc)) {
+    q_lo <- stats::quantile(weights_sorted, probs = 0 + trunc, na.rm = TRUE)
+    q_hi <- stats::quantile(weights_sorted, probs = 1 - trunc, na.rm = TRUE)
+    trunc_sorted <- pmin(pmax(weights_sorted, q_lo), q_hi)
+  }
+
+  # 8. Assemble Return Object in Original Row Order -------------------------
+  orig_idx <- order(order_orig)
+  res <- list(
+    ipw.weights   = weights_sorted[orig_idx],
+    weights.trunc = if (!is.null(trunc)) trunc_sorted[orig_idx] else NULL,
+    call          = call_obj,
+    selvar        = selvar[orig_idx],
+    num.mod       = res_engine$num_mod,
+    den.mod       = res_engine$den_mod
+  )
+
+  res <- res[!vapply(res, is.null, logical(1))]
+  class(res) <- c("ipwtm", "list")
+  res
+}
+
+
+# ==========================================================================
+# Input Validation & Helper Functions
+# ==========================================================================
+
+.validate_inputs <- function(family, type, link, numerator, denominator, var_names, data, trunc) {
+  if (missing(data) || !is.data.frame(data)) {
+    stop("No data specified", call. = FALSE)
+  }
+  if (is.null(var_names$exposure) || !(var_names$exposure %in% names(data))) {
+    stop("No exposure variable specified", call. = FALSE)
+  }
+  if (is.null(var_names$id) || !(var_names$id %in% names(data))) {
+    stop("No patient id specified", call. = FALSE)
+  }
+  if (is.null(var_names$timevar) || !(var_names$timevar %in% names(data))) {
+    stop("No timevar specified", call. = FALSE)
+  }
+  if (family == "survival") {
+    if (is.null(var_names$tstart) || !(var_names$tstart %in% names(data))) {
+      stop("No tstart specified, is necessary for family = \"survival\"", call. = FALSE)
     }
-    mod2 <- glm(
-      formula = eval(parse(text = paste(deparse(tempcall$exposure, width.cutoff = 500), deparse(tempcall$denominator, width.cutoff = 500), sep = ""))),
-      family = lf,
-      data = data,
-      subset = tempdat$selvar == 1,
-      na.action = na.fail,
-      ...)
-    tempdat$p.denominator <- vector("numeric", nrow(tempdat))
-    tempdat$p.denominator[tempdat$exposure == 0 & tempdat$selvar == 1] <- 1 - predict.glm(mod2, type = "response")[tempdat$exposure[tempdat$selvar == 1] == 0]
-    if(type == "first"){tempdat$p.denominator[tempdat$exposure == 1 & tempdat$selvar == 1] <- predict.glm(mod2, type = "response")[tempdat$exposure[tempdat$selvar == 1] == 1]}
-    if(type == "cens"){tempdat$p.denominator[tempdat$exposure == 1 & tempdat$selvar == 1] <- 1 - predict.glm(mod2, type = "response")[tempdat$exposure[tempdat$selvar == 1] == 1]}
-    tempdat$p.denominator[tempdat$selvar == 0] <- 1
-    tempdat$w.denominator <- unlist(lapply(split(tempdat$p.denominator, tempdat$id), function(x)cumprod(x)))
-    mod2$call$formula <- eval(parse(text = paste(deparse(tempcall$exposure, width.cutoff = 500), deparse(tempcall$denominator, width.cutoff = 500), sep = "")))
-    mod2$call$family <- tempcall$link
-    mod2$call$data <- tempcall$data
-    mod2$call$subset <- paste("up to first instance of ", deparse(tempcall$exposure, width.cutoff = 500), " = 1 (selvar == 1)", sep = "")
-    tempdat$ipw.weights <- tempdat$w.numerator/tempdat$w.denominator
   }
-  #weights binomial, type "all"
-  if (tempcall$family == "binomial" & tempcall$type == "all") {
-    if(tempcall$link == "logit") lf <- binomial(link = logit)
-    if(tempcall$link == "probit") lf  <- binomial(link = probit)
-    if(tempcall$link == "cauchit") lf  <- binomial(link = cauchit)
-    if(tempcall$link == "log") lf  <- binomial(link = log)
-    if(tempcall$link == "cloglog") lf  <- binomial(link = cloglog)
-    if (is.null(tempcall$numerator)) tempdat$w.numerator <- 1
-    else {
-      mod1 <- glm(
-        formula = eval(parse(text = paste(deparse(tempcall$exposure, width.cutoff = 500), deparse(tempcall$numerator, width.cutoff = 500), sep = ""))),
-        family = lf,
-        data = data,
-        na.action = na.fail,
-        ...)
-      tempdat$p.numerator <- vector("numeric", nrow(tempdat))
-      tempdat$p.numerator[tempdat$exposure == 0] <- 1 - predict.glm(mod1, type = "response")[tempdat$exposure == 0]
-      tempdat$p.numerator[tempdat$exposure == 1] <- predict.glm(mod1, type = "response")[tempdat$exposure == 1]
-      tempdat$w.numerator <- unlist(lapply(split(tempdat$p.numerator, tempdat$id), function(x)cumprod(x)))
-      mod1$call$formula <- eval(parse(text = paste(deparse(tempcall$exposure, width.cutoff = 500), deparse(tempcall$numerator, width.cutoff = 500), sep = "")))
-      mod1$call$family <- tempcall$link
-      mod1$call$data <- tempcall$data
+
+  if (missing(denominator) || !inherits(denominator, "formula")) {
+    stop("No denominator model specified", call. = FALSE)
+  }
+  if (!is.null(numerator) && !inherits(numerator, "formula")) {
+    stop("Invalid numerator formula specified", call. = FALSE)
+  }
+  if (family == "binomial") {
+    if (is.null(link) || !(link %in% c("logit", "probit", "cauchit", "log", "cloglog"))) {
+      stop("No valid link function specified for family = binomial (\"logit\", \"probit\", \"cauchit\", \"log\", \"cloglog\")", call. = FALSE)
     }
-    mod2 <- glm(
-      formula = eval(parse(text = paste(deparse(tempcall$exposure, width.cutoff = 500), deparse(tempcall$denominator, width.cutoff = 500), sep = ""))),
-      family = lf,
-      data = data,
-      na.action = na.fail,
-      ...)
-    tempdat$p.denominator <- vector("numeric", nrow(tempdat))
-    tempdat$p.denominator[tempdat$exposure == 0] <- 1 - predict.glm(mod2, type = "response")[tempdat$exposure == 0]
-    tempdat$p.denominator[tempdat$exposure == 1] <- predict.glm(mod2, type = "response")[tempdat$exposure == 1]
-    tempdat$w.denominator <- unlist(lapply(split(tempdat$p.denominator, tempdat$id), function(x)cumprod(x)))
-    mod2$call$formula <- eval(parse(text = paste(deparse(tempcall$exposure, width.cutoff = 500), deparse(tempcall$denominator, width.cutoff = 500), sep = "")))
-    mod2$call$family <- tempcall$link
-    mod2$call$data <- tempcall$data
-    tempdat$ipw.weights <- tempdat$w.numerator/tempdat$w.denominator
   }
-  #weights Cox
-  if (tempcall$family == "survival") {
-    if (is.null(tempcall$numerator)) tempdat$w.numerator <- 1
-    else {
-      mod1 <- coxph(
-        formula = eval(parse(text = paste("Surv(", deparse(tempcall$tstart), ", ", deparse(tempcall$timevar, width.cutoff = 500), ", ", deparse(tempcall$exposure, width.cutoff = 500), ") ", deparse(tempcall$numerator, width.cutoff = 500), sep = ""))),
-        data = data,
-        subset = tempdat$selvar == 1,
-        na.action = na.fail,
-        method = "efron",
-        ...)
-      bh <- basehaz(mod1, centered = TRUE)
-      temp <- data.frame(timevar = sort(unique(tempdat$timevar)))
-      temp <- merge(temp, data.frame(timevar = bh$time, bashaz.cum.numerator = bh$hazard), by = "timevar", all.x = TRUE);rm(bh)
-      if (is.na(temp$bashaz.cum.numerator[temp$timevar == min(unique(tempdat$timevar))])) temp$bashaz.cum.numerator[temp$timevar == min(unique(tempdat$timevar))] <- 0
-      temp$bashaz.cum.numerator <- approx(x = temp$timevar, y = temp$bashaz.cum.numerator, xout = temp$timevar, method = "constant", rule = 2)$y
-      temp$bashaz.numerator[1] <- temp$bashaz.cum.numerator[1]
-      temp$bashaz.numerator[2:nrow(temp)] <- diff(temp$bashaz.cum.numerator, 1)
-      temp$bashaz.cum.numerator <- NULL
-      tempdat <- merge(tempdat, temp, by = "timevar", all.x = TRUE);rm(temp)
-      tempdat <- tempdat[order(tempdat$id, tempdat$timevar),]
-      tempdat$risk.numerator[tempdat$selvar == 1] <-predict(mod1, type="risk", centered = TRUE)
-      tempdat$hazard.numerator[tempdat$selvar == 1] <- with(tempdat[tempdat$selvar == 1,], bashaz.numerator*risk.numerator)
-      tempdat$p.numerator[with(tempdat, selvar == 1 & exposure == 0)] <- with(tempdat[with(tempdat, selvar == 1 & exposure == 0),], exp(-1*bashaz.numerator*risk.numerator))
-      if(type == "first"){tempdat$p.numerator[with(tempdat, selvar == 1 & exposure == 1)] <- 1 - with(tempdat[with(tempdat, selvar == 1 & exposure == 1),], exp(-1*bashaz.numerator*risk.numerator))}
-      if(type == "cens"){tempdat$p.numerator[with(tempdat, selvar == 1 & exposure == 1)] <- with(tempdat[with(tempdat, selvar == 1 & exposure == 1),], exp(-1*bashaz.numerator*risk.numerator))}
-      tempdat$p.numerator[tempdat$selvar == 0] <- 1
-      tempdat$w.numerator <- unsplit(lapply(split(tempdat$p.numerator, tempdat$id), function(x)cumprod(x)), tempdat$id)
-      mod1$call$formula <- eval(parse(text = paste("Surv(", deparse(tempcall$tstart), ", ", deparse(tempcall$timevar, width.cutoff = 500), ", ", deparse(tempcall$exposure, width.cutoff = 500), ") ", deparse(tempcall$numerator, width.cutoff = 500), sep = "")))
-      mod1$call$data <- tempcall$data
+  if (family == "ordinal") {
+    if (is.null(link) || !(link %in% c("logit", "probit", "cauchit", "cloglog"))) {
+      stop("No valid link function specified for family = ordinal (\"logit\", \"probit\", \"cauchit\", \"cloglog\")", call. = FALSE)
     }
-    mod2 <- coxph(
-      formula = eval(parse(text = paste("Surv(", deparse(tempcall$tstart), ", ", deparse(tempcall$timevar, width.cutoff = 500), ", ", deparse(tempcall$exposure, width.cutoff = 500), ") ", deparse(tempcall$denominator, width.cutoff = 500), sep = ""))),
-      data = data,
-      subset = tempdat$selvar == 1,
-      na.action = na.fail,
-      method = "efron",
-      ...)
-    bh <- basehaz(mod2, centered = TRUE)
-    temp <- data.frame(timevar = sort(unique(tempdat$timevar)))
-    temp <- merge(temp, data.frame(timevar = bh$time, bashaz.cum.denominator = bh$hazard), by = "timevar", all.x = TRUE);rm(bh)
-    if (is.na(temp$bashaz.cum.denominator[temp$timevar == min(unique(tempdat$timevar))])) temp$bashaz.cum.denominator[temp$timevar == min(unique(tempdat$timevar))] <- 0
-    temp$bashaz.cum.denominator <- approx(x = temp$timevar, y = temp$bashaz.cum.denominator, xout = temp$timevar, method = "constant", rule = 2)$y
-    temp$bashaz.denominator[1] <- temp$bashaz.cum.denominator[1]
-    temp$bashaz.denominator[2:nrow(temp)] <- diff(temp$bashaz.cum.denominator, 1)
-    temp$bashaz.cum.denominator <- NULL
-    tempdat <- merge(tempdat, temp, by = "timevar", all.x = TRUE);rm(temp)
-    tempdat <- tempdat[order(tempdat$id, tempdat$timevar),]
-    tempdat$risk.denominator[tempdat$selvar == 1] <-predict(mod2, type="risk", centered = TRUE)
-    tempdat$hazard.denominator[tempdat$selvar == 1] <- with(tempdat[tempdat$selvar == 1,], bashaz.denominator*risk.denominator)
-    tempdat$p.denominator[with(tempdat, selvar == 1 & exposure == 0)] <- with(tempdat[with(tempdat, selvar == 1 & exposure == 0),], exp(-1*bashaz.denominator*risk.denominator))
-    if(type == "first"){tempdat$p.denominator[with(tempdat, selvar == 1 & exposure == 1)] <- 1 - with(tempdat[with(tempdat, selvar == 1 & exposure == 1),], exp(-1*bashaz.denominator*risk.denominator))}
-    if(type == "cens"){tempdat$p.denominator[with(tempdat, selvar == 1 & exposure == 1)] <- with(tempdat[with(tempdat, selvar == 1 & exposure == 1),], exp(-1*bashaz.denominator*risk.denominator))}
-    tempdat$p.denominator[tempdat$selvar == 0] <- 1
-    tempdat$w.denominator <- unsplit(lapply(split(tempdat$p.denominator, tempdat$id), function(x)cumprod(x)), tempdat$id)
-    mod2$call$formula <- eval(parse(text = paste("Surv(", deparse(tempcall$tstart), ", ", deparse(tempcall$timevar, width.cutoff = 500), ", ", deparse(tempcall$exposure, width.cutoff = 500), ") ", deparse(tempcall$denominator, width.cutoff = 500), sep = "")))
-    mod2$call$data <- tempcall$data
-    mod2$call$subset <- paste("up to first instance of ", deparse(tempcall$exposure, width.cutoff = 500), " = 1 (selvar == 1)", sep = "")
-    tempdat$ipw.weights <- tempdat$w.numerator/tempdat$w.denominator
   }
-  #weights multinomial
-  if (tempcall$family == "multinomial") {
-    if (is.null(tempcall$numerator)) tempdat$p.numerator <- 1
-    else {
-      mod1 <- multinom(
-        formula = eval(parse(text = paste(deparse(tempcall$exposure, width.cutoff = 500), deparse(tempcall$numerator, width.cutoff = 500), sep = ""))),
-        data = data,
-        subset = tempdat$selvar == 1,
-        na.action = na.fail,
-        ...)
-      pred1 <- as.data.frame(predict(mod1, type = "probs"))
-      tempdat$p.numerator[tempdat$selvar == 0] <- 1
-      for (i in 1:length(unique(tempdat$exposure)))tempdat$p.numerator[with(tempdat, tempdat$selvar == 1 & exposure == sort(unique(tempdat$exposure))[i])] <- pred1[tempdat$exposure[tempdat$selvar == 1] == sort(unique(tempdat$exposure))[i],i]
-      mod1$call$formula <- eval(parse(text = paste(deparse(tempcall$exposure, width.cutoff = 500), deparse(tempcall$numerator, width.cutoff = 500), sep = "")))
-      mod1$call$data <- tempcall$data
-      mod1$call$subset <- paste("up to first instance of ", deparse(tempcall$exposure, width.cutoff = 500), " = 1 (selvar == 1)", sep = "")
+  if (family %in% c("survival", "multinomial", "ordinal") && type == "all") {
+    stop(paste0("Type \"all\" not yet implemented for family = \"", family, "\""), call. = FALSE)
+  }
+  if (family %in% c("multinomial", "ordinal", "gaussian") && type == "cens") {
+    stop(paste0("Type \"cens\" not yet implemented for family = \"", family, "\""), call. = FALSE)
+  }
+  if (family == "gaussian") {
+    if (type == "first") {
+      stop("Type \"first\" not implemented for family = \"gaussian\"", call. = FALSE)
     }
-    mod2 <- multinom(
-      formula = eval(parse(text = paste(deparse(tempcall$exposure, width.cutoff = 500), deparse(tempcall$denominator, width.cutoff = 500), sep = ""))),
-      data = data,
-      subset = tempdat$selvar == 1,
-      na.action = na.fail,
-      ...)
-    pred2 <- as.data.frame(predict(mod2, type = "probs"))
-    tempdat$p.denominator[tempdat$selvar == 0] <- 1
-    for (i in 1:length(unique(tempdat$exposure)))tempdat$p.denominator[with(tempdat, tempdat$selvar == 1 & exposure == sort(unique(tempdat$exposure))[i])] <- pred2[tempdat$exposure[tempdat$selvar == 1] == sort(unique(tempdat$exposure))[i],i]
-    mod2$call$formula <- eval(parse(text = paste(deparse(tempcall$exposure, width.cutoff = 500), deparse(tempcall$denominator, width.cutoff = 500), sep = "")))
-    mod2$call$data <- tempcall$data
-    mod2$call$subset <- paste("up to first instance of ", deparse(tempcall$exposure, width.cutoff = 500), " = 1 (selvar == 1)", sep = "")
-    tempdat$ipw.weights <- unsplit(lapply(split(with(tempdat, p.numerator/p.denominator), tempdat$id), function(x)cumprod(x)), tempdat$id)
-  }
-  #weights ordinal
-  if (tempcall$family == "ordinal") {
-    if(tempcall$link == "logit") m <- "logistic"
-    if(tempcall$link == "probit") m  <- "probit"
-    if(tempcall$link == "cloglog") m  <- "cloglog"
-    if(tempcall$link == "cauchit") m  <- "cauchit"
-    if (is.null(tempcall$numerator)) tempdat$p.numerator <- 1
-    else {
-      mod1 <- polr(
-        formula = eval(parse(text = paste("as.factor(", deparse(tempcall$exposure, width.cutoff = 500), ")", deparse(tempcall$numerator, width.cutoff = 500), sep = ""))),
-        data = data,
-        method = m,
-        subset = tempdat$selvar == 1,
-        na.action = na.fail,
-        ...)
-      pred1 <- as.data.frame(predict(mod1, type = "probs"))
-      tempdat$p.numerator[tempdat$selvar == 0] <- 1
-      for (i in 1:length(unique(tempdat$exposure)))tempdat$p.numerator[with(tempdat, tempdat$selvar == 1 & exposure == sort(unique(tempdat$exposure))[i])] <- pred1[tempdat$exposure[tempdat$selvar == 1] == sort(unique(tempdat$exposure))[i],i]
-      mod1$call$formula <- eval(parse(text = paste("as.factor(", deparse(tempcall$exposure, width.cutoff = 500), ")", deparse(tempcall$numerator, width.cutoff = 500), sep = "")))
-      mod1$call$data <- tempcall$data
-      mod1$call$method <- m
-      mod1$call$subset <- paste("up to first instance of ", deparse(tempcall$exposure, width.cutoff = 500), " = 1 (selvar == 1)", sep = "")
+    if (is.null(numerator)) {
+      stop("Numerator necessary for family = \"gaussian\"", call. = FALSE)
     }
-    mod2 <- polr(
-      formula = eval(parse(text = paste("as.factor(", deparse(tempcall$exposure, width.cutoff = 500), ")", deparse(tempcall$denominator, width.cutoff = 500), sep = ""))),
-      data = data,
-      method = m,
-      subset = tempdat$selvar == 1,
-      na.action = na.fail,
-      ...)
-    pred2 <- as.data.frame(predict(mod2, type = "probs"))
-    tempdat$p.denominator[tempdat$selvar == 0] <- 1
-    for (i in 1:length(unique(tempdat$exposure)))tempdat$p.denominator[with(tempdat, tempdat$selvar == 1 & exposure == sort(unique(tempdat$exposure))[i])] <- pred2[tempdat$exposure[tempdat$selvar == 1] == sort(unique(tempdat$exposure))[i],i]
-    mod2$call$formula <- eval(parse(text = paste("as.factor(", deparse(tempcall$exposure, width.cutoff = 500), ")", deparse(tempcall$denominator, width.cutoff = 500), sep = "")))
-    mod2$call$data <- tempcall$data
-    mod2$call$method <- m
-    mod2$call$subset <- paste("up to first instance of ", deparse(tempcall$exposure, width.cutoff = 500), " = 1 (selvar == 1)", sep = "")
-    tempdat$ipw.weights <- unsplit(lapply(split(with(tempdat, p.numerator/p.denominator), tempdat$id), function(x)cumprod(x)), tempdat$id)
   }
-  #weights gaussian
-  if (tempcall$family == "gaussian") {
-    mod1 <- geeglm(
-      formula = eval(parse(text = paste(deparse(tempcall$exposure, width.cutoff = 500), deparse(tempcall$numerator, width.cutoff = 500), sep = ""))),
-      data = data,
-      id = tempdat$id,
-      corstr = tempcall$corstr,
-      waves = tempdat$timevar,
-      ...)
-    mod1$call$formula <- eval(parse(text = paste(deparse(tempcall$exposure, width.cutoff = 500), deparse(tempcall$numerator, width.cutoff = 500), sep = "")))
-    mod1$call$data <- tempcall$data
-    mod1$call$id <- tempcall$id
-    mod1$call$corstr <- tempcall$corstr
-    mod1$call$waves <- tempcall$waves
-    mod2 <- geeglm(
-      formula = eval(parse(text = paste(deparse(tempcall$exposure, width.cutoff = 500), deparse(tempcall$denominator, width.cutoff = 500), sep = ""))),
-      data = data,
-      id = tempdat$id,
-      corstr = tempcall$corstr,
-      waves = tempdat$timevar,
-      ...)
-    mod2$call$formula <- eval(parse(text = paste(deparse(tempcall$exposure, width.cutoff = 500), deparse(tempcall$denominator, width.cutoff = 500), sep = "")))
-    mod2$call$data <- tempcall$data
-    mod2$call$id <- tempcall$id
-    mod2$call$corstr <- tempcall$corstr
-    mod2$call$waves <- tempcall$waves
-    tempdat$kdens1 <- dnorm(tempdat$exposure, predict(mod1), as.numeric(sqrt(summary(mod1)$dispersion)[1]))
-    tempdat$kdens2 <- dnorm(tempdat$exposure, predict(mod2), as.numeric(sqrt(summary(mod2)$dispersion)[1]))
-    tempdat$ipw.weights <- unsplit(lapply(split(with(tempdat, kdens1/kdens2), tempdat$id), function(x)cumprod(x)), tempdat$id)
+  if (!is.null(trunc) && (!is.numeric(trunc) || length(trunc) != 1 || trunc < 0 || trunc > 0.5)) {
+    stop("Invalid truncation percentage specified (0-0.5)", call. = FALSE)
   }
-  #check for NA's in weights
-  if (sum(is.na(tempdat$ipw.weights)) > 0) stop ("NA's in weights!")
-  #truncate weights, when trunc value is specified (0-0.5)
-  if (!(is.null(tempcall$trunc))){
-    tempdat$weights.trunc <- tempdat$ipw.weights
-    tempdat$weights.trunc[tempdat$ipw.weights <= quantile(tempdat$ipw.weights, 0+trunc)] <- quantile(tempdat$ipw.weights, 0+trunc)
-    tempdat$weights.trunc[tempdat$ipw.weights >  quantile(tempdat$ipw.weights, 1-trunc)] <- quantile(tempdat$ipw.weights, 1-trunc)
+}
+
+.get_col_name <- function(expr) {
+  if (is.symbol(expr) || is.character(expr)) as.character(expr) else deparse(expr, width.cutoff = 500)
+}
+
+.build_model_formula <- function(lhs_str, rhs_formula) {
+  rhs_terms <- attr(stats::terms(rhs_formula), "term.labels")
+  intercept <- attr(stats::terms(rhs_formula), "intercept") == 1
+  rhs_str <- if (length(rhs_terms) == 0) {
+    if (intercept) "1" else "0"
+  } else {
+    paste(rhs_terms, collapse = " + ")
   }
-  #return results in the same order as the original input dataframe
-  if (is.null(tempcall$trunc)){
-    if (is.null(tempcall$numerator)) return(list(ipw.weights = tempdat$ipw.weights[order(order.orig)], call = tempcall, selvar = tempdat$selvar[order(order.orig)], den.mod = mod2))
-    else return(list(ipw.weights = tempdat$ipw.weights[order(order.orig)], call = tempcall, selvar = tempdat$selvar[order(order.orig)], num.mod = mod1, den.mod = mod2))
+  if (length(rhs_terms) > 0 && !intercept) rhs_str <- paste(rhs_str, "- 1")
+  stats::as.formula(paste(lhs_str, "~", rhs_str), env = environment(rhs_formula))
+}
+
+.compute_selvar <- function(exposure, id, type, family) {
+  if (type == "all") {
+    return(rep(1, length(exposure)))
   }
-  else{
-    if (is.null(tempcall$numerator)) return(list(ipw.weights = tempdat$ipw.weights[order(order.orig)], weights.trunc = tempdat$weights.trunc[order(order.orig)], call = tempcall, selvar = tempdat$selvar[order(order.orig)], den.mod = mod2))
-    else return(list(ipw.weights = tempdat$ipw.weights[order(order.orig)], weights.trunc = tempdat$weights.trunc[order(order.orig)], call = tempcall, selvar = tempdat$selvar[order(order.orig)], num.mod = mod1, den.mod = mod2))
+
+  if (family %in% c("binomial", "survival")) {
+    unsplit(lapply(split(exposure, id), function(x) {
+      idx <- match(1, x)
+      if (!is.na(idx)) c(rep(1, idx), rep(0, length(x) - idx)) else rep(1, length(x))
+    }), id)
+  } else {
+    unsplit(lapply(split(exposure, id), function(x) {
+      base_lvl <- sort(unique(x))[1]
+      switches <- which(x != base_lvl)
+      idx <- if (length(switches) > 0) switches[1] else NA_integer_
+      if (!is.na(idx)) c(rep(1, idx), rep(0, length(x) - idx)) else rep(1, length(x))
+    }), id)
   }
+}
+
+
+# ==========================================================================
+# Modeling Engines
+# ==========================================================================
+
+# --- Binomial Engine -----------------------------------------------------
+.fit_ipw_binomial <- function(data, var_names, numerator, denominator, type, link, dots, ...) {
+  fam_link <- switch(link,
+                     "logit"   = stats::binomial(link = "logit"),
+                     "probit"  = stats::binomial(link = "probit"),
+                     "cauchit" = stats::binomial(link = "cauchit"),
+                     "log"     = stats::binomial(link = "log"),
+                     "cloglog" = stats::binomial(link = "cloglog")
+  )
+
+  exp_col <- var_names$exposure
+  id_col  <- var_names$id
+
+  # Denominator model
+  form_den <- .build_model_formula(exp_col, denominator)
+  mod_den <- do.call(stats::glm, c(list(
+    formula   = form_den,
+    family    = fam_link,
+    data      = data,
+    subset    = if (type != "all") quote(selvar == 1) else NULL,
+    na.action = stats::na.fail
+  ), dots))
+
+  pred_den <- stats::predict.glm(mod_den, type = "response")
+  p_den <- rep(1, nrow(data))
+  active <- (data$selvar == 1)
+
+  if (type == "all") {
+    p_den[data[[exp_col]] == 0] <- 1 - pred_den[data[[exp_col]] == 0]
+    p_den[data[[exp_col]] == 1] <- pred_den[data[[exp_col]] == 1]
+    w_den <- unlist(lapply(split(p_den, data[[id_col]]), cumprod))
+  } else {
+    p_den[active & data[[exp_col]] == 0] <- 1 - pred_den[data[[exp_col]][active] == 0]
+    if (type == "first") {
+      p_den[active & data[[exp_col]] == 1] <- pred_den[data[[exp_col]][active] == 1]
+    } else if (type == "cens") {
+      p_den[active & data[[exp_col]] == 1] <- 1 - pred_den[data[[exp_col]][active] == 1]
+    }
+    p_den[!active] <- 1
+    w_den <- unlist(lapply(split(p_den, data[[id_col]]), cumprod))
+  }
+
+  # Numerator model
+  mod_num <- NULL
+  if (is.null(numerator)) {
+    w_num <- rep(1, nrow(data))
+  } else {
+    form_num <- .build_model_formula(exp_col, numerator)
+    mod_num <- do.call(stats::glm, c(list(
+      formula   = form_num,
+      family    = fam_link,
+      data      = data,
+      subset    = if (type != "all") quote(selvar == 1) else NULL,
+      na.action = stats::na.fail
+    ), dots))
+
+    pred_num <- stats::predict.glm(mod_num, type = "response")
+    p_num <- rep(1, nrow(data))
+
+    if (type == "all") {
+      p_num[data[[exp_col]] == 0] <- 1 - pred_num[data[[exp_col]] == 0]
+      p_num[data[[exp_col]] == 1] <- pred_num[data[[exp_col]] == 1]
+      w_num <- unlist(lapply(split(p_num, data[[id_col]]), cumprod))
+    } else {
+      p_num[active & data[[exp_col]] == 0] <- 1 - pred_num[data[[exp_col]][active] == 0]
+      if (type == "first") {
+        p_num[active & data[[exp_col]] == 1] <- pred_num[data[[exp_col]][active] == 1]
+      } else if (type == "cens") {
+        p_num[active & data[[exp_col]] == 1] <- 1 - pred_num[data[[exp_col]][active] == 1]
+      }
+      p_num[!active] <- 1
+      w_num <- unlist(lapply(split(p_num, data[[id_col]]), cumprod))
+    }
+  }
+
+  list(weights = w_num / w_den, num_mod = mod_num, den_mod = mod_den)
+}
+
+# --- Survival Engine -----------------------------------------------------
+.fit_ipw_survival <- function(data, var_names, numerator, denominator, type, dots, ...) {
+  if (!requireNamespace("survival", quietly = TRUE)) {
+    stop("Package 'survival' is required for family = 'survival'.", call. = FALSE)
+  }
+
+  exp_col   <- var_names$exposure
+  id_col    <- var_names$id
+  time_col  <- var_names$timevar
+  surv_lhs  <- sprintf("survival::Surv(%s, %s, %s)", var_names$tstart, time_col, exp_col)
+  u_times   <- sort(unique(data[[time_col]]))
+
+  .compute_surv_p <- function(mod) {
+    bh <- survival::basehaz(mod, centered = TRUE)
+    df_bh <- data.frame(timevar = u_times)
+    df_bh <- merge(df_bh, data.frame(timevar = bh$time, cum_haz = bh$hazard), by = "timevar", all.x = TRUE)
+
+    if (is.na(df_bh$cum_haz[1])) df_bh$cum_haz[1] <- 0
+    df_bh$cum_haz  <- stats::approx(df_bh$timevar, df_bh$cum_haz, xout = df_bh$timevar, method = "constant", rule = 2)$y
+    df_bh$step_haz <- c(df_bh$cum_haz[1], diff(df_bh$cum_haz, 1))
+
+    merged <- merge(
+      data.frame(orig_seq = seq_len(nrow(data)), timevar = data[[time_col]]),
+      df_bh[, c("timevar", "step_haz")],
+      by = "timevar",
+      all.x = TRUE
+    )
+    merged <- merged[order(merged$orig_seq), ]
+
+    risk <- rep(NA_real_, nrow(data))
+    risk[data$selvar == 1] <- stats::predict(mod, type = "risk", centered = TRUE)
+    inst_haz <- merged$step_haz * risk
+
+    p <- rep(1, nrow(data))
+    s0 <- which(data$selvar == 1 & data[[exp_col]] == 0)
+    p[s0] <- exp(-1 * inst_haz[s0])
+
+    s1 <- which(data$selvar == 1 & data[[exp_col]] == 1)
+    if (type == "first") {
+      p[s1] <- 1 - exp(-1 * inst_haz[s1])
+    } else if (type == "cens") {
+      p[s1] <- exp(-1 * inst_haz[s1])
+    }
+    p[data$selvar == 0] <- 1
+    p
+  }
+
+  # Denominator model
+  form_den <- .build_model_formula(surv_lhs, denominator)
+  mod_den <- do.call(survival::coxph, c(list(
+    formula   = form_den,
+    data      = data,
+    subset    = quote(selvar == 1),
+    na.action = stats::na.fail,
+    method    = "efron",
+    model     = TRUE
+  ), dots))
+  p_den <- .compute_surv_p(mod_den)
+  w_den <- unsplit(lapply(split(p_den, data[[id_col]]), cumprod), data[[id_col]])
+
+  # Numerator model
+  mod_num <- NULL
+  if (is.null(numerator)) {
+    w_num <- rep(1, nrow(data))
+  } else {
+    form_num <- .build_model_formula(surv_lhs, numerator)
+    mod_num <- do.call(survival::coxph, c(list(
+      formula   = form_num,
+      data      = data,
+      subset    = quote(selvar == 1),
+      na.action = stats::na.fail,
+      method    = "efron",
+      model     = TRUE
+    ), dots))
+    p_num <- .compute_surv_p(mod_num)
+    w_num <- unsplit(lapply(split(p_num, data[[id_col]]), cumprod), data[[id_col]])
+  }
+
+  list(weights = w_num / w_den, num_mod = mod_num, den_mod = mod_den)
+}
+
+# --- Multinomial & Ordinal Engine ----------------------------------------
+.fit_ipw_categorical <- function(data, var_names, numerator, denominator, is_ordinal, link, dots, ...) {
+  exp_col <- var_names$exposure
+  id_col  <- var_names$id
+  u_exp   <- sort(unique(data[[exp_col]]))
+
+  lhs_str <- if (is_ordinal) sprintf("as.factor(%s)", exp_col) else exp_col
+  polr_method <- if (is_ordinal) {
+    switch(link, logit = "logistic", probit = "probit", cloglog = "cloglog", cauchit = "cauchit")
+  } else NULL
+
+  .fit_and_extract_p <- function(rhs_form) {
+    form <- .build_model_formula(lhs_str, rhs_form)
+    mod <- if (is_ordinal) {
+      if (!requireNamespace("MASS", quietly = TRUE)) stop("Package 'MASS' required.", call. = FALSE)
+      do.call(MASS::polr, c(list(
+        formula   = form,
+        data      = data,
+        method    = polr_method,
+        subset    = quote(selvar == 1),
+        na.action = stats::na.fail,
+        model     = TRUE
+      ), dots))
+    } else {
+      if (!requireNamespace("nnet", quietly = TRUE)) stop("Package 'nnet' required.", call. = FALSE)
+      do.call(nnet::multinom, c(list(
+        formula   = form,
+        data      = data,
+        subset    = quote(selvar == 1),
+        na.action = stats::na.fail,
+        trace     = FALSE
+      ), dots))
+    }
+
+    probs <- as.data.frame(stats::predict(mod, type = "probs"))
+    p_vec <- rep(1, nrow(data))
+    for (i in seq_along(u_exp)) {
+      match_rows <- which(data$selvar == 1 & data[[exp_col]] == u_exp[i])
+      p_vec[match_rows] <- probs[data[[exp_col]][data$selvar == 1] == u_exp[i], i]
+    }
+    p_vec[data$selvar == 0] <- 1
+    list(model = mod, p = p_vec)
+  }
+
+  den_res <- .fit_and_extract_p(denominator)
+  if (is.null(numerator)) {
+    p_ratio <- 1 / den_res$p
+    num_mod <- NULL
+  } else {
+    num_res <- .fit_and_extract_p(numerator)
+    p_ratio <- num_res$p / den_res$p
+    num_mod <- num_res$model
+  }
+
+  weights <- unsplit(lapply(split(p_ratio, data[[id_col]]), cumprod), data[[id_col]])
+  list(weights = weights, num_mod = num_mod, den_mod = den_res$model)
+}
+
+# --- Gaussian Engine -----------------------------------------------------
+.fit_ipw_gaussian <- function(data, var_names, numerator, denominator, corstr, dots, ...) {
+  if (!requireNamespace("geepack", quietly = TRUE)) {
+    stop("Package 'geepack' is required for family = 'gaussian'.", call. = FALSE)
+  }
+
+  exp_col  <- var_names$exposure
+  id_col   <- var_names$id
+  time_col <- var_names$timevar
+
+  .fit_gee <- function(rhs_form) {
+    form <- .build_model_formula(exp_col, rhs_form)
+    mod <- do.call(geepack::geeglm, c(list(
+      formula = form,
+      data    = data,
+      id      = data[[id_col]],
+      corstr  = corstr,
+      waves   = data[[time_col]]
+    ), dots))
+    disp <- as.numeric(sqrt(summary(mod)$dispersion)[1])
+    dens <- stats::dnorm(data[[exp_col]], mean = stats::predict(mod), sd = disp)
+    list(model = mod, dens = dens)
+  }
+
+  num_res <- .fit_gee(numerator)
+  den_res <- .fit_gee(denominator)
+
+  weights <- unsplit(lapply(split(num_res$dens / den_res$dens, data[[id_col]]), cumprod), data[[id_col]])
+  list(weights = weights, num_mod = num_res$model, den_mod = den_res$model)
 }

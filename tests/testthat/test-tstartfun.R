@@ -1,52 +1,70 @@
 library(testthat)
-library(ipw)
+if (file.exists("tstartfun_new.R")) source("tstartfun_new.R")
 
-test_that("tstartfun correctly identifies starting times and handles -1 default", {
-  # Create a simple test dataset
+test_that("tstartfun computes correct interval start times for multi-record subjects", {
   mydata <- data.frame(
-    patient = c(1, 1, 1, 2, 2),
-    time.days = c(10, 20, 30, 5, 15)
+    patient = c(1, 1, 1, 1, 2, 2, 2),
+    time.days = c(14, 34, 41, 56, 0, 11, 28)
   )
 
-  # Run function
   tstart <- tstartfun(patient, time.days, mydata)
 
-  # 1. Check for the -1 default on first records
-  # For Patient 1, time 10 should start at -1
-  # For Patient 2, time 5 should start at -1
+  # First record for each patient must be -1
   expect_equal(tstart[1], -1)
-  expect_equal(tstart[4], -1)
+  expect_equal(tstart[5], -1)
 
-  # 2. Check that subsequent records use the previous timevar value
-  # Patient 1: [-1, 10], [10, 20], [20, 30]
-  expect_equal(tstart[2], 10)
-  expect_equal(tstart[3], 20)
-
-  # Patient 2: [-1, 5], [5, 15]
-  expect_equal(tstart[5], 5)
+  # Subsequent records must equal previous time.days value
+  expect_equal(tstart[2:4], c(14, 34, 41))
+  expect_equal(tstart[6:7], c(0, 11))
 })
 
-test_that("tstartfun maintains original data order", {
-  # Create unsorted data
+test_that("tstartfun maintains original dataset row ordering when unsorted", {
   unsorted_data <- data.frame(
-    id = c(1, 2, 1),
-    time = c(20, 5, 10)
+    id = c(1, 2, 1, 2, 1),
+    time = c(20, 15, 10, 5, 30)
   )
-
-  # The function should return tstart in the order: [10, -1, -1]
-  # Because:
-  # Row 1 (id 1, time 20) is the 2nd record for id 1 -> tstart = 10
-  # Row 2 (id 2, time 5) is the 1st record for id 2 -> tstart = -1
-  # Row 3 (id 1, time 10) is the 1st record for id 1 -> tstart = -1
 
   res <- tstartfun(id, time, unsorted_data)
 
-  expect_equal(res, c(10, -1, -1))
+  # Expected tstart for id=1 (times 10, 20, 30 -> tstarts -1, 10, 20)
+  # and id=2 (times 5, 15 -> tstarts -1, 5)
+  # Row 1: id=1, time=20 -> 2nd record -> tstart = 10
+  # Row 2: id=2, time=15 -> 2nd record -> tstart = 5
+  # Row 3: id=1, time=10 -> 1st record -> tstart = -1
+  # Row 4: id=2, time=5  -> 1st record -> tstart = -1
+  # Row 5: id=1, time=30 -> 3rd record -> tstart = 20
+  expect_equal(res, c(10, 5, -1, -1, 20))
 })
 
 test_that("tstartfun handles single-record individuals", {
-  single_dat <- data.frame(id = 101, time = 50)
+  single_dat <- data.frame(id = c(101, 102), time = c(50, 12))
   res <- tstartfun(id, time, single_dat)
 
-  expect_equal(res, -1)
+  expect_equal(res, c(-1, -1))
+})
+
+test_that("tstartfun supports both unquoted symbols and character string column names", {
+  mydata <- data.frame(patient = c(1, 1, 2), time.days = c(10, 20, 15))
+
+  res_sym <- tstartfun(patient, time.days, mydata)
+  res_str <- tstartfun("patient", "time.days", mydata)
+
+  expect_equal(res_sym, res_str)
+})
+
+test_that("tstartfun throws helpful errors on invalid inputs", {
+  mydata <- data.frame(patient = c(1, 1), time.days = c(10, 20))
+
+  # Missing data argument
+  expect_error(tstartfun(patient, time.days), "data")
+
+  # Non-dataframe data
+  expect_error(tstartfun(patient, time.days, data = list(patient = 1, time.days = 10)))
+
+  # Missing values in id or timevar
+  data_na_id <- data.frame(patient = c(1, NA), time.days = c(10, 20))
+  expect_error(tstartfun(patient, time.days, data_na_id), "missing values")
+
+  data_na_time <- data.frame(patient = c(1, 1), time.days = c(10, NA))
+  expect_error(tstartfun(patient, time.days, data_na_time), "missing values")
 })

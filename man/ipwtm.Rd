@@ -6,14 +6,14 @@
 \usage{
 ipwtm(
   exposure,
-  family,
-  link,
+  family = c("binomial", "survival", "multinomial", "ordinal", "gaussian"),
+  link = NULL,
   numerator = NULL,
   denominator,
   id,
   tstart,
   timevar,
-  type,
+  type = c("first", "cens", "all"),
   data,
   corstr = "ar1",
   trunc = NULL,
@@ -21,82 +21,47 @@ ipwtm(
 )
 }
 \arguments{
-\item{exposure}{vector, representing the exposure of interest. Both numerical and categorical variables can be used. A binomial exposure variable should be coded using values \code{0}/\code{1}.}
+\item{exposure}{Exposure variable (unquoted symbol, string, or vector).}
 
-\item{family}{specifies a family of link functions, used to model the relationship
-between the variables in \code{numerator} or \code{denominator} and \code{exposure},
-respectively. Alternatives are \code{"binomial"}, \code{"survival"},
-\code{"multinomial"}, \code{"ordinal"} and \code{"gaussian"}. A specific link
-function is then chosen using the argument \code{link}, as explained below.
-Regression models are fitted using \code{\link[stats:glm]{stats::glm}},
-\code{\link[survival:coxph]{survival::coxph}},
-\code{\link[nnet:multinom]{nnet::multinom}},
-\code{\link[MASS:polr]{MASS::polr}} or
-\code{\link[geepack:geeglm]{geepack::geeglm}}, respectively.}
+\item{family}{Model family: \code{"binomial"}, \code{"survival"}, \code{"multinomial"},
+\code{"ordinal"}, or \code{"gaussian"}.}
 
-\item{link}{specifies the specific link function between the variables in
-\code{numerator} or \code{denominator} and exposure, respectively. For
-\code{family="binomial"} (fitted using \code{\link[stats:glm]{stats::glm}})
-alternatives are \code{"logit"}, \code{"probit"}, \code{"cauchit"}, \code{"log"}
-and \code{"cloglog"}. For \code{family="survival"} this argument is ignored,
-and Cox proportional hazards models are always used (fitted using
-\code{\link[survival:coxph]{survival::coxph}}). For \code{family="multinomial"}
-this argument is ignored, and multinomial logistic regression models are
-always used (fitted using \code{\link[nnet:multinom]{nnet::multinom}}).
-For \code{family="ordinal"} (fitted using \code{\link[MASS:polr]{MASS::polr}})
-alternatives are \code{"logit"}, \code{"probit"}, \code{"cauchit"}, and
-\code{"cloglog"}. For \code{family="gaussian"} this argument is ignored,
-and GEE models with an identity link are always used (fitted using
-\code{\link[geepack:geeglm]{geepack::geeglm}}).}
+\item{link}{Link function for binomial or ordinal models.}
 
-\item{numerator}{is a formula, specifying the right-hand side of the model used to estimate the elements in the numerator of the inverse probability weights. When left unspecified, unstabilized weights with a numerator of 1 are estimated.}
+\item{numerator}{Formula for numerator model. If \code{NULL}, unstabilized weights are computed.}
 
-\item{denominator}{is a formula, specifying the right-hand side of the model used to estimate the elements in the denominator of the inverse probability weights.}
+\item{denominator}{Formula for denominator model.}
 
-\item{id}{vector, uniquely identifying the units under observation (typically patients) within which the longitudinal measurements are taken.}
+\item{id}{Patient/subject identifier variable.}
 
-\item{tstart}{numerical vector, representing the starting time of follow-up intervals, using the counting process notation. This argument is only needed when \code{family=} \code{"survival"}, otherwise it is ignored. The Cox proportional hazards models are fitted using counting process data. Since a switch in exposure level can occur at the start of follow-up, \code{tstart} should be negative for the first interval (with \code{timevar=0}) within each patient.}
+\item{tstart}{Start time variable for counting process format (required for \code{family = "survival"}).}
 
-\item{timevar}{numerical vector, representing follow-up time, starting at \code{0}. This variable is used as the end time of follow-up intervals, using the counting process notation, when \code{family="survival"}.}
+\item{timevar}{End time/follow-up time variable.}
 
-\item{type}{specifies the type of exposure. Alternatives are \code{"first"}, \code{"cens"} and \code{"all"}. With \code{type="first"}, weights are estimated up to the first switch from the lowest exposure value (typically \code{0} or the first factor level) to any other value. After this switch, weights will then be constant. Such a weight is e.g. used when estimating the effect of ``initiation of HAART'' on mortality (see example 1 below). \code{type="first"} is currently only implemented for \code{"binomial"}, \code{"survival"}, \code{"multinomial"} and \code{"ordinal"} families. With \code{type="cens"} inverse probability of censoring weights (IPCW) are estimated as defined in appendix 1 in Cole & Hernán (2008). IPCW is illustrated in example 1 below. \code{type="cens"} is currently only implemented for \code{"binomial"} and \code{"survival"} families. With \code{type="all"}, all time points are used to estimate weights. \code{type="all"} is implemented only for the \code{"binomial"} and \code{"gaussian"} family.}
+\item{type}{Exposure switch type: \code{"first"}, \code{"cens"}, or \code{"all"}.}
 
-\item{data}{dataframe containing \code{exposure}, variables in \code{numerator} and \code{denominator}, \code{id}, \code{tstart} and \code{timevar}.}
+\item{data}{Data frame containing all required variables.}
 
-\item{corstr}{correlation structure, only needed when using \code{family = "gaussian"}.
-Defaults to "ar1". See \code{\link[geepack:geeglm]{geepack::geeglm}} for details.}
+\item{corstr}{Correlation structure for GEE when \code{family = "gaussian"} (default: \code{"ar1"}).}
 
-\item{trunc}{optional truncation percentile (0-0.5). E.g. when \code{trunc = 0.01}, the left tail is truncated to the 1st percentile, and the right tail is truncated to the 99th percentile. When specified, both un-truncated and truncated weights are returned.}
+\item{trunc}{Optional truncation percentile between 0 and 0.5.}
 
-\item{...}{are further arguments passed to the function that is used to estimate the numerator and denominator models (the function is chosen using \code{family}).}
+\item{...}{Additional arguments passed to model fitting engines.}
 }
 \value{
-A list containing the following elements:
-\item{ipw.weights }{vector containing inverse probability weights for each observation. Returned in the same order as the observations in \code{data}, to facilitate merging.}
-\item{weights.trunc }{vector containing truncated inverse probability weights, only returned when \code{trunc} is specified.}
-\item{call }{the original function call.}
-\item{selvar }{selection variable. With \code{type = "first"}, \code{selvar = 1} within each unit under observation, up to and including the first time point at which a switch from the lowest value of \code{exposure} to any other value is made, and \code{selvar = 0} after the first switch. For \code{type = "all"}, \code{selvar = 1} for all measurements. The numerator and denominator models are fitted only on observations with \code{selvar = 1}. Returned in the same order as observations in \code{data}, to facilitate merging.}
-\item{num.mod }{the numerator model, only returned when \code{numerator} is specified.}
-\item{den.mod }{the denominator model.}
+A list of class \code{"ipwtm"} containing:
+\item{ipw.weights}{Numeric vector of inverse probability weights in original row order.}
+\item{weights.trunc}{Numeric vector of truncated weights (if \code{trunc} is specified).}
+\item{call}{Original function call.}
+\item{selvar}{Selection indicator vector (1 = active observation, 0 = post-switch).}
+\item{num.mod}{Numerator model object.}
+\item{den.mod}{Denominator model object.}
 }
 \description{
-Estimate inverse probability weights to fit marginal structural models, with a time-varying exposure and time-varying confounders. Within each unit under observation this function computes inverse probability weights at each time point during follow-up. The exposure can be binomial, multinomial, ordinal or continuous. Both stabilized and unstabilized weights can be estimated.
+Estimates inverse probability weights to fit marginal structural models with
+time-varying exposures and time-varying confounders across follow-up intervals.
+Supports binomial, survival, multinomial, ordinal, and gaussian families.
 }
-\details{
-Within each unit under observation i (usually patients), this function computes inverse probability weights at each time point j during follow-up. These weights are the cumulative product over all previous time points up to j of the ratio of two probabilities:
-\itemize{
-\item the numerator contains at each time point the probability of the observed exposure level given observed values of stabilization factors and the observed exposure history up to the time point before j. These probabilities are estimated using the model regressing \code{exposure} on the terms in \code{numerator}, using the link function indicated by \code{family} and \code{link}.
-\item the denominator contains at each time point the probability of the observed exposure level given the observed history of time varying confounders up to j, as well as the stabilization factors in the numerator and the observed exposure history up to the time point before j. These probabilities are estimated using the model regressing \code{exposure} on the terms in \code{denominator}, using the link function indicated by \code{family} and \code{link}.}
-
-When the models from which the elements in the numerator and denominator are predicted are correctly specified, and there is no unmeasured confounding, weighting observations ij by the inverse probability weights adjusts for confounding of the effect of the exposure of interest. On the weighted dataset a marginal structural model can then be fitted, quantifying the causal effect of the exposure on the outcome of interest.
-
-With \code{numerator} specified, stabilized weights are computed, otherwise unstabilized weights with a numerator of 1 are computed. With a continuous exposure, using \code{family = "gaussian"}, weights are computed using the ratio of predicted densities at each time point. Therefore, for \code{family = "gaussian"} only stabilized weights can be used, since unstabilized weights would have infinity variance.
-}
-\section{Missing values}{
-
-Currently, the \code{exposure} variable and the variables used in \code{numerator} and \code{denominator}, \code{id}, \code{tstart} and \code{timevar} should not contain missing values.
-}
-
 \examples{
 ########################################################################
 #EXAMPLE 1
@@ -267,19 +232,6 @@ summary(coxph(Surv(tstart, fuptime, event) ~ tb + cd4.sqrt, data = startstop))
 #  boot.ci(bootres, type = "basic")
 #
 ## End(Not run)
-}
-\references{
-Cole, S.R. & Hernán, M.A. (2008). Constructing inverse probability weights for marginal structural models. \emph{American Journal of Epidemiology}, \bold{168}(6), 656-664. \url{https://pubmed.ncbi.nlm.nih.gov:443/18682488/}.
-
-Robins, J.M., Hernán, M.A. & Brumback, B.A. (2000). Marginal structural models and causal inference in epidemiology. \emph{Epidemiology}, \bold{11}, 550-560. \url{https://pubmed.ncbi.nlm.nih.gov/10955408/}.
-
-Van der Wal W.M. & Geskus R.B. (2011). ipw: An R Package for Inverse  Probability Weighting. \emph{Journal of Statistical Software}, \bold{43}(13), 1-23. \doi{10.18637/jss.v043.i13}
-}
-\seealso{
-\code{\link{basdat}}, \code{\link{haartdat}}, \code{\link{ipwplot}}, \code{\link{ipwpoint}}, \code{\link{ipwtm}}, \code{\link{timedat}}, \code{\link{tstartfun}}.
-}
-\author{
-Willem M. van der Wal \email{willem@vanderwalresearch.com}, Ronald B. Geskus \email{rgeskus@oucru.org}
 }
 \keyword{htest}
 \keyword{models}

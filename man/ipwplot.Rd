@@ -17,40 +17,39 @@ ipwplot(
 )
 }
 \arguments{
-\item{weights}{numerical vector of inverse probability weights to plot.}
+\item{weights}{Numerical vector of inverse probability weights.}
 
-\item{timevar}{numerical vector representing follow-up time. When specified, boxplots within strata of follow-up time are displayed. When left unspecified, a density plot is displayed.}
+\item{timevar}{Optional numerical vector of follow-up time.}
 
-\item{binwidth}{numerical value indicating the width of the intervals of follow-up time; for each interval a boxplot is made. Ignored when \code{timevar} is not specified.}
+\item{binwidth}{Interval width for grouping follow-up time when \code{timevar} is supplied.}
 
-\item{logscale}{logical value. If \code{TRUE}, weights are plotted on a logarithmic scale.}
+\item{logscale}{Logical; if \code{TRUE}, weights are plotted on a log scale. Default is \code{TRUE}.}
 
-\item{xlab}{label for the horizontal axis.}
+\item{xlab}{Horizontal axis label.}
 
-\item{ylab}{label for the vertical axis.}
+\item{ylab}{Vertical axis label.}
 
-\item{main}{main title for the plot.}
+\item{main}{Main plot title.}
 
-\item{ref}{logical value. If \code{TRUE}, a reference line is plotted at \code{y=1}.}
+\item{ref}{Logical; if \code{TRUE}, adds a reference line at 1 (or log(1) = 0).}
 
-\item{...}{additional arguments passed to \code{\link{boxplot}} (when \code{timevar} is specified) or \code{\link{plot}} (when \code{timevar} is not specified).}
-}
-\value{
-A plot is displayed.
+\item{...}{Additional graphical parameters passed to \code{boxplot} or \code{plot}.}
 }
 \description{
-For time varying weights: display boxplots within strata of follow-up time. For point treatment weights: display density plot.
+Plots the distribution of inverse probability weights. Displays a density plot
+for point treatment weights or boxplots across follow-up intervals for time-varying weights.
 }
 \examples{
-#see ?ipwpoint and ?ipwtm for examples
-}
-\references{
-Van der Wal W.M. & Geskus R.B. (2011). ipw: An R Package for Inverse  Probability Weighting. \emph{Journal of Statistical Software}, \bold{43}(13), 1-23. \doi{10.18637/jss.v043.i13}
-}
-\seealso{
-\code{\link{basdat}}, \code{\link{haartdat}}, \code{\link{ipwplot}}, \code{\link{ipwpoint}}, \code{\link{ipwtm}}, \code{\link{timedat}}, \code{\link{tstartfun}}.
+# Point treatment weights density plot
+set.seed(123)
+w_point <- runif(500, 0.5, 4)
+ipwplot(weights = w_point, logscale = FALSE, main = "Density Plot of Point Treatment Weights")
+
+# Time-varying weights boxplot across follow-up strata
+w_tv <- runif(1100, 0.2, 5)
+time_tv <- rep(seq(0, 500, by = 50), each = 100)
+ipwplot(weights = w_tv, timevar = time_tv, binwidth = 50, main = "Time-Varying Weights Boxplot")
 }
 \author{
 Willem M. van der Wal \email{willem@vanderwalresearch.com}, Ronald B. Geskus \email{rgeskus@oucru.org}
 }
-\keyword{hplot}
