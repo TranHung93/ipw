@@ -4,6 +4,10 @@
 
 * `ipwtm()`: `type = "all"` now works for `family = "multinomial"` and
   `"ordinal"` (time-varying categorical exposures that switch back and forth).
+* `ipwtm()`: `type = "all"` now works for `family = "survival"`, following
+  Graffeo, Latouche, Geskus & Chevret (2018, *Biometrical Journal*): exposure
+  events may recur, an Andersen-Gill Cox model is fitted on all rows, and each
+  row's probability uses the cumulative baseline hazard over its own interval.
 * New `ipwprob()`: inverse probability weights from probabilities you
   estimated yourself (for example with machine learning or SuperLearner), for
   point treatments or cumulated over time within subjects.

@@ -17,12 +17,27 @@
 #' @param tstart Name of the interval start time column (required for \code{family = "survival"}).
 #' @param timevar Name of the follow-up (interval end) time column.
 #' @param type Exposure switch type: \code{"first"}, \code{"cens"}, or \code{"all"}.
-#'   \code{"all"} is available for the binomial, multinomial, ordinal and gaussian
-#'   families.
+#'   \code{"all"} is available for all families. With \code{family = "survival"}
+#'   and \code{type = "all"}, \code{exposure} is an event indicator (1 when an
+#'   exposure event, such as starting treatment, happens at the end of the
+#'   interval) that may occur more than once per subject: an Andersen-Gill Cox
+#'   model is fitted on all rows and every row contributes to the weights
+#'   (Graffeo et al. 2018). For treatment that is started and stopped, compute
+#'   weights separately for starting (on the rows off treatment) and for
+#'   stopping (on the rows on treatment).
 #' @param data Data frame containing all required variables.
 #' @param corstr Correlation structure for GEE when \code{family = "gaussian"} (default: \code{"ar1"}).
 #' @param trunc Optional truncation percentile between 0 and 0.5.
 #' @param ... Additional arguments passed to model fitting engines.
+#'
+#' @references
+#' Graffeo N., Latouche A., Geskus R.B. & Chevret S. (2018). Modeling time-varying
+#' exposure using inverse probability of treatment weights. \emph{Biometrical
+#' Journal}, \bold{60}(2), 323-332. \doi{10.1002/bimj.201600223}.
+#'
+#' Van der Wal W.M. & Geskus R.B. (2011). ipw: An R Package for Inverse Probability
+#' Weighting. \emph{Journal of Statistical Software}, \bold{43}(13), 1-23.
+#' \doi{10.18637/jss.v043.i13}.
 #'
 #' @return A list of class \code{"ipwtm"} containing:
 #' \item{ipw.weights}{Numeric vector of inverse probability weights in original row order.}
@@ -344,9 +359,6 @@ ipwtm <- function(
     stop("Invalid numerator formula specified", call. = FALSE)
   }
   .check_link(family, link)
-  if (family == "survival" && type == "all") {
-    stop("Type \"all\" not yet implemented for family = \"survival\"", call. = FALSE)
-  }
   if ((.uses_smooths(denominator) || .uses_smooths(numerator)) && family != "binomial") {
     stop("Smooth terms (s(), te(), ti(), t2()) are only supported for family = \"binomial\" ",
          "in ipwtm().", call. = FALSE)
@@ -496,10 +508,28 @@ ipwtm <- function(
   exp_col   <- var_names$exposure
   id_col    <- var_names$id
   time_col  <- var_names$timevar
-  surv_lhs  <- sprintf("survival::Surv(%s, %s, %s)", var_names$tstart, time_col, exp_col)
+  start_col <- var_names$tstart
+  surv_lhs  <- sprintf("survival::Surv(%s, %s, %s)", start_col, time_col, exp_col)
   u_times   <- sort(unique(data[[time_col]]))
 
+  # type = "all" (Graffeo et al. 2018): Andersen-Gill model for recurrent
+  # exposure events, fitted on all rows. For each row (tstart, timevar], the
+  # probability of the observed status uses the cumulative baseline hazard over
+  # that row's own interval: P(no event) = exp(-(L0(timevar) - L0(tstart)) * risk).
+  .compute_surv_p_all <- function(mod) {
+    bh <- survival::basehaz(mod, centered = TRUE)
+    cum_haz_at <- function(t) {
+      out <- stats::approx(bh$time, bh$hazard, xout = t, method = "constant", rule = 2)$y
+      out[t < min(bh$time)] <- 0
+      out
+    }
+    d_cum_haz <- cum_haz_at(data[[time_col]]) - cum_haz_at(data[[start_col]])
+    h <- d_cum_haz * stats::predict(mod, type = "risk", centered = TRUE)
+    ifelse(data[[exp_col]] == 1, 1 - exp(-h), exp(-h))
+  }
+
   .compute_surv_p <- function(mod) {
+    if (type == "all") return(.compute_surv_p_all(mod))
     bh <- survival::basehaz(mod, centered = TRUE)
     df_bh <- data.frame(timevar = u_times)
     df_bh <- merge(df_bh, data.frame(timevar = bh$time, cum_haz = bh$hazard), by = "timevar", all.x = TRUE)
@@ -539,7 +569,7 @@ ipwtm <- function(
   mod_den <- do.call(survival::coxph, c(list(
     formula   = form_den,
     data      = data,
-    subset    = quote(selvar == 1),
+    subset    = if (type != "all") quote(selvar == 1) else NULL,
     na.action = stats::na.fail,
     method    = "efron",
     model     = TRUE
@@ -556,7 +586,7 @@ ipwtm <- function(
     mod_num <- do.call(survival::coxph, c(list(
       formula   = form_num,
       data      = data,
-      subset    = quote(selvar == 1),
+      subset    = if (type != "all") quote(selvar == 1) else NULL,
       na.action = stats::na.fail,
       method    = "efron",
       model     = TRUE

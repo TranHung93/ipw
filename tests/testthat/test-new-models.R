@@ -48,17 +48,6 @@ test_that("ipwtm type = 'all' works for an ordinal exposure", {
                tolerance = 1e-5)
 })
 
-test_that("ipwtm still refuses type = 'all' for survival", {
-  dat <- make_long_categorical()
-  dat$event <- rbinom(nrow(dat), 1, 0.2)
-  dat$tstart <- dat$time - 1
-  expect_error(
-    ipwtm(exposure = event, family = "survival", denominator = ~ l, id = id,
-          tstart = tstart, timevar = time, type = "all", data = dat),
-    "not yet implemented"
-  )
-})
-
 # ---- ipwprob(): user-supplied probabilities ----------------------------------
 
 test_that("ipwprob reproduces ipwpoint weights from the same probabilities", {
