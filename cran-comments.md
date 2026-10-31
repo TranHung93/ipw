@@ -4,9 +4,13 @@ This is a patch release (1.3.1 -> 1.3.2), submitted shortly after 1.3.1
 because 1.3.1 returns incorrect truncated weights from `ipwpoint()`.
 
 ### Summary of changes
-* Fixes incorrect truncated weights in `ipwpoint()` (`trunc` argument).
-* Fixes probability-to-level matching for multinomial/ordinal exposures in
-  `ipwtm()` and two-level multinomial exposures in `ipwpoint()`.
+* Fixes incorrect truncated weights in `ipwpoint()` (`trunc` argument): in
+  1.3.1 every truncated weight was set to one of the two truncation bounds.
+* `ipwtm()` and `ipwpoint()` now handle two-level multinomial exposures, and
+  `ipwtm()` handles exposure levels absent among the selected rows; 1.3.1
+  stopped with an error in these cases.
+* `ipwtm()` with `type = "first"` for multinomial/ordinal exposures again uses
+  the lowest level in the whole data set as reference, as in ipw <= 1.2.1.1.
 * Clearer input validation and error messages; internal refactoring.
 * Expanded testthat test suite.
 

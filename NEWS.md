@@ -8,10 +8,12 @@
   `1 - trunc` quantiles, and weights between the bounds are left unchanged.
 * `ipwtm()` with `family = "multinomial"` or `"ordinal"`: predicted
   probabilities are now matched to the observed exposure by level name rather
-  than by column position. Before this, the result could be wrong when a level
-  was absent among the selected rows, and a two-level exposure gave wrong
-  weights or an error.
-* `ipwpoint()` with `family = "multinomial"` now works for a two-level exposure.
+  than by column position. 1.3.1 stopped with an error for a two-level
+  exposure, or when an exposure level did not occur among the rows used to fit
+  the models.
+* `ipwpoint()` with `family = "multinomial"` now works for a two-level
+  exposure; 1.3.1 stopped with an error ("Observed exposure levels do not match
+  fitted probability levels").
 * Added a test for unstabilized weights (no `numerator`) with
   `family = "multinomial"` and `"ordinal"` in `ipwpoint()`. These failed in
   1.3.0 and were fixed by the 1.3.1 rewrite (#3, @adcascone).
