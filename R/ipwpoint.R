@@ -5,7 +5,7 @@
 #' point treatment situation. Exposure can be binomial, multinomial, ordinal,
 #' or continuous (gaussian). Both stabilized and unstabilized weights can be estimated.
 #'
-#' @param exposure Exposure variable of interest (unquoted symbol or string).
+#' @param exposure Name of the exposure column in \code{data} (unquoted or as a string).
 #'   Binomial exposure variables should be coded as 0/1.
 #' @param family Model family for exposure: \code{"binomial"}, \code{"multinomial"},
 #'   \code{"ordinal"}, or \code{"gaussian"}.
@@ -25,7 +25,8 @@
 #' \item{call}{The original function call.}
 #' \item{num.mod}{Numerator model object (if \code{numerator} is specified).}
 #' \item{den.mod}{Denominator model object.}
-#' @author Willem M. van der Wal \email{willem@vanderwalresearch.com}, Ronald B. Geskus \email{rgeskus@oucru.org}
+#' @author Willem M. van der Wal \email{willem@vanderwalresearch.com}, Ronald B. Geskus \email{rgeskus@oucru.org},
+#'   Hung Thai Tran \email{hungtt@oucru.org}
 #' @references
 #' Cole, S.R. & Hernán, M.A. (2008). Constructing inverse probability weights for marginal structural models. \emph{American Journal of Epidemiology}, \bold{168}(6), 656-664.
 #'
@@ -87,224 +88,107 @@ ipwpoint <- function(
     trunc = NULL,
     ...)
 {
-  # 1. Retain original function call for return object
   call_obj <- match.call()
+  dots <- list(...)
 
-  # 2. Validate family
+  # 1. Validate arguments ---------------------------------------------------
   valid_families <- c("binomial", "multinomial", "ordinal", "gaussian")
-  if (missing(family) || !(family %in% valid_families)) {
+  if (missing(family) || length(family) != 1 || !(family %in% valid_families)) {
     stop("Invalid 'family' specified. Must be one of: ",
-         paste(sprintf('"%s"', valid_families), collapse = ", "))
+         paste(sprintf('"%s"', valid_families), collapse = ", "), call. = FALSE)
   }
+  .check_link(family, link)
 
-  # 3. Validate link function based on family
-  if (family == "binomial") {
-    valid_links <- c("logit", "probit", "cauchit", "log", "cloglog")
-    if (is.null(link) || !(link %in% valid_links)) {
-      stop("Invalid 'link' specified for family = 'binomial'. Must be one of: ",
-           paste(sprintf('"%s"', valid_links), collapse = ", "))
-    }
-  } else if (family == "ordinal") {
-    valid_links <- c("logit", "probit", "cauchit", "cloglog")
-    if (is.null(link) || !(link %in% valid_links)) {
-      stop("Invalid 'link' specified for family = 'ordinal'. Must be one of: ",
-           paste(sprintf('"%s"', valid_links), collapse = ", "))
-    }
-  }
-
-  # 4. Validate formulas, data, and truncation arguments
   if (missing(denominator) || !inherits(denominator, "formula")) {
-    stop("A valid 'denominator' formula must be specified.")
+    stop("A valid 'denominator' formula must be specified.", call. = FALSE)
   }
   if (!is.null(numerator) && !inherits(numerator, "formula")) {
-    stop("When specified, 'numerator' must be a valid formula.")
+    stop("When specified, 'numerator' must be a valid formula.", call. = FALSE)
   }
   if (family == "gaussian" && is.null(numerator)) {
-    stop("'numerator' formula is required when family = 'gaussian'.")
+    stop("'numerator' formula is required when family = 'gaussian'.", call. = FALSE)
   }
   if (missing(data) || !is.data.frame(data)) {
-    stop("A valid 'data' frame must be provided.")
+    stop("A valid 'data' frame must be provided.", call. = FALSE)
   }
-  if (!is.null(trunc)) {
-    if (!is.numeric(trunc) || length(trunc) != 1 || trunc < 0 || trunc > 0.5) {
-      stop("'trunc' must be a numeric percentile between 0 and 0.5.")
-    }
+  .check_trunc(trunc)
+
+  # 2. Exposure column ------------------------------------------------------
+  if (missing(exposure)) stop("No 'exposure' variable specified.", call. = FALSE)
+  exp_name <- .get_col_name(substitute(exposure))
+  if (!(exp_name %in% names(data))) {
+    stop("Exposure variable '", exp_name, "' not found in 'data'.", call. = FALSE)
   }
+  exp_vec <- data[[exp_name]]
 
-  # 5. Extract exposure column name and vector safely
-  exp_sub <- substitute(exposure)
-  if (is.name(exp_sub) || is.character(exp_sub)) {
-    exp_name <- as.character(exp_sub)
-  } else {
-    exp_name <- deparse(exp_sub)
-  }
-
-  if (exp_name %in% names(data)) {
-    exp_vec <- data[[exp_name]]
-  } else {
-    exp_vec <- tryCatch(eval(exp_sub, data, parent.frame()), error = function(e) NULL)
-    if (is.null(exp_vec)) {
-      stop("Exposure variable '", exp_name, "' not found in 'data'.")
-    }
-  }
-
-  # 6. Helper function: Construct model formulas programmatically
-  build_model_formula <- function(exp_var_name, rhs_formula) {
-    rhs_terms <- attr(terms(rhs_formula), "term.labels")
-    intercept <- attr(terms(rhs_formula), "intercept") == 1
-    lhs <- if (family == "ordinal") sprintf("as.factor(%s)", exp_var_name) else exp_var_name
-
-    if (length(rhs_terms) == 0) {
-      f_str <- paste(lhs, if (intercept) "~ 1" else "~ 0")
-    } else {
-      f_str <- paste(lhs, "~", paste(rhs_terms, collapse = " + "))
-      if (!intercept) f_str <- paste(f_str, "- 1")
-    }
-    as.formula(f_str, env = environment(rhs_formula))
-  }
-
-  # 7. Check for missing values in required variables
-  model_vars <- unique(c(exp_name, all.vars(denominator), if (!is.null(numerator)) all.vars(numerator)))
+  # 3. Variables present and complete ---------------------------------------
+  model_vars <- unique(c(exp_name, all.vars(denominator),
+                         if (!is.null(numerator)) all.vars(numerator)))
   missing_vars <- setdiff(model_vars, names(data))
   if (length(missing_vars) > 0) {
-    stop("Variables not found in data: ", paste(missing_vars, collapse = ", "))
+    stop("Variables not found in data: ", paste(missing_vars, collapse = ", "), call. = FALSE)
   }
   if (anyNA(data[, model_vars, drop = FALSE])) {
-    stop("Missing values detected in exposure or covariates. 'ipwpoint' requires complete cases.")
+    stop("Missing values detected in exposure or covariates. 'ipwpoint' requires complete cases.",
+         call. = FALSE)
+  }
+  if (family == "binomial" && !all(exp_vec %in% c(0, 1))) {
+    stop("Binomial exposure must be coded as 0 or 1.", call. = FALSE)
   }
 
-  w_num <- NULL
-  w_den <- NULL
-  mod_num <- NULL
-  mod_den <- NULL
+  lhs <- if (family == "ordinal") sprintf("as.factor(%s)", exp_name) else exp_name
 
-  # ------------------------------------------------------------------
-  # FIT MODELS & ESTIMATE WEIGHTS BY FAMILY
-  # ------------------------------------------------------------------
+  # 4. One fitting routine per family: returns model + P(observed exposure) --
+  fit_one <- function(rhs) {
+    form <- .build_model_formula(lhs, rhs)
+    base <- list(formula = form, data = data, na.action = stats::na.fail)
 
-  # --- BINOMIAL FAMILY ---
-  if (family == "binomial") {
-    link_family <- switch(link,
-                          "logit"   = stats::binomial(link = "logit"),
-                          "probit"  = stats::binomial(link = "probit"),
-                          "cauchit" = stats::binomial(link = "cauchit"),
-                          "log"     = stats::binomial(link = "log"),
-                          "cloglog" = stats::binomial(link = "cloglog")
-    )
-
-    if (!all(exp_vec %in% c(0, 1))) {
-      stop("Binomial exposure must be coded as 0 or 1.")
-    }
-
-    form_den <- build_model_formula(exp_name, denominator)
-    mod_den  <- stats::glm(form_den, family = link_family, data = data, na.action = stats::na.fail, ...)
-    p_den    <- stats::predict(mod_den, type = "response")
-    w_den    <- ifelse(exp_vec == 1, p_den, 1 - p_den)
-
-    if (is.null(numerator)) {
-      w_num <- rep(1, nrow(data))
+    if (family == "binomial") {
+      mod <- do.call(stats::glm, c(base, list(family = stats::binomial(link = link)), dots))
+      p <- stats::predict(mod, type = "response")
+      dens <- ifelse(exp_vec == 1, p, 1 - p)
+    } else if (family == "multinomial") {
+      mod <- do.call(nnet::multinom,
+                     .with_defaults(base, dots, list(trace = FALSE, Hess = TRUE)))
+      dens <- .prob_of_observed(stats::predict(mod, type = "probs"), exp_vec, mod$lev)
+    } else if (family == "ordinal") {
+      mod <- do.call(MASS::polr,
+                     .with_defaults(c(base, list(method = .polr_method(link))), dots,
+                                    list(Hess = TRUE)))
+      dens <- .prob_of_observed(stats::predict(mod, type = "probs"), exp_vec, mod$lev)
     } else {
-      form_num <- build_model_formula(exp_name, numerator)
-      mod_num  <- stats::glm(form_num, family = link_family, data = data, na.action = stats::na.fail, ...)
-      p_num    <- stats::predict(mod_num, type = "response")
-      w_num    <- ifelse(exp_vec == 1, p_num, 1 - p_num)
+      mod <- do.call(stats::glm, c(base, list(family = stats::gaussian()), dots))
+      dens <- stats::dnorm(exp_vec, mean = stats::predict(mod),
+                           sd = stats::sd(stats::residuals(mod)))
     }
-
-    # --- MULTINOMIAL FAMILY ---
-  } else if (family == "multinomial") {
-    if (!requireNamespace("nnet", quietly = TRUE)) {
-      stop("Package 'nnet' is required for family = 'multinomial'.")
-    }
-
-    extract_multinomial_probs <- function(model, obs_values) {
-      probs <- as.matrix(stats::predict(model, type = "probs"))
-      obs_char <- as.character(obs_values)
-      col_idx <- match(obs_char, colnames(probs))
-      if (any(is.na(col_idx))) {
-        stop("Observed exposure levels do not match fitted probability levels.")
-      }
-      probs[cbind(seq_len(nrow(probs)), col_idx)]
-    }
-
-    form_den <- build_model_formula(exp_name, denominator)
-    mod_den  <- nnet::multinom(form_den, data = data, na.action = stats::na.fail, trace = FALSE, ...)
-    w_den    <- extract_multinomial_probs(mod_den, exp_vec)
-
-    if (is.null(numerator)) {
-      w_num <- rep(1, nrow(data))
-    } else {
-      form_num <- build_model_formula(exp_name, numerator)
-      mod_num  <- nnet::multinom(form_num, data = data, na.action = stats::na.fail, trace = FALSE, ...)
-      w_num    <- extract_multinomial_probs(mod_num, exp_vec)
-    }
-
-    # --- ORDINAL FAMILY ---
-  } else if (family == "ordinal") {
-    if (!requireNamespace("MASS", quietly = TRUE)) {
-      stop("Package 'MASS' is required for family = 'ordinal'.")
-    }
-
-    method_map <- c(logit = "logistic", probit = "probit", cloglog = "cloglog", cauchit = "cauchit")
-    polr_method <- method_map[link]
-
-    extract_ordinal_probs <- function(model, obs_values) {
-      probs <- as.matrix(stats::predict(model, type = "probs"))
-      obs_char <- as.character(obs_values)
-      col_idx <- match(obs_char, colnames(probs))
-      if (any(is.na(col_idx))) {
-        stop("Observed exposure levels do not match fitted probability levels.")
-      }
-      probs[cbind(seq_len(nrow(probs)), col_idx)]
-    }
-
-    form_den <- build_model_formula(exp_name, denominator)
-    mod_den  <- MASS::polr(form_den, data = data, method = polr_method, na.action = stats::na.fail, ...)
-    w_den    <- extract_ordinal_probs(mod_den, exp_vec)
-
-    if (is.null(numerator)) {
-      w_num <- rep(1, nrow(data))
-    } else {
-      form_num <- build_model_formula(exp_name, numerator)
-      mod_num  <- MASS::polr(form_num, data = data, method = polr_method, na.action = stats::na.fail, ...)
-      w_num    <- extract_ordinal_probs(mod_num, exp_vec)
-    }
-
-    # --- GAUSSIAN FAMILY ---
-  } else if (family == "gaussian") {
-    form_den <- build_model_formula(exp_name, denominator)
-    mod_den  <- stats::glm(form_den, family = stats::gaussian(), data = data, na.action = stats::na.fail, ...)
-    res_den  <- stats::residuals(mod_den)
-    w_den    <- stats::dnorm(exp_vec, mean = stats::predict(mod_den), sd = stats::sd(res_den))
-
-    form_num <- build_model_formula(exp_name, numerator)
-    mod_num  <- stats::glm(form_num, family = stats::gaussian(), data = data, na.action = stats::na.fail, ...)
-    res_num  <- stats::residuals(mod_num)
-    w_num    <- stats::dnorm(exp_vec, mean = stats::predict(mod_num), sd = stats::sd(res_num))
+    mod <- .tidy_model_call(mod, list(
+      data   = call_obj$data,
+      family = switch(family,
+                      binomial = call("binomial", link = link),
+                      gaussian = quote(gaussian()),
+                      NULL)
+    ))
+    list(model = mod, dens = unname(dens))
   }
 
-  # 8. Calculate IPW weights and check for numerical issues
-  ipw_weights <- w_num / w_den
+  den <- fit_one(denominator)
+  num <- if (!is.null(numerator)) fit_one(numerator) else list(model = NULL, dens = 1)
+
+  # 5. Weights --------------------------------------------------------------
+  ipw_weights <- num$dens / den$dens
   if (anyNA(ipw_weights) || any(is.infinite(ipw_weights))) {
-    stop("Invalid IPW weights calculated (NA or Inf detected). Check for near-zero denominator probabilities.")
+    stop("Invalid IPW weights calculated (NA or Inf detected). ",
+         "Check for near-zero denominator probabilities.", call. = FALSE)
   }
 
-  # 9. Perform truncation if requested
-  weights_trunc <- NULL
-  if (!is.null(trunc)) {
-    q_bounds <- stats::quantile(ipw_weights, probs = c(trunc, 1 - trunc), na.rm = TRUE)
-    weights_trunc <- pmin(pmax(ipw_weights, q_bounds), q_bounds)
-  }
-
-  # 10. Assemble return list
   res <- list(
-    ipw.weights = ipw_weights,
-    weights.trunc = weights_trunc,
-    call = call_obj,
-    num.mod = mod_num,
-    den.mod = mod_den
+    ipw.weights   = ipw_weights,
+    weights.trunc = if (!is.null(trunc)) .truncate_weights(ipw_weights, trunc) else NULL,
+    call          = call_obj,
+    num.mod       = num$model,
+    den.mod       = den$model
   )
-
-  res <- res[!sapply(res, is.null)]
+  res <- res[!vapply(res, is.null, logical(1))]
   class(res) <- c("ipwpoint", "list")
-  return(res)
+  res
 }

@@ -16,7 +16,7 @@ ipwpoint(
 )
 }
 \arguments{
-\item{exposure}{Exposure variable of interest (unquoted symbol or string).
+\item{exposure}{Name of the exposure column in \code{data} (unquoted or as a string).
 Binomial exposure variables should be coded as 0/1.}
 
 \item{family}{Model family for exposure: \code{"binomial"}, \code{"multinomial"},
@@ -104,5 +104,6 @@ Van der Wal W.M. & Geskus R.B. (2011). ipw: An R Package for Inverse Probability
 \code{\link{basdat}}, \code{\link{haartdat}}, \code{\link{ipwplot}}, \code{\link{ipwpoint}}, \code{\link{ipwtm}}, \code{\link{timedat}}, \code{\link{tstartfun}}.
 }
 \author{
-Willem M. van der Wal \email{willem@vanderwalresearch.com}, Ronald B. Geskus \email{rgeskus@oucru.org}
+Willem M. van der Wal \email{willem@vanderwalresearch.com}, Ronald B. Geskus \email{rgeskus@oucru.org},
+  Hung Thai Tran \email{hungtt@oucru.org}
 }

@@ -5,16 +5,15 @@
 #' time-varying exposures and time-varying confounders across follow-up intervals.
 #' Supports binomial, survival, multinomial, ordinal, and gaussian families.
 #'
-#' @import MASS nnet survival geepack graphics methods stats
-#' @param exposure Exposure variable (unquoted symbol, string, or vector).
+#' @param exposure Name of the exposure column in \code{data} (unquoted or as a string).
 #' @param family Model family: \code{"binomial"}, \code{"survival"}, \code{"multinomial"},
 #'   \code{"ordinal"}, or \code{"gaussian"}.
 #' @param link Link function for binomial or ordinal models.
 #' @param numerator Formula for numerator model. If \code{NULL}, unstabilized weights are computed.
 #' @param denominator Formula for denominator model.
-#' @param id Patient/subject identifier variable.
-#' @param tstart Start time variable for counting process format (required for \code{family = "survival"}).
-#' @param timevar End time/follow-up time variable.
+#' @param id Name of the subject identifier column in \code{data}.
+#' @param tstart Name of the interval start time column (required for \code{family = "survival"}).
+#' @param timevar Name of the follow-up (interval end) time column.
 #' @param type Exposure switch type: \code{"first"}, \code{"cens"}, or \code{"all"}.
 #' @param data Data frame containing all required variables.
 #' @param corstr Correlation structure for GEE when \code{family = "gaussian"} (default: \code{"ar1"}).
@@ -278,18 +277,23 @@ ipwtm <- function(
   # 6. Cumulative Weights & Safety Checks -----------------------------------
   weights_sorted <- res_engine$weights
   if (anyNA(weights_sorted) || any(is.infinite(weights_sorted))) {
-    stop("NA's in weights!", call. = FALSE)
+    stop("Invalid IPW weights calculated (NA or Inf detected). ",
+         "Check for near-zero denominator probabilities.", call. = FALSE)
   }
 
   # 7. Weight Truncation ----------------------------------------------------
-  trunc_sorted <- NULL
-  if (!is.null(trunc)) {
-    q_lo <- stats::quantile(weights_sorted, probs = 0 + trunc, na.rm = TRUE)
-    q_hi <- stats::quantile(weights_sorted, probs = 1 - trunc, na.rm = TRUE)
-    trunc_sorted <- pmin(pmax(weights_sorted, q_lo), q_hi)
-  }
+  trunc_sorted <- if (!is.null(trunc)) .truncate_weights(weights_sorted, trunc) else NULL
 
   # 8. Assemble Return Object in Original Row Order -------------------------
+  call_repl <- list(
+    data   = call_obj$data,
+    id     = as.name(var_names$id),
+    waves  = as.name(var_names$timevar),
+    family = if (family == "binomial") call("binomial", link = link) else NULL
+  )
+  res_engine$num_mod <- .tidy_model_call(res_engine$num_mod, call_repl)
+  res_engine$den_mod <- .tidy_model_call(res_engine$den_mod, call_repl)
+
   orig_idx <- order(order_orig)
   res <- list(
     ipw.weights   = weights_sorted[orig_idx],
@@ -335,16 +339,7 @@ ipwtm <- function(
   if (!is.null(numerator) && !inherits(numerator, "formula")) {
     stop("Invalid numerator formula specified", call. = FALSE)
   }
-  if (family == "binomial") {
-    if (is.null(link) || !(link %in% c("logit", "probit", "cauchit", "log", "cloglog"))) {
-      stop("No valid link function specified for family = binomial (\"logit\", \"probit\", \"cauchit\", \"log\", \"cloglog\")", call. = FALSE)
-    }
-  }
-  if (family == "ordinal") {
-    if (is.null(link) || !(link %in% c("logit", "probit", "cauchit", "cloglog"))) {
-      stop("No valid link function specified for family = ordinal (\"logit\", \"probit\", \"cauchit\", \"cloglog\")", call. = FALSE)
-    }
-  }
+  .check_link(family, link)
   if (family %in% c("survival", "multinomial", "ordinal") && type == "all") {
     stop(paste0("Type \"all\" not yet implemented for family = \"", family, "\""), call. = FALSE)
   }
@@ -359,25 +354,35 @@ ipwtm <- function(
       stop("Numerator necessary for family = \"gaussian\"", call. = FALSE)
     }
   }
-  if (!is.null(trunc) && (!is.numeric(trunc) || length(trunc) != 1 || trunc < 0 || trunc > 0.5)) {
-    stop("Invalid truncation percentage specified (0-0.5)", call. = FALSE)
-  }
-}
+  .check_trunc(trunc)
 
-.get_col_name <- function(expr) {
-  if (is.symbol(expr) || is.character(expr)) as.character(expr) else deparse(expr, width.cutoff = 500)
-}
-
-.build_model_formula <- function(lhs_str, rhs_formula) {
-  rhs_terms <- attr(stats::terms(rhs_formula), "term.labels")
-  intercept <- attr(stats::terms(rhs_formula), "intercept") == 1
-  rhs_str <- if (length(rhs_terms) == 0) {
-    if (intercept) "1" else "0"
-  } else {
-    paste(rhs_terms, collapse = " + ")
+  # All model variables present and complete
+  id_vars <- unlist(var_names[c("exposure", "id", "timevar",
+                                 if (family == "survival") "tstart")])
+  model_vars <- unique(c(id_vars, all.vars(denominator),
+                         if (!is.null(numerator)) all.vars(numerator)))
+  missing_vars <- setdiff(model_vars, names(data))
+  if (length(missing_vars) > 0) {
+    stop("Variables not found in data: ", paste(missing_vars, collapse = ", "), call. = FALSE)
   }
-  if (length(rhs_terms) > 0 && !intercept) rhs_str <- paste(rhs_str, "- 1")
-  stats::as.formula(paste(lhs_str, "~", rhs_str), env = environment(rhs_formula))
+  na_vars <- model_vars[vapply(model_vars, function(v) anyNA(data[[v]]), logical(1))]
+  if (length(na_vars) > 0) {
+    stop("Missing values detected in: ", paste(na_vars, collapse = ", "),
+         ". 'ipwtm' requires complete cases.", call. = FALSE)
+  }
+
+  if (family %in% c("binomial", "survival") && !all(data[[var_names$exposure]] %in% c(0, 1))) {
+    stop("Exposure must be coded as 0 or 1 for family = \"", family, "\".", call. = FALSE)
+  }
+
+  if (family == "survival") {
+    for (f in list(numerator, denominator)) {
+      if (!is.null(f) &&
+          !is.null(attr(stats::terms(f, specials = "strata"), "specials")$strata)) {
+        stop("strata() terms are not supported for family = \"survival\".", call. = FALSE)
+      }
+    }
+  }
 }
 
 .compute_selvar <- function(exposure, id, type, family) {
@@ -391,10 +396,11 @@ ipwtm <- function(
       if (!is.na(idx)) c(rep(1, idx), rep(0, length(x) - idx)) else rep(1, length(x))
     }), id)
   } else {
+    # First switch away from the lowest exposure level in the whole data set
+    # (the reference level is global, not per subject; as in ipw <= 1.2.1.1)
+    ref_lvl <- sort(unique(exposure))[1]
     unsplit(lapply(split(exposure, id), function(x) {
-      base_lvl <- sort(unique(x))[1]
-      switches <- which(x != base_lvl)
-      idx <- if (length(switches) > 0) switches[1] else NA_integer_
+      idx <- match(TRUE, x != ref_lvl)
       if (!is.na(idx)) c(rep(1, idx), rep(0, length(x) - idx)) else rep(1, length(x))
     }), id)
   }
@@ -407,13 +413,7 @@ ipwtm <- function(
 
 # --- Binomial Engine -----------------------------------------------------
 .fit_ipw_binomial <- function(data, var_names, numerator, denominator, type, link, dots, ...) {
-  fam_link <- switch(link,
-                     "logit"   = stats::binomial(link = "logit"),
-                     "probit"  = stats::binomial(link = "probit"),
-                     "cauchit" = stats::binomial(link = "cauchit"),
-                     "log"     = stats::binomial(link = "log"),
-                     "cloglog" = stats::binomial(link = "cloglog")
-  )
+  fam_link <- stats::binomial(link = link)
 
   exp_col <- var_names$exposure
   id_col  <- var_names$id
@@ -435,7 +435,7 @@ ipwtm <- function(
   if (type == "all") {
     p_den[data[[exp_col]] == 0] <- 1 - pred_den[data[[exp_col]] == 0]
     p_den[data[[exp_col]] == 1] <- pred_den[data[[exp_col]] == 1]
-    w_den <- unlist(lapply(split(p_den, data[[id_col]]), cumprod))
+    w_den <- unsplit(lapply(split(p_den, data[[id_col]]), cumprod), data[[id_col]])
   } else {
     p_den[active & data[[exp_col]] == 0] <- 1 - pred_den[data[[exp_col]][active] == 0]
     if (type == "first") {
@@ -444,7 +444,7 @@ ipwtm <- function(
       p_den[active & data[[exp_col]] == 1] <- 1 - pred_den[data[[exp_col]][active] == 1]
     }
     p_den[!active] <- 1
-    w_den <- unlist(lapply(split(p_den, data[[id_col]]), cumprod))
+    w_den <- unsplit(lapply(split(p_den, data[[id_col]]), cumprod), data[[id_col]])
   }
 
   # Numerator model
@@ -467,7 +467,7 @@ ipwtm <- function(
     if (type == "all") {
       p_num[data[[exp_col]] == 0] <- 1 - pred_num[data[[exp_col]] == 0]
       p_num[data[[exp_col]] == 1] <- pred_num[data[[exp_col]] == 1]
-      w_num <- unlist(lapply(split(p_num, data[[id_col]]), cumprod))
+      w_num <- unsplit(lapply(split(p_num, data[[id_col]]), cumprod), data[[id_col]])
     } else {
       p_num[active & data[[exp_col]] == 0] <- 1 - pred_num[data[[exp_col]][active] == 0]
       if (type == "first") {
@@ -476,7 +476,7 @@ ipwtm <- function(
         p_num[active & data[[exp_col]] == 1] <- 1 - pred_num[data[[exp_col]][active] == 1]
       }
       p_num[!active] <- 1
-      w_num <- unlist(lapply(split(p_num, data[[id_col]]), cumprod))
+      w_num <- unsplit(lapply(split(p_num, data[[id_col]]), cumprod), data[[id_col]])
     }
   }
 
@@ -485,10 +485,6 @@ ipwtm <- function(
 
 # --- Survival Engine -----------------------------------------------------
 .fit_ipw_survival <- function(data, var_names, numerator, denominator, type, dots, ...) {
-  if (!requireNamespace("survival", quietly = TRUE)) {
-    stop("Package 'survival' is required for family = 'survival'.", call. = FALSE)
-  }
-
   exp_col   <- var_names$exposure
   id_col    <- var_names$id
   time_col  <- var_names$timevar
@@ -568,43 +564,34 @@ ipwtm <- function(
 .fit_ipw_categorical <- function(data, var_names, numerator, denominator, is_ordinal, link, dots, ...) {
   exp_col <- var_names$exposure
   id_col  <- var_names$id
-  u_exp   <- sort(unique(data[[exp_col]]))
 
   lhs_str <- if (is_ordinal) sprintf("as.factor(%s)", exp_col) else exp_col
-  polr_method <- if (is_ordinal) {
-    switch(link, logit = "logistic", probit = "probit", cloglog = "cloglog", cauchit = "cauchit")
-  } else NULL
+  polr_method <- if (is_ordinal) .polr_method(link) else NULL
 
   .fit_and_extract_p <- function(rhs_form) {
     form <- .build_model_formula(lhs_str, rhs_form)
     mod <- if (is_ordinal) {
-      if (!requireNamespace("MASS", quietly = TRUE)) stop("Package 'MASS' required.", call. = FALSE)
-      do.call(MASS::polr, c(list(
+      do.call(MASS::polr, .with_defaults(list(
         formula   = form,
         data      = data,
         method    = polr_method,
         subset    = quote(selvar == 1),
         na.action = stats::na.fail,
         model     = TRUE
-      ), dots))
+      ), dots, list(Hess = TRUE)))
     } else {
-      if (!requireNamespace("nnet", quietly = TRUE)) stop("Package 'nnet' required.", call. = FALSE)
-      do.call(nnet::multinom, c(list(
+      do.call(nnet::multinom, .with_defaults(list(
         formula   = form,
         data      = data,
         subset    = quote(selvar == 1),
-        na.action = stats::na.fail,
-        trace     = FALSE
-      ), dots))
+        na.action = stats::na.fail
+      ), dots, list(trace = FALSE, Hess = TRUE)))
     }
 
-    probs <- as.data.frame(stats::predict(mod, type = "probs"))
+    active <- data$selvar == 1
     p_vec <- rep(1, nrow(data))
-    for (i in seq_along(u_exp)) {
-      match_rows <- which(data$selvar == 1 & data[[exp_col]] == u_exp[i])
-      p_vec[match_rows] <- probs[data[[exp_col]][data$selvar == 1] == u_exp[i], i]
-    }
-    p_vec[data$selvar == 0] <- 1
+    p_vec[active] <- .prob_of_observed(stats::predict(mod, type = "probs"),
+                                       data[[exp_col]][active], mod$lev)
     list(model = mod, p = p_vec)
   }
 
@@ -624,10 +611,6 @@ ipwtm <- function(
 
 # --- Gaussian Engine -----------------------------------------------------
 .fit_ipw_gaussian <- function(data, var_names, numerator, denominator, corstr, dots, ...) {
-  if (!requireNamespace("geepack", quietly = TRUE)) {
-    stop("Package 'geepack' is required for family = 'gaussian'.", call. = FALSE)
-  }
-
   exp_col  <- var_names$exposure
   id_col   <- var_names$id
   time_col <- var_names$timevar

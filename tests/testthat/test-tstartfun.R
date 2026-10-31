@@ -1,6 +1,3 @@
-library(testthat)
-if (file.exists("tstartfun_new.R")) source("tstartfun_new.R")
-
 test_that("tstartfun computes correct interval start times for multi-record subjects", {
   mydata <- data.frame(
     patient = c(1, 1, 1, 1, 2, 2, 2),

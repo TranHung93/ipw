@@ -1,7 +1,7 @@
 ipw: Estimate Inverse Probability Weights
 ================
 
-# ipw <img src="man/figures/logo.png" align="right" height="139" />
+# ipw
 
 The `ipw` package provides a flexible toolkit for estimating **Inverse
 Probability Weights (IPW)** to fit marginal structural models. Functions
@@ -83,7 +83,7 @@ summary(msm)
 
 ## Example: Time-Varying Weights
 
-For longitudinal research, such as analyzing **TBM** data, `ipwtm`
+For longitudinal research, such as the HIV cohort in `haartdat`, `ipwtm`
 calculates the cumulative product of weights over time.
 
 ``` r
