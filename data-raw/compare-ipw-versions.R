@@ -42,20 +42,23 @@ haartdat <- callr::r(function() {
   e$haartdat
 }, show = FALSE)
 
-run_example <- function(haartdat) {
+run_example <- function(haartdat, lib) {
   suppressPackageStartupMessages({
     library(survival)
-    library(ipw)
+    # Load ipw from the version's own library when given, never by search path
+    if (length(lib)) library(ipw, lib.loc = lib) else library(ipw)
   })
   res <- ipwtm(exposure = haartind, family = "survival", denominator = ~ cd4.sqrt,
                id = patient, tstart = tstart, timevar = fuptime, type = "first",
                data = haartdat)
-  list(version = as.character(utils::packageVersion("ipw")),
+  ns_path <- getNamespaceInfo("ipw", "path")
+  list(version = read.dcf(file.path(ns_path, "DESCRIPTION"), fields = "Version")[1, 1],
+       path    = ns_path,
        weights = as.numeric(res$ipw.weights))
 }
 
 run_in_lib <- function(lib) {
-  callr::r(run_example, args = list(haartdat = haartdat),
+  callr::r(run_example, args = list(haartdat = haartdat, lib = lib),
            libpath = c(lib, .libPaths()), show = FALSE)
 }
 
@@ -80,7 +83,10 @@ for (i in seq_along(versions)) {
     }, args = list(url = urls[i], lib = lib), show = FALSE)
     if (!dir.exists(file.path(lib, "ipw"))) stop("installation failed")
     out <- run_in_lib(lib)
-    stopifnot(out$version == v)
+    # Compare as versions: "1.0-1" and "1.0.1" are the same version
+    if (package_version(out$version) != package_version(v)) {
+      stop("loaded ipw ", out$version, " from ", out$path, " instead of ", v)
+    }
     results[[v]] <- out$weights
     TRUE
   }, error = function(e) {
