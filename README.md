@@ -29,6 +29,15 @@ correct for informative censoring.
 install.packages("ipw")
 ```
 
+Or the development version from GitHub:
+
+``` r
+# install.packages("remotes")
+remotes::install_github("TranHung93/ipw")
+```
+
+Documentation: <https://tranhung93.github.io/ipw/>
+
 ## Example: Point Treatment Causal Inference
 
 This example simulates data with a continuous confounder (`l`) and a
