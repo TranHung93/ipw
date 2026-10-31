@@ -23,12 +23,18 @@ incorrect analysis results, I would like to correct this as soon as possible.
 * local: Windows 11 x64, R 4.6.1
 * GitHub Actions: ubuntu-latest (R-devel, R-release, R-oldrel-1),
   macos-latest (R-release), windows-latest (R-release)
-* win-builder: R-devel  <!-- TODO: confirm after devtools::check_win_devel() -->
+* win-builder: R-devel (2026-10-30 r90805 ucrt), Windows Server 2022 x64
 
 ### R CMD check results
-0 errors | 0 warnings | 0 notes
+0 errors | 0 warnings | 1 note
 
-<!-- TODO: if win-builder reports a NOTE, list it here with a short explanation. -->
+* checking CRAN incoming feasibility ... NOTE
+  Days since last update: 1
+
+  This is a quick fix for a bug in 1.3.1 that returns incorrect results
+  (see above).
+
+Local and GitHub Actions checks: 0 errors | 0 warnings | 0 notes.
 
 ### Reverse dependencies
 <!-- TODO: replace with the result of revdepcheck::revdep_check(), e.g.: -->
