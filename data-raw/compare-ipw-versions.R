@@ -29,7 +29,10 @@ if (length(tarballs) == 0) {
                      ".tar.gz")
 }
 versions <- sub("^ipw_(.*)\\.tar\\.gz$", "\\1", tarballs)
-versions <- versions[order(package_version(gsub("-", ".", versions)))]
+# Sort versions and tarballs together so urls[i] always belongs to versions[i]
+ord <- order(package_version(gsub("-", ".", versions)))
+versions <- versions[ord]
+tarballs <- tarballs[ord]
 urls <- paste0(archive_url, tarballs)
 message("Archived versions found: ", paste(versions, collapse = ", "))
 
