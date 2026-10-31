@@ -1,12 +1,46 @@
 # ipw 1.3.1
 
-* **Core Refactoring (`ipwtm`, `ipwpoint`, `ipwplot`, `tstartfun`)**:
-  * Improved defensive input validation, parameter checking, and error messages across all core functions.
-  * Modernized formula construction (`as.formula()`) to eliminate fragile `eval(parse(text = ...))` string manipulations.
-  * Fixed variable symbol evaluation issues when passing variables as function arguments rather than raw names.
-  * Modularized `ipwtm` into dedicated family modeling engines (`binomial`, `survival`, `multinomial`, `ordinal`, `gaussian`).
-  * Replaced manual survival hazard step-differencing with continuous baseline hazard interpolation using `survival::basehaz` and `stats::approx`.
-  * Refactored `tstartfun` to use safe column evaluation and direct vector lag logic (`c(-1, t[-length(t)])`).
+## Bug fixes
 
-* **Test Suite Expansion**:
-  * Upgraded `testthat` suite to 3rd edition specs, expanding coverage for `multinomial`, `ordinal`, `gaussian`, unstabilized models, weight truncation, and invalid parameter rejection.
+* `ipwpoint()`: `weights.trunc` was wrong whenever `trunc` was set. The lower
+  and upper quantiles were recycled across rows, so every truncated weight was
+  replaced by one of the two bounds. Weights are now clipped at the `trunc` and
+  `1 - trunc` quantiles, and weights between the bounds are left unchanged.
+* `ipwtm()` with `family = "multinomial"` or `"ordinal"`: predicted
+  probabilities are now matched to the observed exposure by level name rather
+  than by column position. Before this, the result could be wrong when a level
+  was absent among the selected rows, and a two-level exposure gave wrong
+  weights or an error.
+* `ipwpoint()` with `family = "multinomial"` now works for a two-level exposure.
+* `ipwtm()` with `type = "first"` and `family = "multinomial"` / `"ordinal"`:
+  a switch is again defined as the first record at any level other than the
+  lowest level in the whole data set, as in ipw <= 1.2.1.1. In 1.3.0 the
+  reference level was chosen separately for each subject.
+
+## Improvements
+
+* `ipwtm()` now checks that all model variables exist and contain no missing
+  values, and that a binomial/survival exposure is coded 0/1, with clear error
+  messages instead of errors from inside `glm()` / `coxph()`.
+* `ipwtm()` with `family = "survival"` now stops with a clear message when a
+  formula contains `strata()`, which is not supported.
+* Fitted models returned in `num.mod` / `den.mod` no longer carry an inlined
+  copy of the data in their `call`, so printing them is readable again.
+* `ipwpoint()` and `ipwtm()` share one set of internal helpers for argument
+  checks, formula construction, probability extraction and truncation.
+* Removed blanket `import()` of whole packages; all calls use `pkg::fun`.
+  `methods` is no longer imported.
+
+## Internal
+
+* Core functions rewritten for input validation and formula construction
+  without `eval(parse(text = ...))`. The Cox-model weights still use
+  `survival::basehaz()` with constant interpolation, as in earlier versions.
+* Test suite expanded (testthat 3rd edition): exact checks of truncation,
+  row-order invariance, two-level multinomial vs binomial equivalence, and
+  error messages.
+
+# ipw 1.3.0
+
+* New maintainer: Hung Thai Tran.
+* License changed to MIT (earlier versions: GPL (>= 2)).

@@ -1,6 +1,3 @@
-library(testthat)
-if (file.exists("ipwpoint_new.R")) source("ipwpoint_new.R")
-
 test_that("ipwpoint correctly calculates stabilized and unstabilized weights for binomial exposure", {
   set.seed(123)
   n <- 200
@@ -125,11 +122,16 @@ test_that("ipwpoint correctly applies weight truncation", {
 
   expect_named(res_trunc, c("ipw.weights", "weights.trunc", "call", "num.mod", "den.mod"))
 
-  # Check truncation bounds
-  p05 <- quantile(res_trunc$ipw.weights, 0.05)
-  p95 <- quantile(res_trunc$ipw.weights, 0.95)
-  expect_true(all(res_trunc$weights.trunc >= p05 - 1e-8))
-  expect_true(all(res_trunc$weights.trunc <= p95 + 1e-8))
+  w  <- res_trunc$ipw.weights
+  wt <- res_trunc$weights.trunc
+  q  <- unname(quantile(w, c(0.05, 0.95)))
+
+  # Weights inside the bounds are untouched, those outside are set to the bound
+  inside <- w >= q[1] & w <= q[2]
+  expect_equal(wt[inside], w[inside])
+  expect_equal(wt[w < q[1]], rep(q[1], sum(w < q[1])))
+  expect_equal(wt[w > q[2]], rep(q[2], sum(w > q[2])))
+  expect_equal(wt, pmin(pmax(w, q[1]), q[2]))
 })
 
 test_that("ipwpoint accepts column references as symbols and character strings", {
@@ -160,4 +162,51 @@ test_that("ipwpoint rejects invalid input configurations", {
   # Invalid trunc values
   expect_error(ipwpoint(exposure = a, family = "binomial", link = "logit", denominator = ~ l, data = dat, trunc = 0.8), "trunc")
   expect_error(ipwpoint(exposure = a, family = "binomial", link = "logit", denominator = ~ l, data = dat, trunc = -0.1), "trunc")
+})
+
+test_that("ipwpoint handles a two-level multinomial exposure", {
+  set.seed(1)
+  n <- 200
+  l <- rnorm(n)
+  a <- factor(ifelse(runif(n) < plogis(l), "B", "A"))
+  dat <- data.frame(a = a, l = l)
+
+  res_multi <- ipwpoint(exposure = a, family = "multinomial",
+                        numerator = ~ 1, denominator = ~ l, data = dat)
+
+  # Must equal the binomial-logit weights for the same exposure
+  dat$a01 <- as.numeric(dat$a == "B")
+  res_bin <- ipwpoint(exposure = a01, family = "binomial", link = "logit",
+                      numerator = ~ 1, denominator = ~ l, data = dat)
+  expect_equal(unname(res_multi$ipw.weights), unname(res_bin$ipw.weights), tolerance = 1e-3)
+})
+
+test_that("ipwpoint models keep a readable call and support summary()", {
+  set.seed(2)
+  dat <- data.frame(l = rnorm(150))
+  dat$a <- factor(cut(dat$l + rnorm(150), 3, labels = c("lo", "mid", "hi")), ordered = TRUE)
+
+  res <- ipwpoint(exposure = a, family = "ordinal", link = "logit",
+                  numerator = ~ 1, denominator = ~ l, data = dat)
+  expect_identical(res$den.mod$call$data, quote(dat))
+  expect_no_error(summary(res$den.mod))
+
+  dat$b <- rbinom(150, 1, plogis(dat$l))
+  res_b <- ipwpoint(exposure = b, family = "binomial", link = "probit",
+                    denominator = ~ l, data = dat)
+  expect_identical(res_b$den.mod$call$data, quote(dat))
+  expect_identical(res_b$den.mod$call$family, quote(binomial(link = "probit")))
+})
+
+test_that("ipwpoint rejects missing values and non 0/1 binomial exposure", {
+  dat <- data.frame(a = c(0, 1, 1, 0, 1, 0), l = c(1, 2, NA, 4, 5, 6))
+  expect_error(ipwpoint(exposure = a, family = "binomial", link = "logit",
+                        denominator = ~ l, data = dat), "Missing values")
+
+  dat2 <- data.frame(a = c(0, 1, 2, 0, 1, 0), l = rnorm(6))
+  expect_error(ipwpoint(exposure = a, family = "binomial", link = "logit",
+                        denominator = ~ l, data = dat2), "0 or 1")
+
+  expect_error(ipwpoint(exposure = notacolumn, family = "binomial", link = "logit",
+                        denominator = ~ l, data = dat2), "not found")
 })

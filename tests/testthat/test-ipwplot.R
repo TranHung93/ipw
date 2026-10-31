@@ -1,6 +1,3 @@
-library(testthat)
-if (file.exists("ipwplot_new.R")) source("ipwplot_new.R")
-
 test_that("ipwplot executes density plots for point treatment weights", {
   set.seed(123)
   w <- runif(100, 0.5, 5)

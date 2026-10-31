@@ -21,7 +21,7 @@ ipwtm(
 )
 }
 \arguments{
-\item{exposure}{Exposure variable (unquoted symbol, string, or vector).}
+\item{exposure}{Name of the exposure column in \code{data} (unquoted or as a string).}
 
 \item{family}{Model family: \code{"binomial"}, \code{"survival"}, \code{"multinomial"},
 \code{"ordinal"}, or \code{"gaussian"}.}
@@ -32,11 +32,11 @@ ipwtm(
 
 \item{denominator}{Formula for denominator model.}
 
-\item{id}{Patient/subject identifier variable.}
+\item{id}{Name of the subject identifier column in \code{data}.}
 
-\item{tstart}{Start time variable for counting process format (required for \code{family = "survival"}).}
+\item{tstart}{Name of the interval start time column (required for \code{family = "survival"}).}
 
-\item{timevar}{End time/follow-up time variable.}
+\item{timevar}{Name of the follow-up (interval end) time column.}
 
 \item{type}{Exposure switch type: \code{"first"}, \code{"cens"}, or \code{"all"}.}
 
