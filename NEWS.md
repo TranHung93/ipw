@@ -14,6 +14,9 @@
   gaussian and poisson families, and in `ipwtm()` for the binomial family.
 * `ipwpoint()`: new `estimand` argument for a binomial exposure: `"ATE"`
   (default), `"ATT"` (effect in the treated) and `"ATO"` (overlap weights).
+* Existing calls are unchanged: without smooth terms the models are still
+  fitted with `glm()`, and `estimand` defaults to `"ATE"`. A covariate named
+  `s`, `te`, `ti` or `t2` is treated as an ordinary variable.
 
 # ipw 1.3.2
 

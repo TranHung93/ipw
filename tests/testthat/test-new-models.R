@@ -277,3 +277,36 @@ test_that("ipwpoint refuses ATT/ATO for other families or with a numerator", {
   expect_error(ipwpoint(exposure = a, family = "binomial", link = "logit",
                         denominator = ~ l, data = d, estimand = "XYZ"), "should be one of")
 })
+
+# ---- Old behaviour is unchanged ----------------------------------------------
+
+test_that("covariates named s, te, ti or t2 are ordinary variables, not smooth terms", {
+  set.seed(15)
+  d <- data.frame(s = rbinom(200, 1, 0.5), te = rnorm(200), ti = rnorm(200), t2 = rnorm(200))
+  d$a <- rbinom(200, 1, plogis(0.5 * d$s + 0.3 * d$te))
+  res <- ipwpoint(exposure = a, family = "binomial", link = "logit",
+                  numerator = ~ 1, denominator = ~ s + te + ti + t2, data = d)
+  expect_s3_class(res$den.mod, "glm")
+  expect_false(inherits(res$den.mod, "gam"))
+
+  d$m <- factor(sample(c("x", "y", "z"), 200, replace = TRUE))
+  expect_no_error(ipwpoint(exposure = m, family = "multinomial", numerator = ~ 1,
+                           denominator = ~ s + te, data = d))
+
+  expect_false(ipw:::.uses_smooths(~ s + te + ti + t2))
+  expect_true(ipw:::.uses_smooths(~ age + s(cd4)))
+  expect_true(ipw:::.uses_smooths(~ mgcv::te(x, z)))
+  expect_true(ipw:::.uses_smooths(~ log(age) + ti(x)))
+})
+
+test_that("default binomial weights are unchanged by the new estimand argument", {
+  set.seed(16)
+  d <- data.frame(l = rnorm(200))
+  d$a <- rbinom(200, 1, plogis(d$l))
+  a <- ipwpoint(exposure = a, family = "binomial", link = "logit",
+                numerator = ~ 1, denominator = ~ l, data = d)
+  b <- ipwpoint(exposure = a, family = "binomial", link = "logit",
+                numerator = ~ 1, denominator = ~ l, data = d, estimand = "ATE")
+  expect_identical(a$ipw.weights, b$ipw.weights)
+  expect_s3_class(a$den.mod, "glm")
+})

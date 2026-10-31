@@ -97,10 +97,20 @@
 
 .smooth_fns <- c("s", "te", "ti", "t2")
 
-# TRUE if a formula contains mgcv smooth terms such as s(x) or te(x, z)
+# TRUE if a formula calls an mgcv smooth such as s(x), te(x, z) or mgcv::s(x).
+# Only function calls count: a covariate that happens to be named s, te, ti or
+# t2 is an ordinary variable.
 .uses_smooths <- function(f) {
   if (is.null(f)) return(FALSE)
-  any(.smooth_fns %in% all.names(f))
+  is_smooth_call <- function(e) {
+    if (!is.call(e)) return(FALSE)
+    fn <- e[[1]]
+    if (is.name(fn) && as.character(fn) %in% .smooth_fns) return(TRUE)
+    if (is.call(fn) && identical(fn[[1]], as.name("::")) &&
+        as.character(fn[[3]]) %in% .smooth_fns) return(TRUE)
+    any(vapply(as.list(e)[-1], is_smooth_call, logical(1)))
+  }
+  is_smooth_call(f)
 }
 
 .require_mgcv <- function() {
