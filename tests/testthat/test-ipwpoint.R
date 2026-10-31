@@ -210,3 +210,34 @@ test_that("ipwpoint rejects missing values and non 0/1 binomial exposure", {
   expect_error(ipwpoint(exposure = notacolumn, family = "binomial", link = "logit",
                         denominator = ~ l, data = dat2), "not found")
 })
+
+test_that("ipwpoint gives unstabilized weights for multinomial and ordinal exposures (#3)", {
+  # Reproducible example from GitHub issue #3
+  set.seed(1)
+  n <- 200
+  d <- data.frame(l = rnorm(n))
+  eta2 <- -0.5 + d$l
+  eta3 <- -0.5 + 2 * d$l
+  den <- 1 + exp(eta2) + exp(eta3)
+  p1 <- 1 / den
+  p2 <- exp(eta2) / den
+  u <- runif(n)
+  d$a <- factor(ifelse(u < p1, 1, ifelse(u < p1 + p2, 2, 3)))
+  d$ao <- ordered(d$a)
+
+  res_m <- ipwpoint(exposure = a, family = "multinomial", denominator = ~ l, data = d)
+  expect_length(res_m$ipw.weights, n)
+  expect_null(res_m$num.mod)
+  probs_m <- predict(res_m$den.mod, type = "probs")
+  p_obs_m <- probs_m[cbind(seq_len(n), match(as.character(d$a), colnames(probs_m)))]
+  expect_equal(unname(res_m$ipw.weights), unname(1 / p_obs_m))
+  # Mean of unstabilized weights is close to the number of categories
+  expect_equal(mean(res_m$ipw.weights), 3, tolerance = 0.25)
+
+  res_o <- ipwpoint(exposure = ao, family = "ordinal", link = "logit", denominator = ~ l, data = d)
+  expect_length(res_o$ipw.weights, n)
+  expect_null(res_o$num.mod)
+  probs_o <- predict(res_o$den.mod, type = "probs")
+  p_obs_o <- probs_o[cbind(seq_len(n), match(as.character(d$ao), colnames(probs_o)))]
+  expect_equal(unname(res_o$ipw.weights), unname(1 / p_obs_o))
+})

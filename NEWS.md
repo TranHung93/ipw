@@ -12,6 +12,9 @@
   was absent among the selected rows, and a two-level exposure gave wrong
   weights or an error.
 * `ipwpoint()` with `family = "multinomial"` now works for a two-level exposure.
+* Added a test for unstabilized weights (no `numerator`) with
+  `family = "multinomial"` and `"ordinal"` in `ipwpoint()`. These failed in
+  1.3.0 and were fixed by the 1.3.1 rewrite (#3, @adcascone).
 * `ipwtm()` with `type = "first"` and `family = "multinomial"` / `"ordinal"`:
   a switch is again defined as the first record at any level other than the
   lowest level in the whole data set, as in ipw <= 1.2.1.1. In 1.3.1 the
