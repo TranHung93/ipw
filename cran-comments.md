@@ -37,8 +37,7 @@ incorrect analysis results, I would like to correct this as soon as possible.
 Local and GitHub Actions checks: 0 errors | 0 warnings | 0 notes.
 
 ### Reverse dependencies
-<!-- TODO: replace with the result of revdepcheck::revdep_check(), e.g.: -->
-We checked 1 reverse dependency (ipeval), comparing R CMD check results
+We checked 1 reverse dependency (ipeval 0.1.2), comparing R CMD check results
 across the CRAN and development versions of this package.
 * We saw 0 new problems.
 * We failed to check 0 packages.
