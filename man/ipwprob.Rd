@@ -27,9 +27,9 @@ multiplied within a subject.}
 \value{
 A list of class \code{"ipwprob"} containing:
 \item{ipw.weights}{Numeric vector of inverse probability weights, in the
-order of the input.}
+  order of the input.}
 \item{weights.trunc}{Numeric vector of truncated weights (if \code{trunc} is
-specified).}
+  specified).}
 \item{call}{The original function call.}
 }
 \description{
