@@ -10,7 +10,7 @@
 # comes from ipw itself.
 #
 # Run from a terminal:
-#   Rscript compare-ipw-versions.R
+#   Rscript dev/compare-ipw-versions.R
 # or source() it in a fresh R session. If you run it in an RStudio session
 # where ipw is already loaded, restart R first (Session > Restart R).
 # Needs: callr, survival (and an internet connection).
