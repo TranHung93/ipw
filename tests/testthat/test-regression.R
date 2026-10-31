@@ -16,7 +16,7 @@ test_that("weights match ipw 1.2.1.1", {
 
     for (el in intersect(names(old), names(new))) {
       expect_equal(new[[el]], old[[el]], tolerance = 1e-6,
-                   label = paste0(nm, "$", el, " (1.3.1)"),
+                   label = paste0(nm, "$", el, " (current)"),
                    expected.label = paste0(nm, "$", el, " (1.2.1.1)"))
     }
   }

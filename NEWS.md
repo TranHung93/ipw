@@ -1,4 +1,4 @@
-# ipw 1.3.1
+# ipw 1.3.2
 
 ## Bug fixes
 
@@ -14,7 +14,7 @@
 * `ipwpoint()` with `family = "multinomial"` now works for a two-level exposure.
 * `ipwtm()` with `type = "first"` and `family = "multinomial"` / `"ordinal"`:
   a switch is again defined as the first record at any level other than the
-  lowest level in the whole data set, as in ipw <= 1.2.1.1. In 1.3.0 the
+  lowest level in the whole data set, as in ipw <= 1.2.1.1. In 1.3.1 the
   reference level was chosen separately for each subject.
 
 ## Improvements
@@ -31,14 +31,25 @@
 * Removed blanket `import()` of whole packages; all calls use `pkg::fun`.
   `methods` is no longer imported.
 
-## Internal
+## Tests
 
-* Core functions rewritten for input validation and formula construction
-  without `eval(parse(text = ...))`. The Cox-model weights still use
-  `survival::basehaz()` with constant interpolation, as in earlier versions.
-* Test suite expanded (testthat 3rd edition): exact checks of truncation,
-  row-order invariance, two-level multinomial vs binomial equivalence, and
-  error messages.
+* Test suite expanded: exact checks of truncation, row-order invariance,
+  two-level multinomial vs binomial equivalence, and error messages.
+* New regression test against ipw 1.2.1.1 (reference weights created with
+  `data-raw/make-regression-fixtures.R`).
+
+# ipw 1.3.1
+
+* **Core Refactoring (`ipwtm`, `ipwpoint`, `ipwplot`, `tstartfun`)**:
+  * Improved defensive input validation, parameter checking, and error messages across all core functions.
+  * Modernized formula construction (`as.formula()`) to eliminate fragile `eval(parse(text = ...))` string manipulations.
+  * Fixed variable symbol evaluation issues when passing variables as function arguments rather than raw names.
+  * Modularized `ipwtm` into dedicated family modeling engines (`binomial`, `survival`, `multinomial`, `ordinal`, `gaussian`).
+  * Replaced manual survival hazard step-differencing with continuous baseline hazard interpolation using `survival::basehaz` and `stats::approx`.
+  * Refactored `tstartfun` to use safe column evaluation and direct vector lag logic (`c(-1, t[-length(t)])`).
+
+* **Test Suite Expansion**:
+  * Upgraded `testthat` suite to 3rd edition specs, expanding coverage for `multinomial`, `ordinal`, `gaussian`, unstabilized models, weight truncation, and invalid parameter rejection.
 
 # ipw 1.3.0
 

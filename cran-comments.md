@@ -1,6 +1,7 @@
-## Update to ipw 1.3.1
+## Update to ipw 1.3.2
 
-This is a patch release (1.3.0 -> 1.3.1).
+This is a patch release (1.3.1 -> 1.3.2), submitted shortly after 1.3.1
+because 1.3.1 returns incorrect truncated weights from `ipwpoint()`.
 
 ### Summary of changes
 * Fixes incorrect truncated weights in `ipwpoint()` (`trunc` argument).
