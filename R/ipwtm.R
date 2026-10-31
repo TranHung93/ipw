@@ -10,11 +10,15 @@
 #'   \code{"ordinal"}, or \code{"gaussian"}.
 #' @param link Link function for binomial or ordinal models.
 #' @param numerator Formula for numerator model. If \code{NULL}, unstabilized weights are computed.
-#' @param denominator Formula for denominator model.
+#' @param denominator Formula for denominator model. For \code{family = "binomial"},
+#'   smooth terms (\code{s()}, \code{te()}, \code{ti()}, \code{t2()}) are allowed;
+#'   the model is then fitted with \code{mgcv::gam}.
 #' @param id Name of the subject identifier column in \code{data}.
 #' @param tstart Name of the interval start time column (required for \code{family = "survival"}).
 #' @param timevar Name of the follow-up (interval end) time column.
 #' @param type Exposure switch type: \code{"first"}, \code{"cens"}, or \code{"all"}.
+#'   \code{"all"} is available for the binomial, multinomial, ordinal and gaussian
+#'   families.
 #' @param data Data frame containing all required variables.
 #' @param corstr Correlation structure for GEE when \code{family = "gaussian"} (default: \code{"ar1"}).
 #' @param trunc Optional truncation percentile between 0 and 0.5.
@@ -340,8 +344,12 @@ ipwtm <- function(
     stop("Invalid numerator formula specified", call. = FALSE)
   }
   .check_link(family, link)
-  if (family %in% c("survival", "multinomial", "ordinal") && type == "all") {
-    stop(paste0("Type \"all\" not yet implemented for family = \"", family, "\""), call. = FALSE)
+  if (family == "survival" && type == "all") {
+    stop("Type \"all\" not yet implemented for family = \"survival\"", call. = FALSE)
+  }
+  if ((.uses_smooths(denominator) || .uses_smooths(numerator)) && family != "binomial") {
+    stop("Smooth terms (s(), te(), ti(), t2()) are only supported for family = \"binomial\" ",
+         "in ipwtm().", call. = FALSE)
   }
   if (family %in% c("multinomial", "ordinal", "gaussian") && type == "cens") {
     stop(paste0("Type \"cens\" not yet implemented for family = \"", family, "\""), call. = FALSE)
@@ -420,7 +428,7 @@ ipwtm <- function(
 
   # Denominator model
   form_den <- .build_model_formula(exp_col, denominator)
-  mod_den <- do.call(stats::glm, c(list(
+  mod_den <- .fit_glm_or_gam(c(list(
     formula   = form_den,
     family    = fam_link,
     data      = data,
@@ -428,7 +436,7 @@ ipwtm <- function(
     na.action = stats::na.fail
   ), dots))
 
-  pred_den <- stats::predict.glm(mod_den, type = "response")
+  pred_den <- as.numeric(stats::predict(mod_den, type = "response"))
   p_den <- rep(1, nrow(data))
   active <- (data$selvar == 1)
 
@@ -453,7 +461,7 @@ ipwtm <- function(
     w_num <- rep(1, nrow(data))
   } else {
     form_num <- .build_model_formula(exp_col, numerator)
-    mod_num <- do.call(stats::glm, c(list(
+    mod_num <- .fit_glm_or_gam(c(list(
       formula   = form_num,
       family    = fam_link,
       data      = data,
@@ -461,7 +469,7 @@ ipwtm <- function(
       na.action = stats::na.fail
     ), dots))
 
-    pred_num <- stats::predict.glm(mod_num, type = "response")
+    pred_num <- as.numeric(stats::predict(mod_num, type = "response"))
     p_num <- rep(1, nrow(data))
 
     if (type == "all") {

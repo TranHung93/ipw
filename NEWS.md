@@ -1,3 +1,20 @@
+# ipw (development version)
+
+## New features
+
+* `ipwtm()`: `type = "all"` now works for `family = "multinomial"` and
+  `"ordinal"` (time-varying categorical exposures that switch back and forth).
+* New `ipwprob()`: inverse probability weights from probabilities you
+  estimated yourself (for example with machine learning or SuperLearner), for
+  point treatments or cumulated over time within subjects.
+* `ipwpoint()`: new families for count exposures (`"poisson"`, `"negbin"`) and
+  skewed continuous exposures (`"gamma"`, `"lognormal"`).
+* Smooth terms (`s()`, `te()`, `ti()`, `t2()`) in model formulas are fitted as
+  generalized additive models with mgcv: in `ipwpoint()` for the binomial,
+  gaussian and poisson families, and in `ipwtm()` for the binomial family.
+* `ipwpoint()`: new `estimand` argument for a binomial exposure: `"ATE"`
+  (default), `"ATT"` (effect in the treated) and `"ATO"` (overlap weights).
+
 # ipw 1.3.2
 
 ## Bug fixes

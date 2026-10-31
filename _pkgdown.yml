@@ -31,6 +31,7 @@ reference:
   contents:
   - ipwpoint
   - ipwtm
+  - ipwprob
 - title: Diagnostics
   contents:
   - ipwplot

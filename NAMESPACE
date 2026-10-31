@@ -2,5 +2,6 @@
 
 export(ipwplot)
 export(ipwpoint)
+export(ipwprob)
 export(ipwtm)
 export(tstartfun)

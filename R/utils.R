@@ -92,3 +92,42 @@
   }
   mod
 }
+
+# ---- Generalized additive models (mgcv) --------------------------------------
+
+.smooth_fns <- c("s", "te", "ti", "t2")
+
+# TRUE if a formula contains mgcv smooth terms such as s(x) or te(x, z)
+.uses_smooths <- function(f) {
+  if (is.null(f)) return(FALSE)
+  any(.smooth_fns %in% all.names(f))
+}
+
+.require_mgcv <- function() {
+  if (!requireNamespace("mgcv", quietly = TRUE)) {
+    stop("Package 'mgcv' is needed for smooth terms (s(), te(), ti(), t2()). ",
+         "Please install it.", call. = FALSE)
+  }
+}
+
+# Give a formula an environment in which s(), te(), ti() and t2() are mgcv's,
+# so smooth terms work without the user attaching mgcv.
+.gam_formula <- function(form) {
+  env <- new.env(parent = environment(form))
+  for (fn in .smooth_fns) assign(fn, getExportedValue("mgcv", fn), envir = env)
+  environment(form) <- env
+  form
+}
+
+# Fit a GLM, or a GAM when the formula has smooth terms. `args` holds formula,
+# data, family and any further arguments for glm()/gam().
+.fit_glm_or_gam <- function(args) {
+  if (.uses_smooths(args$formula)) {
+    .require_mgcv()
+    args$formula <- .gam_formula(args$formula)
+    args$na.action <- NULL
+    do.call(mgcv::gam, args)
+  } else {
+    do.call(stats::glm, args)
+  }
+}

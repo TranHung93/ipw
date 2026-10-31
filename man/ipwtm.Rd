@@ -30,7 +30,9 @@ ipwtm(
 
 \item{numerator}{Formula for numerator model. If \code{NULL}, unstabilized weights are computed.}
 
-\item{denominator}{Formula for denominator model.}
+\item{denominator}{Formula for denominator model. For \code{family = "binomial"},
+smooth terms (\code{s()}, \code{te()}, \code{ti()}, \code{t2()}) are allowed;
+the model is then fitted with \code{mgcv::gam}.}
 
 \item{id}{Name of the subject identifier column in \code{data}.}
 
@@ -38,7 +40,9 @@ ipwtm(
 
 \item{timevar}{Name of the follow-up (interval end) time column.}
 
-\item{type}{Exposure switch type: \code{"first"}, \code{"cens"}, or \code{"all"}.}
+\item{type}{Exposure switch type: \code{"first"}, \code{"cens"}, or \code{"all"}.
+\code{"all"} is available for the binomial, multinomial, ordinal and gaussian
+families.}
 
 \item{data}{Data frame containing all required variables.}
 
