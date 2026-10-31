@@ -9,8 +9,10 @@
 # your installed ipw) and the same survival package, so any difference
 # comes from ipw itself.
 #
-# Run from anywhere:
+# Run from a terminal:
 #   Rscript compare-ipw-versions.R
+# or source() it in a fresh R session. If you run it in an RStudio session
+# where ipw is already loaded, restart R first (Session > Restart R).
 # Needs: callr, survival (and an internet connection).
 
 if (!requireNamespace("callr", quietly = TRUE)) install.packages("callr")
@@ -32,7 +34,13 @@ urls <- paste0(archive_url, tarballs)
 message("Archived versions found: ", paste(versions, collapse = ", "))
 
 # ---- The example, run in a fresh R process ---------------------------------
-data("haartdat", package = "ipw")
+# haartdat is read in a subprocess so ipw is never loaded in this session
+# (on Windows, R refuses to install a package that is loaded).
+haartdat <- callr::r(function() {
+  e <- new.env()
+  utils::data("haartdat", package = "ipw", envir = e)
+  e$haartdat
+}, show = FALSE)
 
 run_example <- function(haartdat) {
   suppressPackageStartupMessages({
@@ -66,7 +74,11 @@ for (i in seq_along(versions)) {
   lib <- file.path(tempdir(), paste0("ipw-", v))
   dir.create(lib, showWarnings = FALSE)
   ok <- tryCatch({
-    utils::install.packages(urls[i], repos = NULL, type = "source", lib = lib, quiet = TRUE)
+    # Install in a fresh R process where ipw is not loaded
+    callr::r(function(url, lib) {
+      utils::install.packages(url, repos = NULL, type = "source", lib = lib, quiet = TRUE)
+    }, args = list(url = urls[i], lib = lib), show = FALSE)
+    if (!dir.exists(file.path(lib, "ipw"))) stop("installation failed")
     out <- run_in_lib(lib)
     stopifnot(out$version == v)
     results[[v]] <- out$weights
