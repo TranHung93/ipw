@@ -32,6 +32,10 @@ reference:
   - ipwpoint
   - ipwtm
   - ipwprob
+- title: Standard errors
+  desc: Bootstrap a weighted analysis, re-estimating the weights in each sample.
+  contents:
+  - ipwboot
 - title: Diagnostics
   contents:
   - ipwplot

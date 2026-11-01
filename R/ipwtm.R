@@ -17,8 +17,9 @@
 #' resample subjects, not rows: keep all rows of a sampled subject, give each sampled
 #' copy a new id, re-run \code{ipwtm} (for treatment and, if used, censoring weights)
 #' on the bootstrap sample and refit the marginal structural model. See the cluster
-#' bootstrap in Example 1 below. About 200 bootstrap samples are usually enough to
-#' estimate a standard error.
+#' bootstrap in Example 1 below; \code{\link{ipwboot}} does this resampling for you
+#' (argument \code{id}). About 200 bootstrap samples are usually enough to estimate
+#' a standard error.
 #'
 #' @param exposure Name of the exposure column in \code{data} (unquoted or as a string).
 #' @param family Model family: \code{"binomial"}, \code{"survival"}, \code{"multinomial"},
