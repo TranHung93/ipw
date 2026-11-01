@@ -32,13 +32,20 @@ add <- function(scenario, method, est, truth) {
     reps = length(est))
 }
 wlm <- function(formula, data, w = NULL) {
-  fit <- if (is.null(w)) lm(formula, data = data) else lm(formula, data = data, weights = w)
-  coef(fit)[2]
+  # the weights go in as a data column: lm() looks for 'weights' in the data
+  # and the formula's environment, not in this function
+  data$.w <- if (is.null(w)) 1 else w
+  coef(lm(formula, data = data, weights = .w))[2]
 }
 # Run f() n times; a replication that fails (e.g. a model that does not
 # converge) gives a row of NA and is left out of the summaries.
 reps <- function(n, f) {
-  out <- lapply(seq_len(n), function(i) tryCatch(f(), error = function(e) NULL))
+  errs <- character()
+  out <- lapply(seq_len(n), function(i) tryCatch(f(), error = function(e) {
+    errs <<- c(errs, conditionMessage(e)); NULL
+  }))
+  if (length(errs)) message(length(errs), " of ", n, " replications failed; first error: ", errs[1])
+  if (length(errs) == n) stop("All replications failed: ", errs[1], call. = FALSE)
   k <- max(lengths(out))
   do.call(rbind, lapply(out, function(x) if (is.null(x)) rep(NA_real_, k) else x))
 }
