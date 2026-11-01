@@ -53,7 +53,7 @@ all by default.}
 A list of class \code{"ipwboot"} containing:
 \item{t0}{Estimates from the original data.}
 \item{t}{Matrix of bootstrap estimates, one row per bootstrap sample
-(\code{NA} for failed samples).}
+  (\code{NA} for failed samples).}
 \item{se}{Bootstrap standard errors.}
 \item{ci}{Percentile confidence intervals.}
 \item{R, conf}{Number of bootstrap samples and confidence level.}

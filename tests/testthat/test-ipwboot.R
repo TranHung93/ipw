@@ -96,7 +96,6 @@ test_that("ipwboot works with ipwpoint and gives a sensible standard error", {
 
 test_that("ipwboot works with ipwtm and subject resampling", {
   data(haartdat, package = "ipw")
-  small <- haartdat[haartdat$patient %in% unique(haartdat$patient)[1:300], ]
   stat <- function(dd) {
     w <- ipwtm(exposure = haartind, family = "survival", numerator = ~ sex + age,
                denominator = ~ sex + age + cd4.sqrt, id = patient, tstart = tstart,
@@ -105,8 +104,8 @@ test_that("ipwboot works with ipwtm and subject resampling", {
                          data = dd, weights = w))
   }
   set.seed(37)
-  res <- ipwboot(small, stat, id = patient, R = 5)
-  expect_identical(dim(res$t), c(5L, 1L))
+  res <- ipwboot(haartdat, stat, id = patient, R = 3)
+  expect_identical(dim(res$t), c(3L, 1L))
   expect_true(is.finite(res$se) && res$se > 0)
   expect_output(print(res), "resampling subjects \\('patient'\\)")
 })
