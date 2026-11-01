@@ -9,4 +9,3 @@ docs/
 inst/doc
 vignettes/*.html
 vignettes/*.R
-dev/simulation-results.csv

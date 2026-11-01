@@ -42,4 +42,6 @@ jobs:
         if: always()
         with:
           name: simulation-results
-          path: dev/simulation-results.csv
+          path: |
+            vignettes/articles/simulation-results.csv
+            vignettes/articles/simulation-se.csv

@@ -1,0 +1,5 @@
+"scenario","method","mean.est","mean.se","emp.sd","coverage","reps"
+"7a. good overlap","ipwboot, percentile CI",10.054,0.492,0.457,0.95,100
+"7a. good overlap","robust SE (svyglm), Wald CI",10.054,0.539,0.457,0.95,100
+"7b. JSS example (poor overlap)","ipwboot, percentile CI",11.323,1.072,1.632,0.5,100
+"7b. JSS example (poor overlap)","robust SE (svyglm), Wald CI",11.323,1.06,1.632,0.53,100

@@ -11,7 +11,9 @@
 #   Rscript dev/simulation-study.R
 # Number of replications: environment variable IPW_SIM_REPS (default 500;
 # scenario 7 uses a fifth of it). Results are printed, written to
-# dev/simulation-results.csv, and reported on GitHub Actions when run there.
+# vignettes/articles/simulation-results.csv and simulation-se.csv (read by the
+# "Simulation study" article; commit them to update it), and reported on
+# GitHub Actions when run there.
 
 suppressPackageStartupMessages({
   library(ipw)
@@ -303,7 +305,8 @@ print(cov_tab, row.names = FALSE)
 cat("\nTrue values, scenario 1: ATE", round(truth1["ATE"], 3), " ATT", round(truth1["ATT"], 3),
     " ATO", round(truth1["ATO"], 3), "\n")
 
-write.csv(res, file.path("dev", "simulation-results.csv"), row.names = FALSE)
+write.csv(res, file.path("vignettes", "articles", "simulation-results.csv"), row.names = FALSE)
+write.csv(cov_tab, file.path("vignettes", "articles", "simulation-se.csv"), row.names = FALSE)
 
 md_table <- function(df) {
   c(paste("|", paste(names(df), collapse = " | "), "|"),
