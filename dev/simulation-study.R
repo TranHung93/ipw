@@ -180,24 +180,52 @@ timer("5. time-varying ordinal done")
 # Exposure events from a known proportional hazard: lambda0 = 2 per unit time,
 # log HR 0.5 for x (fixed) and -1.0 for xt (time-varying). The probability of
 # the observed status per interval, and so the true weight, is known exactly.
-sim_rec <- function(n = 300, irregular = FALSE) {
-  rows <- lapply(seq_len(n), function(i) {
-    cuts <- if (irregular) sort(c(runif(sample(4:12, 1)), 1)) else seq(0.1, 1, by = 0.1)
-    cuts <- unique(cuts)
-    data.frame(id = i, tstart = c(0, cuts[-length(cuts)]), fuptime = cuts)
-  })
-  d <- do.call(rbind, rows)
-  d$x <- rep(rbinom(n, 1, 0.5), times = as.vector(table(d$id)))
+# 6a: common grid of 10 intervals (grouped data, as in haartdat): an event is
+#     recorded at the end of the interval in which it happens.
+sim_rec_grid <- function(n = 300) {
+  d <- data.frame(id = rep(seq_len(n), each = 10), fuptime = rep(seq(0.1, 1, by = 0.1), n))
+  d$tstart <- d$fuptime - 0.1
+  d$x <- rep(rbinom(n, 1, 0.5), each = 10)
   d$xt <- rbinom(nrow(d), 1, 0.4)
-  p <- 1 - exp(-2 * (d$fuptime - d$tstart) * exp(0.5 * d$x - 1.0 * d$xt))
+  p <- 1 - exp(-2 * 0.1 * exp(0.5 * d$x - 1.0 * d$xt))
   d$expo <- rbinom(nrow(d), 1, p)
   d$w.true <- 1 / ave(ifelse(d$expo == 1, p, 1 - p), d$id, FUN = cumprod)
   d
 }
-for (irr in c(FALSE, TRUE)) {
-  lab <- if (irr) "6b. Recurrent exposure, irregular intervals" else "6a. Recurrent exposure, regular intervals"
+# 6b: continuous time. xt changes at random times (different for everyone);
+#     exposure events happen in continuous time and each event ends an
+#     interval, as in start-stop data cut at events (Graffeo et al. 2018).
+sim_rec_cont <- function(n = 300) {
+  out <- vector("list", n)
+  for (i in seq_len(n)) {
+    x <- rbinom(1, 1, 0.5)
+    bounds <- c(0, sort(runif(rpois(1, 3))), 1)
+    rows <- list()
+    for (k in seq_len(length(bounds) - 1)) {
+      xt <- rbinom(1, 1, 0.4)
+      h <- 2 * exp(0.5 * x - 1.0 * xt)
+      t0 <- bounds[k]
+      repeat {
+        t1 <- t0 + rexp(1, h)
+        if (t1 >= bounds[k + 1]) { rows[[length(rows) + 1]] <- c(t0, bounds[k + 1], 0, xt); break }
+        rows[[length(rows) + 1]] <- c(t0, t1, 1, xt)
+        t0 <- t1
+      }
+    }
+    m <- do.call(rbind, rows)
+    out[[i]] <- data.frame(id = i, tstart = m[, 1], fuptime = m[, 2], expo = m[, 3], x = x, xt = m[, 4])
+  }
+  d <- do.call(rbind, out)
+  d <- d[d$fuptime > d$tstart, ]
+  p <- 1 - exp(-2 * (d$fuptime - d$tstart) * exp(0.5 * d$x - 1.0 * d$xt))
+  d$w.true <- 1 / ave(ifelse(d$expo == 1, p, 1 - p), d$id, FUN = cumprod)
+  d
+}
+for (cont in c(FALSE, TRUE)) {
+  lab <- if (cont) "6b. Recurrent exposure, continuous time, irregular intervals" else
+    "6a. Recurrent exposure, common grid of intervals"
   r6 <- reps(max(100, round(S / 2)), function() {
-    d <- sim_rec(irregular = irr)
+    d <- if (cont) sim_rec_cont() else sim_rec_grid()
     fit <- ipwtm(exposure = expo, family = "survival", denominator = ~ x + xt, id = id,
                  tstart = tstart, timevar = fuptime, type = "all", data = d)
     c(coef(fit$den.mod), median(abs(log(fit$ipw.weights / d$w.true))))
@@ -208,37 +236,56 @@ for (irr in c(FALSE, TRUE)) {
 }
 timer("6. recurrent exposure done")
 
-# ---- 7. Bootstrap vs robust standard errors (JSS-style example) -------------
+# ---- 7. Bootstrap vs robust standard errors ---------------------------------
+# 7a: good overlap (propensity between about 0.1 and 0.9 for most people)
+# 7b: the JSS example (logit of the propensity has SD 5: many propensities near
+#     0 or 1, i.e. near positivity violations)
 S7 <- max(50, round(S / 5))
 has_survey <- requireNamespace("survey", quietly = TRUE)
-r7 <- reps(S7, function() {
-  d <- data.frame(l = rnorm(500, 10, 5))
-  d$a <- rbinom(500, 1, plogis(d$l - 10))
-  d$y <- 10 * d$a + 0.5 * d$l + rnorm(500, -10, 5)
+sim_se <- function(gen) reps(S7, function() {
+  d <- gen()
   stat <- function(dd) {
     w <- ipwpoint(exposure = a, family = "binomial", link = "logit", numerator = ~ 1,
                   denominator = ~ l, data = dd)$ipw.weights
     coef(lm(y ~ a, data = dd, weights = w))["a"]
   }
   b <- suppressWarnings(ipwboot(d, stat, R = 200))
-  rob <- c(NA, NA)
+  rob <- NA
   if (has_survey) {
     d$w <- ipwpoint(exposure = a, family = "binomial", link = "logit", numerator = ~ 1,
                     denominator = ~ l, data = d)$ipw.weights
     m <- survey::svyglm(y ~ a, design = survey::svydesign(~ 1, weights = ~ w, data = d))
-    rob <- c(sqrt(vcov(m)["a", "a"]), NA)
+    rob <- sqrt(vcov(m)["a", "a"])
   }
   c(est = unname(b$t0), boot.se = unname(b$se), boot.lo = b$ci[1, 1], boot.hi = b$ci[1, 2],
-    rob.se = rob[1])
+    rob.se = rob)
 })
-emp_sd <- sd(r7[, "est"])
-cov_boot <- mean(r7[, "boot.lo"] <= 10 & r7[, "boot.hi"] >= 10)
-coverage[[1]] <- data.frame(method = "ipwboot, percentile CI", mean.se = mean(r7[, "boot.se"]),
-                            emp.sd = emp_sd, coverage = cov_boot, reps = S7)
-if (has_survey) {
-  cov_rob <- mean(abs(r7[, "est"] - 10) <= 1.96 * r7[, "rob.se"])
-  coverage[[2]] <- data.frame(method = "robust SE (svyglm), Wald CI", mean.se = mean(r7[, "rob.se"]),
-                              emp.sd = emp_sd, coverage = cov_rob, reps = S7)
+gen_overlap <- function() {
+  d <- data.frame(l = rnorm(500))
+  d$a <- rbinom(500, 1, plogis(0.8 * d$l))
+  d$y <- 10 * d$a + 2 * d$l + rnorm(500, 0, 5)
+  d
+}
+gen_jss <- function() {
+  d <- data.frame(l = rnorm(500, 10, 5))
+  d$a <- rbinom(500, 1, plogis(d$l - 10))
+  d$y <- 10 * d$a + 0.5 * d$l + rnorm(500, -10, 5)
+  d
+}
+for (sc in c("7a. good overlap", "7b. JSS example (poor overlap)")) {
+  r7 <- sim_se(if (startsWith(sc, "7a")) gen_overlap else gen_jss)
+  r7 <- r7[stats::complete.cases(r7[, 1:4]), , drop = FALSE]
+  emp_sd <- sd(r7[, "est"])
+  coverage[[length(coverage) + 1]] <- data.frame(
+    scenario = sc, method = "ipwboot, percentile CI", mean.est = mean(r7[, "est"]),
+    mean.se = mean(r7[, "boot.se"]), emp.sd = emp_sd,
+    coverage = mean(r7[, "boot.lo"] <= 10 & r7[, "boot.hi"] >= 10), reps = nrow(r7))
+  if (has_survey) {
+    coverage[[length(coverage) + 1]] <- data.frame(
+      scenario = sc, method = "robust SE (svyglm), Wald CI", mean.est = mean(r7[, "est"]),
+      mean.se = mean(r7[, "rob.se"]), emp.sd = emp_sd,
+      coverage = mean(abs(r7[, "est"] - 10) <= 1.96 * r7[, "rob.se"]), reps = nrow(r7))
+  }
 }
 timer("7. bootstrap coverage done")
 
@@ -247,7 +294,7 @@ res <- do.call(rbind, results)
 cov_tab <- do.call(rbind, coverage)
 num <- vapply(res, is.numeric, logical(1))
 res[num & names(res) != "reps"] <- lapply(res[num & names(res) != "reps"], round, 3)
-cov_tab[2:4] <- lapply(cov_tab[2:4], round, 3)
+cov_tab[3:6] <- lapply(cov_tab[3:6], round, 3)
 
 cat("\nSimulation study, S =", S, "replications (scenario 5-6: S/2, scenario 7:", S7, ")\n\n")
 print(res, row.names = FALSE)
@@ -266,7 +313,7 @@ md_table <- function(df) {
 summary_file <- Sys.getenv("GITHUB_STEP_SUMMARY")
 if (nzchar(Sys.getenv("GITHUB_ACTIONS"))) {
   md <- c(sprintf("## Simulation study (S = %d)", S), "", md_table(res), "",
-          "### Standard errors (scenario 7, true effect 10)", "", md_table(cov_tab), "",
+          "### Standard errors (scenario 7, true effect 10, n = 500, R = 200)", "", md_table(cov_tab), "",
           sprintf("True values, scenario 1: ATE %.3f, ATT %.3f, ATO %.3f",
                   truth1["ATE"], truth1["ATT"], truth1["ATO"]))
   if (nzchar(summary_file)) cat(md, file = summary_file, sep = "\n", append = TRUE)
