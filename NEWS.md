@@ -22,6 +22,12 @@
   fitted with `glm()`, and `estimand` defaults to `"ATE"`. A covariate named
   `s`, `te`, `ti` or `t2` is treated as an ordinary variable.
 
+* New `ipwboot()`: bootstrap standard errors and percentile confidence
+  intervals for a whole weighted analysis, re-estimating the weights in each
+  bootstrap sample (Austin 2016). With `id`, whole subjects are resampled and
+  each sampled copy gets a new identifier; optional `strata`; failed samples
+  are recorded instead of stopping. `print()` and `confint()` methods.
+
 ## Documentation
 
 * Bootstrap standard errors. The help pages of `ipwpoint()` and
