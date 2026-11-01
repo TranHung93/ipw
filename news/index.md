@@ -53,6 +53,11 @@
 
 ### Documentation
 
+- New vignette, “Inverse probability weighting with ipw”
+  ([`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md)),
+  covering every function, with the new models and
+  [`ipwboot()`](https://tranhung93.github.io/ipw/reference/ipwboot.md)
+  highlighted.
 - Bootstrap standard errors. The help pages of
   [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
   and [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)

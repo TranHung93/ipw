@@ -15,7 +15,8 @@
     </button>
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
-      <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+      <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/ipw.html">Get started</a></li>
+<li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -47,7 +48,8 @@
 </ul></div>
 <div class="section level3">
 <h3 id="documentation-development-version">Documentation<a class="anchor" aria-label="anchor" href="#documentation-development-version"></a></h3>
-<ul><li>Bootstrap standard errors. The help pages of <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> and <code><a href="../reference/ipwtm.html">ipwtm()</a></code> have a new “Standard errors” paragraph in Details and new examples: a bootstrap that re-estimates the weights and the marginal structural model in each bootstrap sample (<code><a href="../reference/ipwpoint.html">ipwpoint()</a></code>), and a cluster bootstrap that resamples patients and re-runs both <code><a href="../reference/ipwtm.html">ipwtm()</a></code> calls for the HAART example (<code><a href="../reference/ipwtm.html">ipwtm()</a></code>). Robust standard errors (<code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">svyglm()</a></code>, <code><a href="https://rdrr.io/pkg/survival/man/cluster.html" class="external-link">cluster()</a></code>) treat the weights as known and tend to be conservative; Austin (2016, <a href="doi:10.1002/sim.7084" class="uri">doi:10.1002/sim.7084</a>) recommends the bootstrap.</li>
+<ul><li>New vignette, “Inverse probability weighting with ipw” (<code><a href="../articles/ipw.html">vignette("ipw")</a></code>), covering every function, with the new models and <code><a href="../reference/ipwboot.html">ipwboot()</a></code> highlighted.</li>
+<li>Bootstrap standard errors. The help pages of <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> and <code><a href="../reference/ipwtm.html">ipwtm()</a></code> have a new “Standard errors” paragraph in Details and new examples: a bootstrap that re-estimates the weights and the marginal structural model in each bootstrap sample (<code><a href="../reference/ipwpoint.html">ipwpoint()</a></code>), and a cluster bootstrap that resamples patients and re-runs both <code><a href="../reference/ipwtm.html">ipwtm()</a></code> calls for the HAART example (<code><a href="../reference/ipwtm.html">ipwtm()</a></code>). Robust standard errors (<code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">svyglm()</a></code>, <code><a href="https://rdrr.io/pkg/survival/man/cluster.html" class="external-link">cluster()</a></code>) treat the weights as known and tend to be conservative; Austin (2016, <a href="doi:10.1002/sim.7084" class="uri">doi:10.1002/sim.7084</a>) recommends the bootstrap.</li>
 </ul></div>
 </div>
     <div class="section level2">

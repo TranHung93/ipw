@@ -37,7 +37,10 @@ Or the development version from GitHub:
 remotes::install_github("TranHung93/ipw")
 ```
 
-Documentation: <https://tranhung93.github.io/ipw/>
+Documentation: <https://tranhung93.github.io/ipw/>; for a walk-through
+of all features see the vignette,
+[`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md) or
+[Get started](https://tranhung93.github.io/ipw/articles/ipw.html).
 
 ## Example: Point Treatment Causal Inference
 
