@@ -3,7 +3,7 @@ pkgdown: 2.2.1
 pkgdown_sha: ~
 articles:
   ipw: ipw.html
-last_built: 2026-11-01T02:31Z
+last_built: 2026-11-01T05:25Z
 urls:
   reference: https://tranhung93.github.io/ipw/reference
   article: https://tranhung93.github.io/ipw/articles

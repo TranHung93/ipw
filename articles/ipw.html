@@ -223,10 +223,13 @@ exposure.</p>
 <span><span class="co">#&gt;                  ATE        ATT        ATO</span></span>
 <span><span class="co">#&gt; effect      10.64661   9.044102 10.5137145</span></span>
 <span><span class="co">#&gt; max.weight 155.30022 154.300216  0.9935609</span></span></code></pre></div>
-<p>The effect is the same in every population here because it was
-simulated as constant; with a heterogeneous effect the three estimands
-differ. Overlap weights never exceed 1, which helps when some people are
-almost always or almost never exposed.</p>
+<p>The effect was simulated as constant, so all three estimands are 10
+in truth, and the differences between the estimates are sampling noise.
+The ATT weights show why: unexposed people with a high probability of
+exposure get weights above 100, which makes that estimate unstable.
+Overlap weights never exceed 1, which helps when some people are almost
+always or almost never exposed. With an effect that differs between
+people, the three estimands differ in truth as well.</p>
 </div>
 </div>
 <div class="section level2">
@@ -275,25 +278,67 @@ probabilities, so a numerator model is required.</p>
 <div class="section level4">
 <h4 id="new-skewed-continuous-exposures-gamma-and-log-normal">New: skewed continuous exposures (gamma and log-normal)<a class="anchor" aria-label="anchor" href="#new-skewed-continuous-exposures-gamma-and-log-normal"></a>
 </h4>
-<p>Income is positive and often right-skewed, so a normal model may fit
-its tails poorly, and the tails are where weights become large.
-<code>family = "gamma"</code> (log link) and
-<code>family = "lognormal"</code> (a normal model for log income)
-require a positive exposure; one person in <code>healthdat</code> has
-zero income and is left out here.</p>
+<p>Many exposures are positive with a long right tail, such as a dose or
+a duration: most values are small and a few are very large. A normal
+model is symmetric and fits that tail poorly, and the tail is where
+weights become large. <code>family = "gamma"</code> (log link) and
+<code>family = "lognormal"</code> (a normal model for the log of the
+exposure) are meant for such exposures; both require positive values.
+Below, the dose is log-normal given <code>l</code>, and the true effect
+of one unit of <code>dose</code> on <code>y</code> is 1.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">health.pos</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset</a></span><span class="op">(</span><span class="va">healthdat</span>, <span class="va">income</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span></span>
-<span><span class="va">w.gamma</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwpoint.html">ipwpoint</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">income</span>, family <span class="op">=</span> <span class="st">"gamma"</span>,</span>
-<span>                    numerator <span class="op">=</span> <span class="op">~</span> <span class="fl">1</span>, denominator <span class="op">=</span> <span class="op">~</span> <span class="va">iq</span>, data <span class="op">=</span> <span class="va">health.pos</span><span class="op">)</span></span>
-<span><span class="va">w.lnorm</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwpoint.html">ipwpoint</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">income</span>, family <span class="op">=</span> <span class="st">"lognormal"</span>,</span>
-<span>                    numerator <span class="op">=</span> <span class="op">~</span> <span class="fl">1</span>, denominator <span class="op">=</span> <span class="op">~</span> <span class="va">iq</span>, data <span class="op">=</span> <span class="va">health.pos</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>gamma <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">w.gamma</span><span class="op">$</span><span class="va">ipw.weights</span><span class="op">)</span>, lognormal <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">w.lnorm</span><span class="op">$</span><span class="va">ipw.weights</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;                 Min.   1st Qu.    Median       Mean   3rd Qu.      Max.</span></span>
-<span><span class="co">#&gt; gamma     0.03442569 0.5967177 0.7897238   1608.405 0.9972753   1605675</span></span>
-<span><span class="co">#&gt; lognormal 0.05762034 0.6422501 0.7755843 187189.612 0.9103886 187001513</span></span></code></pre></div>
-<p>To choose, look at the distribution of the exposure (bell-shaped
-after taking logs suggests log-normal) and at the fit of the denominator
-models.</p>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">8</span><span class="op">)</span></span>
+<span><span class="va">n.sk</span> <span class="op">&lt;-</span> <span class="fl">2000</span></span>
+<span><span class="va">sk</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>l <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n.sk</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">sk</span><span class="op">$</span><span class="va">dose</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="fl">0.5</span> <span class="op">+</span> <span class="fl">0.5</span> <span class="op">*</span> <span class="va">sk</span><span class="op">$</span><span class="va">l</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n.sk</span>, <span class="fl">0</span>, <span class="fl">0.6</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">sk</span><span class="op">$</span><span class="va">y</span> <span class="op">&lt;-</span> <span class="va">sk</span><span class="op">$</span><span class="va">dose</span> <span class="op">+</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">sk</span><span class="op">$</span><span class="va">l</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n.sk</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">sk</span><span class="op">$</span><span class="va">dose</span><span class="op">)</span>, median <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/median.html" class="external-link">median</a></span><span class="op">(</span><span class="va">sk</span><span class="op">$</span><span class="va">dose</span><span class="op">)</span><span class="op">)</span>   <span class="co"># right-skewed</span></span>
+<span><span class="co">#&gt;     mean   median </span></span>
+<span><span class="co">#&gt; 2.311130 1.655365</span></span>
+<span></span>
+<span><span class="co"># weighted correlation of the dose (or log dose) with the confounder l</span></span>
+<span><span class="va">wcor</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span>, <span class="va">w</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/stats/cov.wt.html" class="external-link">cov.wt</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">sk</span><span class="op">$</span><span class="va">l</span><span class="op">)</span>, wt <span class="op">=</span> <span class="va">w</span>, cor <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">$</span><span class="va">cor</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">]</span></span>
+<span></span>
+<span><span class="va">fit.dose</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">family</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">w</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwpoint.html">ipwpoint</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">dose</span>, family <span class="op">=</span> <span class="va">family</span>, numerator <span class="op">=</span> <span class="op">~</span> <span class="fl">1</span>,</span>
+<span>                denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l</span>, data <span class="op">=</span> <span class="va">sk</span>, trunc <span class="op">=</span> <span class="fl">0.01</span><span class="op">)</span></span>
+<span>  <span class="va">wt</span> <span class="op">&lt;-</span> <span class="va">w</span><span class="op">$</span><span class="va">weights.trunc</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>cor.dose.l <span class="op">=</span> <span class="fu">wcor</span><span class="op">(</span><span class="va">sk</span><span class="op">$</span><span class="va">dose</span>, <span class="va">wt</span><span class="op">)</span>, cor.logdose.l <span class="op">=</span> <span class="fu">wcor</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="va">sk</span><span class="op">$</span><span class="va">dose</span><span class="op">)</span>, <span class="va">wt</span><span class="op">)</span>,</span>
+<span>    effect <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">dose</span>, data <span class="op">=</span> <span class="va">sk</span>, weights <span class="op">=</span> <span class="va">wt</span><span class="op">)</span><span class="op">)</span><span class="op">[</span><span class="st">"dose"</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>    max.weight.untruncated <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">w</span><span class="op">$</span><span class="va">ipw.weights</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span></span>
+<span>  unweighted <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu">wcor</span><span class="op">(</span><span class="va">sk</span><span class="op">$</span><span class="va">dose</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1</span>, <span class="va">n.sk</span><span class="op">)</span><span class="op">)</span>, <span class="fu">wcor</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="va">sk</span><span class="op">$</span><span class="va">dose</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1</span>, <span class="va">n.sk</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>                 <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">dose</span>, data <span class="op">=</span> <span class="va">sk</span><span class="op">)</span><span class="op">)</span><span class="op">[</span><span class="st">"dose"</span><span class="op">]</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>gaussian <span class="op">=</span> <span class="st">"gaussian"</span>, gamma <span class="op">=</span> <span class="st">"gamma"</span>, lognormal <span class="op">=</span> <span class="st">"lognormal"</span><span class="op">)</span>, <span class="va">fit.dose</span><span class="op">)</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
+<span><span class="co">#&gt;                        unweighted gaussian   gamma lognormal</span></span>
+<span><span class="co">#&gt; cor.dose.l                  0.564    0.333   0.256     0.171</span></span>
+<span><span class="co">#&gt; cor.logdose.l               0.649    0.441   0.320     0.185</span></span>
+<span><span class="co">#&gt; effect                      1.529    1.265   1.244     1.172</span></span>
+<span><span class="co">#&gt; max.weight.untruncated      1.000 1825.069 491.946    37.537</span></span></code></pre></div>
+<p>Good weights make the exposure unrelated to the confounders, so the
+table shows the weighted correlation of the dose (and of the log dose)
+with <code>l</code>, next to the effect estimate and the largest weight.
+The weights are truncated at the 1st and 99th percentiles
+(<code>trunc = 0.01</code>), because a few extreme weights would
+otherwise dominate a single estimate.</p>
+<p>Without weights, the dose is strongly correlated with <code>l</code>
+(about 0.56) and the estimate (about 1.53) is badly confounded. The
+log-normal model, which matches how the dose was generated, removes most
+of that correlation (about 0.17), gives the estimate closest to 1 (about
+1.17) and has by far the most moderate weights: its largest untruncated
+weight is about 38, against about 1800 for the gaussian model. The
+gaussian model puts almost no probability on the long right tail, so the
+few people with a high dose get huge weights; the gamma model lies in
+between. None of the models removes the correlation completely here,
+partly because truncation trades a little bias for stability.</p>
+<p>Choose the family by looking at the exposure: if it is right-skewed
+and looks bell-shaped after taking logs, use <code>"lognormal"</code>;
+if its spread grows with its mean, <code>"gamma"</code>. Do not use them
+for an exposure that is roughly symmetric: income in
+<code>healthdat</code> (mean and median both about 2700) is modelled
+well by <code>"gaussian"</code>, and a log-normal model there gives a
+few people with very low income enormous weights.</p>
 </div>
 <div class="section level4">
 <h4 id="new-count-exposures-poisson-and-negative-binomial">New: count exposures (Poisson and negative binomial)<a class="anchor" aria-label="anchor" href="#new-count-exposures-poisson-and-negative-binomial"></a>
@@ -528,9 +573,9 @@ stands in for a flexible learner.</p>
 <span><span class="va">toy</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">2</span><span class="op">)</span>, time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span>, p <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">0.8</span>, <span class="fl">0.4</span>, <span class="fl">0.9</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/ipwprob.html">ipwprob</a></span><span class="op">(</span>den <span class="op">=</span> <span class="va">toy</span><span class="op">$</span><span class="va">p</span>, id <span class="op">=</span> <span class="va">toy</span><span class="op">$</span><span class="va">id</span>, timevar <span class="op">=</span> <span class="va">toy</span><span class="op">$</span><span class="va">time</span><span class="op">)</span><span class="op">$</span><span class="va">ipw.weights</span></span>
 <span><span class="co">#&gt; [1] 2.000000 2.500000 2.500000 2.777778</span></span></code></pre></div>
-<p>Flexible models can produce probabilities close to 0 or 1 and
-therefore extreme weights; check them and consider
-<code>trunc</code>.</p>
+<p>The warning from <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> is a reminder of the main risk:
+flexible models can produce probabilities close to 0 or 1 and therefore
+extreme weights. Check the weights and consider <code>trunc</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="new-bootstrap-standard-errors-with-ipwboot">5. New: bootstrap standard errors with <code>ipwboot()</code><a class="anchor" aria-label="anchor" href="#new-bootstrap-standard-errors-with-ipwboot"></a>

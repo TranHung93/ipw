@@ -159,10 +159,13 @@ sapply(c(ATE = "ATE", ATT = "ATT", ATO = "ATO"), fit.estimand)
 #> max.weight 155.30022 154.300216  0.9935609
 ```
 
-The effect is the same in every population here because it was simulated
-as constant; with a heterogeneous effect the three estimands differ.
+The effect was simulated as constant, so all three estimands are 10 in
+truth, and the differences between the estimates are sampling noise. The
+ATT weights show why: unexposed people with a high probability of
+exposure get weights above 100, which makes that estimate unstable.
 Overlap weights never exceed 1, which helps when some people are almost
-always or almost never exposed.
+always or almost never exposed. With an effect that differs between
+people, the three estimands differ in truth as well.
 
 ## 2. Point treatment: other kinds of exposure
 
@@ -212,28 +215,71 @@ coef(lm(health ~ income, data = healthdat, weights = w.gauss$ipw.weights))
 
 #### New: skewed continuous exposures (gamma and log-normal)
 
-Income is positive and often right-skewed, so a normal model may fit its
-tails poorly, and the tails are where weights become large.
-`family = "gamma"` (log link) and `family = "lognormal"` (a normal model
-for log income) require a positive exposure; one person in `healthdat`
-has zero income and is left out here.
+Many exposures are positive with a long right tail, such as a dose or a
+duration: most values are small and a few are very large. A normal model
+is symmetric and fits that tail poorly, and the tail is where weights
+become large. `family = "gamma"` (log link) and `family = "lognormal"`
+(a normal model for the log of the exposure) are meant for such
+exposures; both require positive values. Below, the dose is log-normal
+given `l`, and the true effect of one unit of `dose` on `y` is 1.
 
 ``` r
 
-health.pos <- subset(healthdat, income > 0)
-w.gamma <- ipwpoint(exposure = income, family = "gamma",
-                    numerator = ~ 1, denominator = ~ iq, data = health.pos)
-w.lnorm <- ipwpoint(exposure = income, family = "lognormal",
-                    numerator = ~ 1, denominator = ~ iq, data = health.pos)
-rbind(gamma = summary(w.gamma$ipw.weights), lognormal = summary(w.lnorm$ipw.weights))
-#>                 Min.   1st Qu.    Median       Mean   3rd Qu.      Max.
-#> gamma     0.03442569 0.5967177 0.7897238   1608.405 0.9972753   1605675
-#> lognormal 0.05762034 0.6422501 0.7755843 187189.612 0.9103886 187001513
+set.seed(8)
+n.sk <- 2000
+sk <- data.frame(l = rnorm(n.sk))
+sk$dose <- exp(0.5 + 0.5 * sk$l + rnorm(n.sk, 0, 0.6))
+sk$y <- sk$dose + 2 * sk$l + rnorm(n.sk)
+c(mean = mean(sk$dose), median = median(sk$dose))   # right-skewed
+#>     mean   median 
+#> 2.311130 1.655365
+
+# weighted correlation of the dose (or log dose) with the confounder l
+wcor <- function(x, w) cov.wt(cbind(x, sk$l), wt = w, cor = TRUE)$cor[1, 2]
+
+fit.dose <- function(family) {
+  w <- ipwpoint(exposure = dose, family = family, numerator = ~ 1,
+                denominator = ~ l, data = sk, trunc = 0.01)
+  wt <- w$weights.trunc
+  c(cor.dose.l = wcor(sk$dose, wt), cor.logdose.l = wcor(log(sk$dose), wt),
+    effect = unname(coef(lm(y ~ dose, data = sk, weights = wt))["dose"]),
+    max.weight.untruncated = max(w$ipw.weights))
+}
+round(cbind(
+  unweighted = c(wcor(sk$dose, rep(1, n.sk)), wcor(log(sk$dose), rep(1, n.sk)),
+                 unname(coef(lm(y ~ dose, data = sk))["dose"]), 1),
+  sapply(c(gaussian = "gaussian", gamma = "gamma", lognormal = "lognormal"), fit.dose)), 3)
+#>                        unweighted gaussian   gamma lognormal
+#> cor.dose.l                  0.564    0.333   0.256     0.171
+#> cor.logdose.l               0.649    0.441   0.320     0.185
+#> effect                      1.529    1.265   1.244     1.172
+#> max.weight.untruncated      1.000 1825.069 491.946    37.537
 ```
 
-To choose, look at the distribution of the exposure (bell-shaped after
-taking logs suggests log-normal) and at the fit of the denominator
-models.
+Good weights make the exposure unrelated to the confounders, so the
+table shows the weighted correlation of the dose (and of the log dose)
+with `l`, next to the effect estimate and the largest weight. The
+weights are truncated at the 1st and 99th percentiles (`trunc = 0.01`),
+because a few extreme weights would otherwise dominate a single
+estimate.
+
+Without weights, the dose is strongly correlated with `l` (about 0.56)
+and the estimate (about 1.53) is badly confounded. The log-normal model,
+which matches how the dose was generated, removes most of that
+correlation (about 0.17), gives the estimate closest to 1 (about 1.17)
+and has by far the most moderate weights: its largest untruncated weight
+is about 38, against about 1800 for the gaussian model. The gaussian
+model puts almost no probability on the long right tail, so the few
+people with a high dose get huge weights; the gamma model lies in
+between. None of the models removes the correlation completely here,
+partly because truncation trades a little bias for stability.
+
+Choose the family by looking at the exposure: if it is right-skewed and
+looks bell-shaped after taking logs, use `"lognormal"`; if its spread
+grows with its mean, `"gamma"`. Do not use them for an exposure that is
+roughly symmetric: income in `healthdat` (mean and median both about
+2700) is modelled well by `"gaussian"`, and a log-normal model there
+gives a few people with very low income enormous weights.
 
 #### New: count exposures (Poisson and negative binomial)
 
@@ -494,8 +540,10 @@ ipwprob(den = toy$p, id = toy$id, timevar = toy$time)$ipw.weights
 #> [1] 2.000000 2.500000 2.500000 2.777778
 ```
 
-Flexible models can produce probabilities close to 0 or 1 and therefore
-extreme weights; check them and consider `trunc`.
+The warning from [`glm()`](https://rdrr.io/r/stats/glm.html) is a
+reminder of the main risk: flexible models can produce probabilities
+close to 0 or 1 and therefore extreme weights. Check the weights and
+consider `trunc`.
 
 ## 5. New: bootstrap standard errors with `ipwboot()`
 
