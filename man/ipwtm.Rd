@@ -72,6 +72,21 @@ Estimates inverse probability weights to fit marginal structural models with
 time-varying exposures and time-varying confounders across follow-up intervals.
 Supports binomial, survival, multinomial, ordinal, and gaussian families.
 }
+\details{
+Standard errors: \code{ipwtm} only estimates the weights. Standard errors
+for the marginal structural model have to be obtained when that model is fitted.
+Robust standard errors, for example from \code{coxph()} with \code{cluster(id)}
+as in Van der Wal and Geskus (2011), treat the weights as known and tend to be
+conservative (too large). Austin (2016) compared naive, robust and bootstrap
+standard errors in simulations and recommends the bootstrap, in which the weights
+are re-estimated in each bootstrap sample. Austin studied a point treatment with
+baseline confounders; for longitudinal data in long format the bootstrap must
+resample subjects, not rows: keep all rows of a sampled subject, give each sampled
+copy a new id, re-run \code{ipwtm} (for treatment and, if used, censoring weights)
+on the bootstrap sample and refit the marginal structural model. See the cluster
+bootstrap in Example 1 below. About 200 bootstrap samples are usually enough to
+estimate a standard error.
+}
 \examples{
 ########################################################################
 #EXAMPLE 1
@@ -127,6 +142,44 @@ summary(coxph(Surv(tstart, fuptime, event) ~ haartind + cluster(patient),
 
 #uncorrected model
 summary(coxph(Surv(tstart, fuptime, event) ~ haartind, data = haartdat))
+
+#Bootstrap standard error for the MSM above (cluster bootstrap by patient).
+#cluster() gives a robust standard error that treats the weights as known and
+#tends to be conservative. Austin (2016) recommends the bootstrap, with the
+#weights re-estimated in each bootstrap sample.
+#With longitudinal data, resample patients, not rows: keep all rows of a
+#sampled patient, give each sampled copy a new id, re-run both ipwtm() calls
+#and refit the MSM.
+#B = 20 keeps the example short; use about 200 in practice.
+\donttest{
+msm.fun <- function(d) {
+  tw <- ipwtm(exposure = haartind, family = "survival",
+              numerator = ~ sex + age, denominator = ~ sex + age + cd4.sqrt,
+              id = patient, tstart = tstart, timevar = fuptime,
+              type = "first", data = d)
+  cw <- ipwtm(exposure = dropout, family = "survival",
+              numerator = ~ sex + age, denominator = ~ sex + age + cd4.sqrt,
+              id = patient, tstart = tstart, timevar = fuptime,
+              type = "cens", data = d)
+  d$w <- tw$ipw.weights * cw$ipw.weights
+  coef(coxph(Surv(tstart, fuptime, event) ~ haartind, data = d,
+             weights = w))["haartind"]
+}
+rows.pat <- split(seq_len(nrow(haartdat)), haartdat$patient)
+set.seed(123)
+B <- 20
+est.boot <- numeric(B)
+for (b in seq_len(B)) {
+  pick <- sample(length(rows.pat), replace = TRUE)
+  d.boot <- haartdat[unlist(rows.pat[pick]), ]
+  d.boot$patient <- rep(seq_along(pick), lengths(rows.pat[pick]))
+  est.boot[b] <- msm.fun(d.boot)
+}
+#log hazard ratio with bootstrap standard error
+c(estimate = unname(msm.fun(haartdat)), boot.se = sd(est.boot))
+#percentile interval (crude with B = 20)
+quantile(est.boot, c(0.025, 0.975))
+}
 
 ########################################################################
 #EXAMPLE 2
@@ -251,6 +304,8 @@ Journal}, \bold{60}(2), 323-332. \doi{10.1002/bimj.201600223}.
 Van der Wal W.M. & Geskus R.B. (2011). ipw: An R Package for Inverse Probability
 Weighting. \emph{Journal of Statistical Software}, \bold{43}(13), 1-23.
 \doi{10.18637/jss.v043.i13}.
+
+Austin, P.C. (2016). Variance estimation when using inverse probability of treatment weighting (IPTW) with survival analysis. \emph{Statistics in Medicine}, \bold{35}, 5642-5655. \doi{10.1002/sim.7084}.
 }
 \keyword{htest}
 \keyword{models}
