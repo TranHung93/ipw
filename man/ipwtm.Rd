@@ -86,7 +86,13 @@ copy a new id, re-run \code{ipwtm} (for treatment and, if used, censoring weight
 on the bootstrap sample and refit the marginal structural model. See the cluster
 bootstrap in Example 1 below; \code{\link{ipwboot}} does this resampling for you
 (argument \code{id}). About 200 bootstrap samples are usually enough to estimate
-a standard error.
+a standard error. Time-varying weights are products over time, so a few
+subjects can get very large weights. In the package's simulation study (500
+subjects, 4 visits), bootstrap and robust standard errors were then both too
+small, with 95\% confidence intervals covering the truth in only about 80\% of
+samples. Check the weights with \code{summary()} and \code{\link{ipwplot}},
+consider truncation (\code{trunc}), and interpret standard errors with care
+when the weights are extreme.
 }
 \examples{
 ########################################################################

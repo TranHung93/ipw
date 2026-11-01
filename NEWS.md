@@ -27,6 +27,9 @@
   bootstrap sample (Austin 2016). With `id`, whole subjects are resampled and
   each sampled copy gets a new identifier; optional `strata`; failed samples
   are recorded instead of stopping. `print()` and `confint()` methods.
+  The help pages and vignette describe, from the package's simulation study,
+  when the bootstrap helps (well-behaved weights) and when no standard error
+  is reliable (extreme weights).
 
 ## Documentation
 
