@@ -229,6 +229,13 @@ gamma model lies in between. None of the models removes the correlation
 completely here, partly because truncation trades a little bias for
 stability.
 
+Choose the family by looking at the exposure: if it is right-skewed and
+looks bell-shaped after taking logs, use `"lognormal"`; if its spread grows
+with its mean, `"gamma"`. Do not use them for an exposure that is roughly
+symmetric: income in `healthdat` (mean and median both about 2700) is
+modelled well by `"gaussian"`, and a log-normal model there gives a few
+people with very low income enormous weights.
+
 ### New: count exposures (Poisson and negative binomial)
 
 For counts, such as a number of visits, `family = "poisson"` fits a Poisson
