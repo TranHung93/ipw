@@ -7,58 +7,87 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, out.width 
 res <- read.csv("simulation-results.csv", check.names = FALSE)
 se <- read.csv("simulation-se.csv", check.names = FALSE)
 show <- function(prefix) {
-  tab <- res[startsWith(res$scenario, prefix), c("method", "truth", "mean", "bias", "emp.sd", "rmse", "reps")]
+  tab <- res[startsWith(res$scenario, prefix),
+             c("method", "truth", "mean", "bias", "mcse", "emp.sd", "rmse", "reps")]
   knitr::kable(tab, row.names = FALSE, digits = 3,
-               col.names = c("Method", "Truth", "Mean estimate", "Bias", "Empirical SD", "RMSE", "Replications"))
+               col.names = c("Method", "Truth", "Mean estimate", "Bias", "MCSE of bias",
+                             "Empirical SD", "RMSE", "Replications"))
+}
+show_se <- function(prefix) {
+  tab <- se[startsWith(se$scenario, prefix),
+            c("method", "mean.est", "mean.se", "emp.sd", "se.ratio", "coverage", "mcse.cov", "reps")]
+  knitr::kable(tab, row.names = FALSE, digits = 3,
+               col.names = c("Method", "Mean estimate", "Mean SE", "Empirical SD",
+                             "SE / empirical SD", "Coverage of 95% CI", "MCSE of coverage",
+                             "Replications"))
 }
 ```
 
-The new weights in ipw recover known causal effects when their model is
-correct, and the naive or misspecified alternatives are clearly biased. This
-article shows that with a simulation study in the spirit of the simulated
-example in the JSS paper (van der Wal & Geskus 2011): each scenario
-generates data in which the true marginal causal effect is known, estimates
-it, and repeats this many times.
+This article checks, by simulation, whether the new features of ipw do what
+they should: each scenario generates data in which the true causal effect
+is known, estimates it, and repeats this hundreds of times, in the spirit of
+the simulated example in the JSS paper (van der Wal & Geskus 2011).
+
+**Main findings**
+
+* **The new weights remove confounding when their model is correct.** Naive
+  analyses and weights from misspecified models are biased by 15% to over
+  200%; the new weights reduce this to 0 to 5%.
+* **The remaining small biases (3 to 5%) are properties of inverse
+  probability weighting, not of the implementation.** Weights computed from
+  the true model (*oracle* weights) have the same bias for log-normal doses,
+  and for smooth terms and ordinal exposures the bias shrinks as the sample
+  grows.
+* **`ipwboot()` gives accurate standard errors when the weights are well
+  behaved**, where robust standard errors are 8 to 10% too large. It does
+  **not** fix analyses with extreme weights: with poor overlap or long
+  products of time-varying weights, no standard error reaches 95% coverage,
+  and the bootstrap is then not better than the robust standard error.
 
 **How the results were produced.** The study is in
-[`dev/simulation-study.R`](https://github.com/TranHung93/ipw/blob/main/dev/simulation-study.R)
-in the repository; the code below shows the essential lines of each
-scenario. It takes several minutes, so this page shows saved results rather
-than running it. To reproduce them, run `Rscript dev/simulation-study.R` in the
-package folder (seed 20261101), or start the `simulations` workflow from the
-GitHub Actions tab. Scenarios 1 to 4 use 500 replications, 5 and 6 use 250,
-and 7 uses 100 with 200 bootstrap samples each.
+[`dev/simulation-study.R`](https://github.com/TranHung93/ipw/blob/main/dev/simulation-study.R);
+the code below shows the essential lines of each scenario. It takes about 20
+minutes on 4 cores, so this page shows saved results. To reproduce them, run
+`Rscript dev/simulation-study.R` in the package folder (seed 20261101,
+L'Ecuyer random numbers, 4 parallel workers), or start the `simulations`
+workflow from the GitHub Actions tab. Replications: 500 for scenarios 1 to 4,
+250 for 5 and 6, 200 for the large-sample and oracle checks, 1000 for 7a and
+7b, and 500 for 7c and 7d, each with 200 bootstrap samples.
 
-**Reading the tables.** *Bias* is the mean estimate minus the truth;
-*empirical SD* is the spread of the estimates over replications; *RMSE*
-combines both. A good method has bias close to 0 and a small RMSE.
+**Reading the tables.** *Bias* is the mean estimate minus the truth. The
+*MCSE* (Monte Carlo standard error) shows how precisely the simulation
+estimates that bias: a bias within about 2 MCSE of 0 could be simulation
+noise. *Empirical SD* is the spread of the estimates; *RMSE* combines bias
+and spread.
 
-```{r bias-plot, echo = FALSE, fig.height = 7.5}
+```{r bias-plot, echo = FALSE, fig.height = 9}
 d <- res[!grepl("median", res$method), ]
 d <- d[rev(seq_len(nrow(d))), ]
 lab <- paste0(sub("\\..*", "", d$scenario), ". ", d$method)
-good <- grepl("correct|ATE weights|ATT weights|ATO weights|ipwprob|s\\(l\\)|Cox|multinomial", d$method) &
-  !grepl("misspecified", d$method)
+type <- ifelse(grepl("oracle", d$method), "oracle",
+         ifelse(grepl("misspecified|unweighted|adjustment|truncated", d$method), "other", "new"))
+rel <- d$bias / abs(ifelse(d$truth == 0, 1, d$truth))
 cap <- 1
-op <- par(mar = c(4, 20, 1, 1))
-plot(pmin(d$bias, cap), seq_along(lab), pch = ifelse(good, 19, 1), yaxt = "n", ylab = "",
-     xlab = "Bias (mean estimate minus truth)", xlim = c(-0.3, cap + 0.15))
-axis(2, at = seq_along(lab), labels = lab, las = 1, cex.axis = 0.75)
+op <- par(mar = c(4, 24, 1, 1))
+plot(pmax(pmin(rel, cap), -cap), seq_along(lab), yaxt = "n", ylab = "",
+     pch = c(new = 19, oracle = 17, other = 1)[type],
+     xlab = "Relative bias (bias / |truth|)", xlim = c(-cap - 0.2, cap + 0.2))
+axis(2, at = seq_along(lab), labels = lab, las = 1, cex.axis = 0.62)
 abline(v = 0, lty = 2)
-off <- d$bias > cap
-text(rep(cap, sum(off)), which(off), sprintf("%.2f >", d$bias[off]), pos = 4, cex = 0.7)
-legend("bottomright", pch = c(19, 1), bty = "n", cex = 0.8,
-       legend = c("new weights, correct model", "naive, misspecified or truncated"))
+out <- abs(rel) > cap
+if (any(out)) text(ifelse(rel[out] > 0, cap, -cap), which(out), sprintf("%.2f", rel[out]),
+                   pos = ifelse(rel[out] > 0, 4, 2), cex = 0.65)
+legend("bottomright", pch = c(19, 17, 1), bty = "n", cex = 0.75,
+       legend = c("new weights", "oracle weights (true model)", "naive, misspecified or truncated"))
 par(op)
 ```
 
 # 1. ATE, ATT and overlap weights, and `ipwprob()`
 
 The effect of a binary exposure varies with the confounder `l`, so the three
-estimands differ. Their true values, computed from 2 million simulated
-people, are ATE = 1, ATT = 1.276 and ATO = 0.861. Each weighting scheme is
-compared with its own target; `ipwprob()` is given the true propensity
-scores.
+estimands differ. Their true values, from 2 million simulated people, are
+ATE = 1.00, ATT = 1.27 and ATO = 0.86. Each weighting scheme is compared with
+its own target; `ipwprob()` is given the true propensity scores.
 
 ```{r eval = FALSE}
 d <- data.frame(l = rnorm(1000))
@@ -73,58 +102,68 @@ coef(lm(y ~ a, data = d, weights = w.att))["a"]
 show("1.")
 ```
 
-All weighted estimates are unbiased for their own estimand; the unweighted
-difference is nearly twice the ATE.
+All weighted estimates are within 1% of their own estimand; the unweighted
+difference is twice the ATE.
 
-# 2. Count exposure: Poisson or negative binomial
+# 2. Count exposures: Poisson or negative binomial
 
-The exposure is an overdispersed count (negative binomial, variance larger
-than the mean); each extra unit raises the outcome by 0.5.
+Each extra unit of a count exposure raises the outcome by 0.5. In 2a the
+counts are overdispersed (negative binomial); in 2b they are Poisson.
 
 ```{r eval = FALSE}
 d <- data.frame(l = rnorm(1000))
-d$v <- rnbinom(1000, size = 2, mu = exp(0.5 + 0.4 * d$l))
+d$v <- rnbinom(1000, size = 2, mu = exp(0.5 + 0.4 * d$l))   # 2b: rpois(1000, exp(0.5 + 0.4 * d$l))
 d$y <- 0.5 * d$v + d$l + rnorm(1000)
 w.nb <- ipwpoint(exposure = v, family = "negbin", numerator = ~ 1,
                  denominator = ~ l, data = d)$ipw.weights
 ```
 
 ```{r echo = FALSE}
-show("2.")
+show("2")
 ```
 
-The negative binomial weights are unbiased. The Poisson model ignores the
-overdispersion, and its weights over-correct: the bias is as large as that
-of the unweighted analysis, in the other direction.
+With the correct model, both families are within 1.5% of the truth. The
+Poisson model applied to overdispersed counts over-corrects as strongly as
+the unweighted analysis under-corrects. The negative binomial model remains
+usable for Poisson data (bias 3.6%), so it is the safer choice when in doubt.
 
-# 3. Skewed continuous exposure: gaussian, gamma or log-normal
+# 3. Skewed continuous exposures: gaussian, gamma or log-normal
 
-The dose is log-normal given `l`; one unit of dose raises the outcome by 1.
+One unit of dose raises the outcome by 1. In 3a the dose is log-normal given
+`l`, in 3b gamma. In 3a the true densities are known, so *oracle* weights
+(the true marginal density over the true conditional density) show what
+weighting can achieve without any estimation error; they are also computed
+for a 5 times larger sample.
 
 ```{r eval = FALSE}
 d <- data.frame(l = rnorm(2000))
-d$dose <- exp(0.5 + 0.5 * d$l + rnorm(2000, 0, 0.6))
+d$dose <- exp(0.5 + 0.5 * d$l + rnorm(2000, 0, 0.6))   # 3b: rgamma(2000, 3, 3 / exp(0.5 + 0.3 * d$l))
 d$y <- d$dose + 2 * d$l + rnorm(2000)
 w.ln <- ipwpoint(exposure = dose, family = "lognormal", numerator = ~ 1,
                  denominator = ~ l, data = d)$ipw.weights
+oracle <- dlnorm(d$dose, 0.5, sqrt(0.61)) / dlnorm(d$dose, 0.5 + 0.5 * d$l, 0.6)
 ```
 
 ```{r echo = FALSE}
-show("3.")
+show("3a")
+show("3b")
 ```
 
-The log-normal weights remove most of the confounding, with a small
-remaining bias (0.06) that is typical of weights for continuous exposures:
-the density ratio has a heavy tail. The gaussian model is clearly biased, and
-in 9 of 500 replications gave infinite weights, which `ipwpoint()` refuses.
-The gamma model happens to have little bias here but twice the spread.
-Truncation at the 1st and 99th percentiles reduces the spread a lot but adds
-bias: the usual trade-off.
+The correct family removes most of the confounding (unweighted bias 54% and
+76%). The 3 to 5% that remains is **the same for oracle weights** (5.0% vs
+4.9% at n = 2000, 3.4% vs 3.2% at n = 10000), so it does not come from
+estimating the model: it is the finite-sample bias of weighting with
+densities of a skewed exposure, whose density ratios have a heavy tail, and
+it shrinks slowly as the sample grows. The gaussian model is clearly worse,
+and in 7 of 500 replications gave infinite weights, which `ipwpoint()`
+refuses. A misspecified skewed family (gamma for log-normal data or the
+reverse) has a small bias but up to twice the spread. Truncation reduces the
+spread a lot but adds bias.
 
 # 4. Curved propensity: smooth terms with mgcv
 
 The probability of exposure depends on `l` through a sine curve; the true
-effect is 2.
+effect is 2. Oracle weights use the true propensity.
 
 ```{r eval = FALSE}
 d <- data.frame(l = runif(2000, -2, 2))
@@ -138,17 +177,21 @@ w.gam <- ipwpoint(exposure = a, family = "binomial", link = "logit",
 show("4.")
 ```
 
-A straight-line logistic model leaves about a quarter of the confounding
-bias in place; `s(l)` lets mgcv estimate the curve and removes almost all of it.
+A straight-line logistic model leaves a quarter of the confounding bias.
+With `s(l)` the bias is 3.6% at n = 2000 and 1.5% at n = 10000: it halves as
+the sample grows five-fold, as expected for a smoothing estimate that
+approaches the true curve. Oracle weights are unbiased, which confirms that
+the remaining bias comes from estimating the curve.
 
-# 5. Time-varying ordinal dose, `type = "all"`
+# 5. Time-varying exposure, `type = "all"`
+
+## 5a. Ordinal dose
 
 A dose level (0, 1, 2) is chosen at each of 4 visits from a proportional-odds
 model given the confounder `L` and the previous dose. `L` is affected by the
-previous dose and by an unmeasured `U`, which also affects the outcome. The
+previous dose and by an unmeasured `U` that also affects the outcome; the
 outcome rises by 1 per unit of cumulative dose. This is the situation in the
-JSS paper where ordinary adjustment fails: `L` is both a confounder and
-affected by earlier treatment.
+JSS paper where ordinary adjustment fails.
 
 ```{r eval = FALSE}
 for (t in 1:4) {
@@ -156,8 +199,7 @@ for (t in 1:4) {
   dose <- findInterval(0.8 * l + 0.6 * prev + rlogis(n), c(0, 1.5))   # 0, 1, 2
   prev <- dose
 }
-y <- 1 * cumulative.dose + 2 * U + rnorm(n)
-
+y <- cumulative.dose + 2 * U + rnorm(n)
 w <- ipwtm(exposure = dose, family = "ordinal", link = "logit",
            numerator = ~ dose.lag, denominator = ~ dose.lag + l,
            id = id, timevar = time, type = "all", data = long)
@@ -165,25 +207,42 @@ w <- ipwtm(exposure = dose, family = "ordinal", link = "logit",
 ```
 
 ```{r echo = FALSE}
-show("5.")
+show("5a")
 ```
 
-The unweighted analysis is confounded, and adjusting for `L` at every visit
-is biased in the other direction, because it blocks part of the effect and
-opens a path through `U`. Both ordinal weights (the correct model) and
-multinomial weights recover the effect.
+Both naive analyses are biased (+49% and -14%). Ordinal and multinomial
+weights recover the effect; the 2.5% bias of the ordinal weights at 500
+people falls to 1.4% at 2500, and oracle weights are within 1%.
+
+## 5b. Smooth terms in `ipwtm()`
+
+A binary exposure is chosen at each visit with a curved effect of `L`
+(logit = -0.3 + 2 sin(1.5 L) + 0.6 × previous exposure), in the same design.
+
+```{r eval = FALSE}
+w <- ipwtm(exposure = a, family = "binomial", link = "logit", numerator = ~ a.lag,
+           denominator = ~ a.lag + s(l), id = id, timevar = time, type = "all", data = long)
+```
+
+```{r echo = FALSE}
+show("5b")
+```
+
+Here a straight-line model is worse than no weighting at all: its weights
+turn the effect of +1 into a negative estimate. With `s(l)` the bias is 5.5%.
 
 # 6. Recurrent exposure events, `family = "survival"`, `type = "all"`
+
+## 6a and 6b. Weights against the true weights
 
 Exposure events (for example new prescriptions) happen repeatedly with a
 known proportional hazard: baseline 2 per unit time, log hazard ratio 0.5 for
 a fixed covariate `x` and -1 for a time-varying covariate `xt`. Because the
-true hazard is known, the true weights are known too, so the check is on the
-Cox coefficients and on how close the estimated weights are to the true ones.
-In 6a all people share a grid of 10 intervals (as in `haartdat`); in 6b the
-events happen in continuous time, `xt` changes at different times for each
-person, and each event ends an interval (start-stop data cut at events, as in
-Graffeo et al. 2018).
+true hazard is known, the true weights are known too. In 6a all people share
+a grid of 10 intervals (as in `haartdat`); in 6b the events happen in
+continuous time, `xt` changes at different times for each person, and each
+event ends an interval (start-stop data cut at events, as in Graffeo et al.
+2018).
 
 ```{r eval = FALSE}
 w <- ipwtm(exposure = expo, family = "survival", denominator = ~ x + xt,
@@ -193,22 +252,48 @@ median(abs(log(w$ipw.weights / true.weights)))
 ```
 
 ```{r echo = FALSE}
-show("6")
+show("6a")
+show("6b")
 ```
 
 The Cox coefficients are unbiased in both designs, and the estimated
 weights are typically within 7 to 9% of the true weights, which is the
 estimation noise of the baseline hazard.
 
-# 7. Standard errors: `ipwboot()` versus robust standard errors
+## 6c. Causal effect of the number of exposure events
 
-The marginal structural model for a binary exposure (true effect 10,
-n = 500) is fitted with stabilized weights; 95% confidence intervals come
-from `ipwboot()` (200 bootstrap samples, re-estimating the weights) or from
-robust standard errors (`survey::svyglm`). In 7a, exposure probabilities are
-mostly between 0.1 and 0.9 (good overlap); 7b is the simulated example of the
-JSS paper, where the logit of the propensity has a standard deviation of 5,
-so many people are almost certain to be exposed or unexposed.
+Exposure events happen in continuous time with hazard 1.5 exp(0.6 L). `L` is
+updated at 4 visits, is lowered by earlier events (as treatment raising CD4
+lowers the need for more) and depends on an unmeasured `U` that also affects
+the outcome. The outcome rises by 1 per event.
+
+```{r eval = FALSE}
+w <- ipwtm(exposure = expo, family = "survival", numerator = ~ 1, denominator = ~ l,
+           id = id, tstart = tstart, timevar = fuptime, type = "all", data = d)
+# weight at each person's last row, then lm(y ~ number.of.events, weights = ...)
+```
+
+```{r echo = FALSE}
+show("6c")
+```
+
+The weights reduce the bias from 80% (unweighted) and 22% (adjustment for
+`L`) to 3.4%. The method of Graffeo et al. uses, for an interval ending in an
+event, the probability of an event during that interval; this simulation
+shows that the approximation works for estimating a causal effect.
+
+# 7. Standard errors: `ipwboot()`, robust and naive
+
+Each table shows the mean estimated standard error divided by the actual
+spread of the estimates (1 is ideal) and the coverage of 95% confidence
+intervals.
+
+## 7a and 7b. Linear MSM for a binary exposure
+
+True effect 10, n = 500, stabilized weights. In 7a, exposure probabilities
+are mostly between 0.1 and 0.9 (good overlap); 7b is the simulated example
+of the JSS paper, where many people are almost certain to be exposed or
+unexposed.
 
 ```{r eval = FALSE}
 msm.effect <- function(dd) {
@@ -220,19 +305,66 @@ ipwboot(d, msm.effect, R = 200)
 ```
 
 ```{r echo = FALSE}
-knitr::kable(se, row.names = FALSE, digits = 3,
-             col.names = c("Scenario", "Method", "Mean estimate", "Mean SE", "Empirical SD",
-                           "Coverage of 95% CI", "Replications"))
+show_se("7a")
+show_se("7b")
 ```
 
-With good overlap, both intervals reach their nominal 95% coverage; the
-robust standard error is about 18% larger than the true spread of the
-estimates and the bootstrap about 8%, in line with Austin (2016). In the JSS
-example, the estimate itself is biased at this sample size (11.3 instead of
-10) and both standard errors are far too small, so coverage is only about
-50%. Near-violations of positivity, not the choice of standard error, are the
-problem there: check the weights (`summary()`, `ipwplot()`) and consider
-overlap weights or truncation.
+With good overlap the bootstrap standard error is accurate (ratio 1.01, Wald
+coverage 94.7%), while the robust standard error is 10% too large (coverage
+96.7%), in line with Austin (2016); percentile intervals cover slightly less
+than 95%. In the JSS example the estimate itself is biased (11.0 instead of
+10) and all standard errors are 38% too small, so coverage is below 60%
+whatever method is used.
+
+## 7c. Weighted Cox MSM
+
+Austin (2016) studied weighted Cox models. Here event times are exponential
+with hazard 0.1 exp(-0.7 a + 0.8 l), censored at 5; n = 1000. The true
+marginal log hazard ratio, -0.624, is computed from both potential outcomes
+of 200,000 people (it differs from -0.7 because hazard ratios are not
+collapsible).
+
+```{r echo = FALSE}
+show_se("7c")
+```
+
+All three standard errors are close to the truth here. The robust standard
+error is again too large (+8%); the naive one (+4%) and the bootstrap (-3%)
+are within simulation noise of 1. With stabilized weights and good overlap,
+the bootstrap therefore brings no clear gain over the naive standard error
+in this setting.
+
+## 7d. Time-varying exposure, bootstrap by person
+
+The design of scenario 5 with a binary exposure; `ipwboot(id = id)` resamples
+people with all their visits.
+
+```{r eval = FALSE}
+ipwboot(long, tv.effect, id = id, R = 200)
+```
+
+```{r echo = FALSE}
+show_se("7d")
+```
+
+Neither method is adequate here: the bootstrap standard error is 34% too
+small and the robust one 26% too small, with coverage of 79% and 84%. The
+weights are products over 4 visits, so a few people get very large weights
+and the estimate has a heavy-tailed distribution that 500 people do not
+represent well, the same problem as in 7b. Truncation, a larger sample or a
+better-balanced design would be needed; the bootstrap does not repair it.
+
+# Conclusions
+
+The simulations support the new models: with the correct model, each of
+them removes nearly all confounding, and the small biases that remain are
+either shared by weights from the true model or shrink with the sample size.
+They support `ipwboot()` for analyses with well-behaved weights, where it
+gives accurate standard errors and robust standard errors are conservative.
+They also show its limit: when weights are extreme (poor overlap, long
+products of time-varying weights), no standard error is reliable, and the
+first step is to examine the weights (`summary()`, `ipwplot()`) and consider
+overlap weights, truncation or a different model.
 
 # References
 

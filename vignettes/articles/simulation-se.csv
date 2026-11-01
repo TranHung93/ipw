@@ -1,5 +1,14 @@
-"scenario","method","mean.est","mean.se","emp.sd","coverage","reps"
-"7a. good overlap","ipwboot, percentile CI",10.054,0.492,0.457,0.95,100
-"7a. good overlap","robust SE (svyglm), Wald CI",10.054,0.539,0.457,0.95,100
-"7b. JSS example (poor overlap)","ipwboot, percentile CI",11.323,1.072,1.632,0.5,100
-"7b. JSS example (poor overlap)","robust SE (svyglm), Wald CI",11.323,1.06,1.632,0.53,100
+"scenario","method","truth","mean.est","mean.se","emp.sd","se.ratio","coverage","mcse.cov","reps"
+"7a. Linear MSM, good overlap","ipwboot, percentile CI",10,9.981,0.492,0.487,1.011,0.936,0.008,1000
+"7a. Linear MSM, good overlap","ipwboot SE, Wald CI",10,9.981,0.492,0.487,1.011,0.947,0.007,1000
+"7a. Linear MSM, good overlap","robust SE (svyglm), Wald CI",10,9.981,0.536,0.487,1.101,0.967,0.006,1000
+"7b. Linear MSM, JSS example (poor overlap)","ipwboot, percentile CI",10,11.019,1.11,1.787,0.621,0.56,0.016,1000
+"7b. Linear MSM, JSS example (poor overlap)","ipwboot SE, Wald CI",10,11.019,1.11,1.787,0.621,0.585,0.016,1000
+"7b. Linear MSM, JSS example (poor overlap)","robust SE (svyglm), Wald CI",10,11.019,1.113,1.787,0.623,0.591,0.016,1000
+"7c. Weighted Cox MSM (log hazard ratio)","naive SE (coxph), Wald CI",-0.624,-0.61,0.117,0.113,1.037,0.952,0.01,500
+"7c. Weighted Cox MSM (log hazard ratio)","robust SE (coxph), Wald CI",-0.624,-0.61,0.122,0.113,1.078,0.96,0.009,500
+"7c. Weighted Cox MSM (log hazard ratio)","ipwboot SE, Wald CI",-0.624,-0.61,0.11,0.113,0.974,0.936,0.011,500
+"7c. Weighted Cox MSM (log hazard ratio)","ipwboot, percentile CI",-0.624,-0.61,0.11,0.113,0.974,0.934,0.011,500
+"7d. Time-varying exposure, bootstrap by person","ipwboot (id), percentile CI",1,1.033,0.146,0.222,0.658,0.778,0.019,500
+"7d. Time-varying exposure, bootstrap by person","ipwboot (id) SE, Wald CI",1,1.033,0.146,0.222,0.658,0.792,0.018,500
+"7d. Time-varying exposure, bootstrap by person","robust SE (svyglm), Wald CI",1,1.033,0.163,0.222,0.737,0.838,0.016,500
