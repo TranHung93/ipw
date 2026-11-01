@@ -48,7 +48,9 @@ An analysis has three steps:
 > [`ipwprob()`](https://tranhung93.github.io/ipw/reference/ipwprob.md)
 > and
 > [`ipwboot()`](https://tranhung93.github.io/ipw/reference/ipwboot.md).
-> Existing calls give the same results as before.
+> Existing calls give the same results as before. The formulas, code and
+> rationale behind each new feature are in the [methods
+> article](https://tranhung93.github.io/ipw/articles/methods.html).
 
 ## 1. Point treatment: a binary exposure
 

@@ -1,0 +1,594 @@
+# Methods behind the new features: formulas, code and rationale
+
+Each new way of estimating weights added since ipw 1.3.2 comes down to
+the same step: estimate the probability, or density, of the exposure
+each person actually received, then take a ratio. This article gives,
+for each new feature, the formula, the code in the package and why that
+approach was chosen. Section 7 covers recurrent exposure events (Graffeo
+et al. 2018), and section 8 the bootstrap helper
+[`ipwboot()`](https://tranhung93.github.io/ipw/reference/ipwboot.md),
+which estimates standard errors instead of weights. How to use the
+features is shown in the [main
+vignette](https://tranhung93.github.io/ipw/articles/ipw.md); whether
+they recover known effects is checked in the [simulation
+study](https://tranhung93.github.io/ipw/articles/simulations.md).
+
+## Notation and the shared formula
+
+Every family only has to supply *f*, the probability or density of the
+observed exposure; the weight formula itself is the same for all of
+them.
+
+- *A*: the exposure each person received; *L*: confounders in the
+  denominator model; *V*: covariates in the numerator model (often
+  none).
+- *f*(*a* \| ·): the probability of *a* for a discrete exposure, the
+  density of *a* for a continuous one.
+
+Point treatment, stabilized and unstabilized:
+
+``` math
+SW_i = \frac{f(A_i \mid V_i)}{f(A_i \mid L_i)}, \qquad W_i = \frac{1}{f(A_i \mid L_i)}
+```
+
+Time-varying, for subject *i* at time *t*, with $`\bar{A}`$ and
+$`\bar{L}`$ the history up to that interval:
+
+``` math
+SW_i(t) = \prod_{k \le t} \frac{f(A_{ik} \mid \bar{A}_{i,k-1}, V_i)}{f(A_{ik} \mid \bar{A}_{i,k-1}, \bar{L}_{ik})}
+```
+
+In
+[`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md),
+each family’s branch returns `dens` for the numerator and denominator
+models, and one line forms the weight:
+
+``` r
+
+ipw_weights <- num$dens / den$dens   # num$dens = 1 when numerator = NULL
+```
+
+## 1. `ipwtm()`: type “all” for multinomial and ordinal exposures
+
+Every interval now contributes the probability of the observed category,
+so the weight follows exposures that move between categories in both
+directions.
+
+**Formula.** With categories 1, …, *J*, the multinomial model is a
+baseline-category logit; the ordinal model a cumulative link model with
+link *g* (logit, probit, cauchit or cloglog):
+
+``` math
+P(A_{ik} = j \mid L_{ik}) = \frac{\exp(L_{ik}^\top \beta_j)}{\sum_{m=1}^{J} \exp(L_{ik}^\top \beta_m)}, \quad \beta_1 = 0
+```
+
+``` math
+P(A_{ik} \le j \mid L_{ik}) = g^{-1}(\zeta_j - L_{ik}^\top \beta)
+```
+
+The weight is the time-varying product in the notation section, with
+*f*(*A_(ik)* \| ·) the fitted probability of the category observed in
+interval *k*.
+
+**Code.** With `type = "all"` every row is selected (`selvar = 1`), so
+the existing categorical engine fits
+[`nnet::multinom()`](https://rdrr.io/pkg/nnet/man/multinom.html) or
+[`MASS::polr()`](https://rdrr.io/pkg/MASS/man/polr.html) on all rows:
+
+``` r
+
+p_vec[active] <- .prob_of_observed(stats::predict(mod, type = "probs"),
+                                   data[[exp_col]][active], mod$lev)
+weights <- unsplit(lapply(split(p_ratio, data[[id_col]]), cumprod), data[[id_col]])
+```
+
+**Why this approach.**
+
+- **The problem:** some exposures change more than once. A patient’s
+  adherence can be high, then low, then high again. With
+  `type = "first"`, ipw stops following a person after their first
+  change, so the later changes are ignored.
+- **What it does:** every visit counts. At each visit the model asks:
+  given this person’s history, how likely was the category they actually
+  had? These chances are multiplied over time to give the weight.
+- **Why this way:** it is the method ipw already uses for yes/no
+  exposures with `type = "all"`, extended to more than two categories.
+  The multinomial and ordinal models were already in the package, so
+  little new code was needed.
+- **Which model to use:** multinomial when the categories have no order
+  (drug A, B or C); ordinal when they do (low, medium, high). The
+  ordinal model uses one effect per covariate instead of one per
+  category, so it needs less data.
+
+**Caveat.** The models are pooled over time, so the user must put past
+exposure (for example the previous category) and time in the formulas;
+the function does not add them.
+
+## 2. `ipwprob()`: user-supplied probabilities
+
+[`ipwprob()`](https://tranhung93.github.io/ipw/reference/ipwprob.md)
+separates the weight arithmetic from the modelling: the user brings *f*
+from any model, and ipw forms, cumulates and truncates the weights.
+
+**Formula.** With `den` = *f*(*A* \| *L*) and `num` = *f*(*A* \| *V*)
+per row (`num` = 1 when not given), the point weight is their ratio;
+with `id` and `timevar` it is the cumulative product within each
+subject, ordered by time, as in the notation section.
+
+``` math
+W_i = \frac{num_i}{den_i}, \qquad W_i(t) = \prod_{k \le t} \frac{num_{ik}}{den_{ik}}
+```
+
+**Code.**
+
+``` r
+
+ratio <- num / den
+ord <- order(id, timevar)
+cum <- unsplit(lapply(split(ratio[ord], id[ord]), cumprod), id[ord])
+weights <- numeric(n)
+weights[ord] <- cum        # back to the user's row order
+```
+
+It checks that `den` and `num` are positive and finite, that lengths
+match, and that each id–time pair occurs once.
+
+**Why this approach.**
+
+- **The problem:** ipw only fits regression models. Many analysts now
+  estimate the chance of treatment with machine learning (random
+  forests, boosting, SuperLearner), which can pick up complex patterns a
+  regression misses. Until now they had to compute the weights by hand.
+- **What it does:** you give, for each row, the probability of the
+  treatment the person actually received. ipw does the rest: divides
+  numerator by denominator, multiplies over time within each person, and
+  truncates if asked.
+- **Why this way:** building every learner into ipw would add many
+  dependencies and break whenever those packages change. Accepting
+  probabilities works with any method, now and in future, and keeps ipw
+  small.
+- **Why it asks for `timevar`:** time-varying weights must be multiplied
+  in time order. Asking for the time, instead of trusting the row order,
+  avoids wrong weights when the data are not sorted.
+- **When to use:** when you fitted the treatment model yourself, or want
+  to compare several models on the same data.
+
+**Caveats.** Flexible models can give probabilities near 0 or 1 and so
+extreme weights; truncation (`trunc`) and cross-fitting help. The user
+is responsible for setting probabilities to 1 after the first switch for
+`type = "first"` or `"cens"`. Standard errors that ignore the estimation
+of the probabilities are only approximate.
+
+## 3. Count exposures: `"poisson"` and `"negbin"`
+
+For a count exposure (number of doses, visits), *f* is the probability
+mass of the observed count, from a log-linear model for its mean.
+
+**Formula.** Both models have a log link, μ_(i) = exp(*L*_(i)ᵀβ).
+Poisson, then negative binomial with dispersion parameter θ (variance
+μ + μ²/θ):
+
+``` math
+f(a \mid L) = \frac{e^{-\mu} \mu^{a}}{a!}
+```
+
+``` math
+f(a \mid L) = \frac{\Gamma(a + \theta)}{\Gamma(\theta)\, a!} \left(\frac{\theta}{\theta + \mu}\right)^{\theta} \left(\frac{\mu}{\theta + \mu}\right)^{a}
+```
+
+**Code.**
+
+``` r
+
+# poisson
+mod  <- .fit_glm_or_gam(c(base, list(family = stats::poisson()), dots))
+dens <- stats::dpois(exp_vec, lambda = as.numeric(stats::predict(mod, type = "response")))
+
+# negbin: theta estimated by glm.nb, separately for numerator and denominator
+mod  <- do.call(MASS::glm.nb, c(base, dots))
+dens <- stats::dnbinom(exp_vec, size = mod$theta,
+                       mu = as.numeric(stats::predict(mod, type = "response")))
+```
+
+The exposure must be a non-negative integer.
+
+**Why this approach.**
+
+- **The problem:** a count (number of doses: 0, 1, 2, …) is neither
+  yes/no nor a smooth measurement. A normal model allows impossible
+  values such as −1.3 doses and gives poor probabilities for large
+  counts, which is exactly where weights become large.
+- **Poisson:** the standard model for counts. It assumes the spread of
+  the counts equals their average.
+- **Negative binomial:** real counts often vary more than that: many
+  patients get no doses and a few get very many. A Poisson model then
+  gives too small a chance to these unusual counts, and so too large a
+  weight. The negative binomial adds one parameter for the extra spread.
+- **Which to use:** start with Poisson; if the variance of the exposure
+  is clearly larger than its mean, use the negative binomial. In the
+  simulation study, the negative binomial also worked for Poisson counts
+  (bias 3.6%), while Poisson weights for overdispersed counts were badly
+  biased.
+- **Why the numerator is optional:** for counts, *f* is a true
+  probability between 0 and 1, as for a yes/no exposure, so unstabilized
+  weights 1/*f* still make sense.
+
+**Caveat.** Zero-inflated or truncated counts are not covered.
+
+## 4. Skewed continuous exposures: `"gamma"` and `"lognormal"`
+
+For a positive, right-skewed exposure (dose, duration, a biomarker), *f*
+is a gamma or log-normal density instead of a normal one.
+
+**Formula.** Gamma with log link, mean μ_(i) = exp(*L*_(i)ᵀβ) and shape
+*k* = 1/φ, where φ is the dispersion estimated by the GLM:
+
+``` math
+f(a \mid L) = \frac{(k/\mu)^{k}}{\Gamma(k)}\, a^{k-1} e^{-k a / \mu}
+```
+
+Log-normal: a normal linear model for log *A* with mean μ_(i) =
+*L*_(i)ᵀβ and standard deviation σ:
+
+``` math
+f(a \mid L) = \frac{1}{a \sigma \sqrt{2\pi}} \exp\!\left(-\frac{(\log a - \mu)^2}{2\sigma^2}\right)
+```
+
+The factor 1/*a* is the same in numerator and denominator, so the
+stabilized log-normal weight equals the gaussian weight computed on log
+*A*.
+
+**Code.**
+
+``` r
+
+# gamma
+mod   <- do.call(stats::glm, c(base, list(family = stats::Gamma(link = "log")), dots))
+shape <- 1 / summary(mod)$dispersion
+mu    <- as.numeric(stats::predict(mod, type = "response"))
+dens  <- stats::dgamma(exp_vec, shape = shape, rate = shape / mu)
+
+# lognormal: the model formula is log(exposure) ~ ...
+mod  <- do.call(stats::glm, c(base, list(family = stats::gaussian()), dots))
+dens <- stats::dlnorm(exp_vec, meanlog = as.numeric(stats::predict(mod)),
+                      sdlog = stats::sd(stats::residuals(mod)))
+```
+
+The exposure must be positive, and a numerator model is required.
+
+**Why this approach.**
+
+- **The problem:** doses, durations and many lab values are always
+  positive and have a long right tail: most values are small, a few are
+  very large. The normal model is symmetric and allows negative values,
+  so it fits the tails badly, and the tails are where the weights are
+  largest.
+- **Gamma:** suits exposures whose spread grows with their size, for
+  example a duration that varies by about 20% whatever its typical
+  length. Common for durations, doses and costs.
+- **Log-normal:** suits exposures that look bell-shaped after taking the
+  log, such as viral load and many biomarkers. In practice it is the
+  gaussian model applied to log(exposure).
+- **Which to use:** draw a histogram of log(exposure). If it looks
+  bell-shaped, use log-normal; otherwise try gamma. You can also compare
+  the AIC of the two denominator models.
+- **Why the numerator is required:** for a continuous exposure, *f* is a
+  density, not a probability. Its size depends on the units (mg or g),
+  so 1/*f* has no fixed meaning and can be huge. Dividing by a numerator
+  density, as already required for gaussian, cancels the units and keeps
+  the weights around 1.
+
+**Implementation notes.** The gamma shape uses the moment (Pearson)
+estimate of φ from
+[`summary.glm()`](https://rdrr.io/r/stats/summary.glm.html), not maximum
+likelihood
+([`MASS::gamma.shape()`](https://rdrr.io/pkg/MASS/man/gamma.shape.glm.html)
+would be the alternative). The log-normal σ uses
+[`sd()`](https://rdrr.io/r/stats/sd.html) of the residuals (divisor *n*
+− 1, not *n* − *p*), to match the existing gaussian family.
+
+**Caveat.** In the simulation study a small bias (3–5%) remained with
+the correct family. Weights computed from the true densities had the
+same bias, so it is a property of weighting with a skewed exposure in
+finite samples, and it shrinks slowly as the sample grows.
+
+## 5. Smooth terms with mgcv
+
+When a formula contains `s()`, `te()`, `ti()` or `t2()`, the exposure
+model is fitted as a generalized additive model, so a confounder’s
+effect can be nonlinear without hand-built splines.
+
+**Formula.** With link *g* and smooth functions *f_(j)* represented by
+penalized regression splines:
+
+``` math
+g\big(E[A \mid L]\big) = \beta_0 + \sum_j f_j(L_j) + L_{\text{lin}}^\top \gamma
+```
+
+Each *f_(j)* is fitted by minimising the penalized deviance below; λ_(j)
+sets its smoothness and is estimated by mgcv (default
+`method = "GCV.Cp"`; `method = "REML"` can be passed through `...`).
+
+``` math
+D(\beta) + \sum_j \lambda_j \int f_j''(x)^2 \, dx
+```
+
+The weights then follow the notation section, with *f* taken from the
+GAM’s fitted values.
+
+**Code.** One helper chooses [`glm()`](https://rdrr.io/r/stats/glm.html)
+or [`mgcv::gam()`](https://rdrr.io/pkg/mgcv/man/gam.html), and gives the
+formula an environment in which `s()` and the others are mgcv’s, so
+users need not attach mgcv:
+
+``` r
+
+.fit_glm_or_gam <- function(args) {
+  if (.uses_smooths(args$formula)) {
+    .require_mgcv()
+    args$formula <- .gam_formula(args$formula)
+    args$na.action <- NULL
+    do.call(mgcv::gam, args)
+  } else {
+    do.call(stats::glm, args)
+  }
+}
+```
+
+**Why this approach.**
+
+- **The problem:** a regression assumes each confounder has a
+  straight-line effect (on the logit scale for a yes/no exposure). That
+  is often wrong: the chance of starting treatment may rise steeply at
+  low CD4 counts and then level off. A straight line then gives the
+  wrong probabilities, and some confounding remains in the weighted
+  analysis.
+- **The old fix:** add splines or polynomials by hand. That means
+  choosing knots or degrees, and it is easy to make the curve too stiff
+  or too wiggly.
+- **What a GAM does:** writing `s(cd4)` lets the data decide the shape
+  of the curve, while a penalty keeps it smooth so it does not follow
+  random noise.
+- **Why mgcv:** it is the standard, well-tested R package for GAMs and
+  is shipped with R as a recommended package, so most users already have
+  it.
+- **Why only some families:** for binomial, gaussian and Poisson, a GAM
+  is a direct replacement for the GLM already used. Multinomial,
+  ordinal, gamma and negative binomial would need different fitting
+  code, so they are left for later.
+- **Tip:** use `s()` for continuous confounders where a curved effect is
+  plausible, and look at `plot(result$den.mod)` to see the fitted
+  curves.
+
+**Implementation note.** For gaussian exposures, the GAM uses σ =
+`sqrt(sig2)` (residual sum of squares over *n* minus the effective
+degrees of freedom), while the GLM path keeps `sd(residuals)` from
+earlier versions, so the two are not on exactly the same footing.
+
+## 6. `estimand`: ATT and overlap weights for a binomial point treatment
+
+The `estimand` argument changes which population the weights standardise
+to, using the same fitted propensity score *e*(*L*) = P(*A* = 1 \| *L*)
+from the denominator model.
+
+**Formula.**
+
+``` math
+\text{ATE: } w = \frac{A}{e} + \frac{1-A}{1-e} \qquad \text{ATT: } w = A + (1-A)\frac{e}{1-e} \qquad \text{ATO: } w = A(1-e) + (1-A)\,e
+```
+
+**Code.**
+
+``` r
+
+ipw_weights <- switch(estimand,
+  ATE = num$dens / den$dens,
+  ATT = ifelse(exp_vec == 1, 1, den$p / (1 - den$p)),
+  ATO = ifelse(exp_vec == 1, 1 - den$p, den$p)
+)
+```
+
+`den$p` is the fitted P(*A* = 1 \| *L*) kept from the binomial
+denominator model; `"ATT"` and `"ATO"` require `numerator = NULL` and a
+binomial family.
+
+**Why this approach.** Each estimand answers a different clinical
+question; the formulas only change who gets how much weight.
+
+- **ATE (default):** “What would happen if everyone were treated,
+  compared with no one?” Each person is weighted to stand for the whole
+  study population.
+- **ATT:** “Did the treatment help the people who actually received it?”
+  Treated people keep weight 1; untreated people are reweighted to look
+  like the treated group. Useful when treatment is only realistic for
+  some patients.
+- **ATO (overlap):** “What is the effect in patients for whom doctors
+  could have gone either way?” Every weight lies between 0 and 1, so no
+  single person can dominate. This helps when some patients are almost
+  always or almost never treated: there, ATE weights become huge and
+  need truncation. With a logistic model, overlap weights also make the
+  average of every covariate in the model exactly equal between the
+  groups.
+- **Why no numerator:** ATT and overlap weights are not a ratio of two
+  probabilities, so stabilizing them has no meaning. ipw gives an error
+  instead of silently ignoring a numerator.
+- **Which to use:** choose by the clinical question first. If ATE
+  weights are extreme, consider ATO, and state clearly which patients
+  the result describes.
+
+**Caveat.** The overlap population is defined by the propensity score
+itself, so results describe that population, not a pre-specified one;
+this should be stated when reporting ATO estimates.
+
+## 7. `ipwtm()`: type “all” for recurrent exposure events (survival)
+
+Exposure events can now happen more than once per person, for example
+repeated prescriptions or hospital admissions. This follows Graffeo,
+Latouche, Geskus and Chevret (2018).
+
+**Formula.** An Andersen–Gill Cox model for the exposure events is
+fitted on all rows, with baseline cumulative hazard Λ₀(*t*). Row *k* of
+person *i* covers the interval (*s_(ik)*, *t_(ik)*\] and has covariates
+*L_(ik)*:
+
+``` math
+P(A_{ik} = 0 \mid L_{ik}) = \exp\big\{-\big[\Lambda_0(t_{ik}) - \Lambda_0(s_{ik})\big]\, e^{\beta^\top L_{ik}}\big\}
+```
+
+``` math
+P(A_{ik} = 1 \mid L_{ik}) = 1 - P(A_{ik} = 0 \mid L_{ik})
+```
+
+The weight is the time-varying product in the notation section, with
+*f*(*A_(ik)* \| ·) the probability of the status observed in row *k*
+(event or no event).
+
+**Code.** The model is `coxph(Surv(tstart, timevar, exposure) ~ ...)` on
+all rows; each row’s probability uses the baseline hazard over that
+row’s own interval:
+
+``` r
+
+bh <- survival::basehaz(mod, centered = TRUE)
+d_cum_haz <- cum_haz_at(data[[time_col]]) - cum_haz_at(data[[start_col]])
+h <- d_cum_haz * stats::predict(mod, type = "risk", centered = TRUE)
+ifelse(data[[exp_col]] == 1, 1 - exp(-h), exp(-h))
+```
+
+**Why this approach.**
+
+- **The problem:** with `type = "first"`, ipw stops following a person
+  after their first exposure event, so later prescriptions or admissions
+  are ignored.
+- **What it does:** every row counts. For each interval the model asks:
+  given this person’s covariates, how likely was an event (or no event)
+  in this interval? These chances are multiplied over time to give the
+  weight.
+- **Why the Andersen–Gill model:** it is the standard Cox model for
+  recurrent events and is already in the survival package, so ipw adds
+  only the step from hazard to probability.
+- **Why each row’s own interval:** in start-stop data cut at events,
+  rows have different lengths for different people. Using Λ₀(*t_(ik)*) −
+  Λ₀(*s_(ik)*) gives each row the hazard over exactly the time it
+  covers, instead of assuming a shared grid of visits.
+- **Simulation check:** the Cox coefficients were unbiased, the
+  estimated weights were within 7–9% of the true weights, and the effect
+  of the number of events was recovered with 3.4% bias, against 22% for
+  regression adjustment and 80% unweighted ([simulation
+  study](https://tranhung93.github.io/ipw/articles/simulations.md),
+  scenarios 6a–6c).
+
+**Caveat.** For an interval that ends in an event, the method uses the
+probability of an event at some time during the interval, which is an
+approximation (Graffeo et al. 2018). The model assumes events are
+independent given the covariates, so the number of earlier events should
+be in the formula when it affects the hazard.
+
+## 8. `ipwboot()`: bootstrap standard errors
+
+[`ipwboot()`](https://tranhung93.github.io/ipw/reference/ipwboot.md)
+estimates standard errors and confidence intervals for a whole weighted
+analysis, re-estimating the weights in every bootstrap sample. Unlike
+sections 1–7, it does not compute weights: it repeats the user’s own
+analysis.
+
+**Formula.** For *b* = 1, …, *B*, draw a bootstrap sample *D*^(\*)_(b)
+(rows, or whole subjects with all their rows), re-estimate the weights
+and the MSM on it, and keep the estimate θ^(\*)_(b):
+
+``` math
+\widehat{SE}_{\text{boot}} = \sqrt{\frac{1}{B-1}\sum_{b=1}^{B}\big(\hat\theta^*_b - \bar\theta^*\big)^2}, \qquad \text{CI}_{\text{pct}} = \big[\hat\theta^*_{(\alpha/2)},\ \hat\theta^*_{(1-\alpha/2)}\big]
+```
+
+A Wald interval θ̂ ± 1.96 × SE can be formed from the standard error;
+[`confint()`](https://rdrr.io/r/stats/confint.html) gives the percentile
+interval.
+
+**Code.** The user writes a function `statistic(d)` that computes the
+weights and returns the estimate.
+[`ipwboot()`](https://tranhung93.github.io/ipw/reference/ipwboot.md)
+resamples and calls it *B* times:
+
+``` r
+
+make_sample <- function(pick) {
+  rows <- unit_rows[pick]                        # whole subjects, all their rows
+  d <- data[unlist(rows), , drop = FALSE]
+  d[[id_name]] <- rep(seq_along(pick), lengths(rows))   # new id per sampled copy
+  d
+}
+for (b in seq_len(R)) {
+  val <- tryCatch(statistic(make_sample(draw_units()), ...), error = function(e) e)
+  ...                                            # failures recorded, not fatal
+}
+se <- apply(t_mat, 2, sd, na.rm = TRUE)
+```
+
+**Why this approach.**
+
+- **The problem:** robust (sandwich) standard errors treat the estimated
+  weights as known. Austin (2016) found them too large for weighted Cox
+  models, and naive standard errors too small; the bootstrap that
+  re-estimates the weights performed well.
+- **Why a user function:** the analysis can use any outcome model
+  ([`lm()`](https://rdrr.io/r/stats/lm.html),
+  [`glm()`](https://rdrr.io/r/stats/glm.html),
+  [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html),
+  [`svyglm()`](https://rdrr.io/pkg/survey/man/svyglm.html)) and any
+  combination of weights (exposure and censoring). A function lets the
+  bootstrap repeat exactly that analysis.
+- **Why resample subjects:** rows of one person are correlated, so with
+  `id` whole people are drawn with all their rows. Each sampled copy
+  gets a new id, so a person drawn twice counts as two people and
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) does
+  not merge their rows.
+- **Robustness:** a sample in which the analysis fails (for example a
+  model that does not converge) is recorded and left out instead of
+  stopping the run. `strata` keeps group sizes fixed, for example by
+  exposure group.
+- **Simulation check:** for a point treatment with good overlap, the
+  bootstrap standard error was accurate (ratio 1.01, coverage 94.7%),
+  while robust standard errors were 10% too large. For a weighted Cox
+  model, naive, robust and bootstrap standard errors were all close to
+  correct ([simulation
+  study](https://tranhung93.github.io/ipw/articles/simulations.md),
+  scenarios 7a and 7c).
+
+**Caveat.** The bootstrap does not repair extreme weights. With poor
+overlap or products of time-varying weights over several visits, all
+standard errors were too small, the bootstrap ones included, with 95%
+intervals covering the truth in only 60–80% of samples (scenarios 7b and
+7d). Check the weights first. Each run repeats the whole analysis *B*
+times (about 200 for a standard error, more for percentile intervals),
+so it can be slow for large data.
+
+## References
+
+- Austin PC (2016). Variance estimation when using inverse probability
+  of treatment weighting (IPTW) with survival analysis. *Statistics in
+  Medicine* 35, 5642–5655.
+- Cole SR, Hernán MA (2008). Constructing inverse probability weights
+  for marginal structural models. *American Journal of Epidemiology*
+  168, 656–664.
+- Graffeo N, Latouche A, Geskus RB, Chevret S (2018). Modeling
+  time-varying exposure using inverse probability of treatment weights.
+  *Biometrical Journal* 60, 323–332.
+- Hirano K, Imbens GW (2004). The propensity score with continuous
+  treatments. In Gelman A, Meng XL (eds), *Applied Bayesian Modeling and
+  Causal Inference from Incomplete-Data Perspectives*. Wiley.
+- Imai K, van Dyk DA (2004). Causal inference with general treatment
+  regimes: generalizing the propensity score. *Journal of the American
+  Statistical Association* 99, 854–866.
+- Li F, Morgan KL, Zaslavsky AM (2018). Balancing covariates via
+  propensity score weighting. *Journal of the American Statistical
+  Association* 113, 390–400.
+- Robins JM, Hernán MA, Brumback B (2000). Marginal structural models
+  and causal inference in epidemiology. *Epidemiology* 11, 550–560.
+- van der Laan MJ, Polley EC, Hubbard AE (2007). Super learner.
+  *Statistical Applications in Genetics and Molecular Biology* 6(1).
+- van der Wal WM, Geskus RB (2011). ipw: An R package for inverse
+  probability weighting. *Journal of Statistical Software* 43(13), 1–23.
+- Venables WN, Ripley BD (2002). *Modern Applied Statistics with S*, 4th
+  ed. Springer.
+- Wood SN (2017). *Generalized Additive Models: An Introduction with R*,
+  2nd ed. CRC Press.
