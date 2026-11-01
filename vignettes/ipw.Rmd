@@ -212,7 +212,22 @@ round(cbind(
   sapply(c(gaussian = "gaussian", gamma = "gamma", lognormal = "lognormal"), fit.dose)), 3)
 ```
 
-DRAFT-TEXT-PLACEHOLDER
+Good weights make the exposure unrelated to the confounders, so the table
+shows the weighted correlation of the dose (and of the log dose) with `l`,
+next to the effect estimate and the largest weight. The weights are
+truncated at the 1st and 99th percentiles (`trunc = 0.01`), because a few
+extreme weights would otherwise dominate a single estimate.
+
+Without weights, the dose is strongly correlated with `l` (about 0.56) and
+the estimate (about 1.53) is badly confounded. The log-normal model, which
+matches how the dose was generated, removes most of that correlation (about
+0.17), gives the estimate closest to 1 (about 1.17) and has by far the most
+moderate weights: its largest untruncated weight is about 38, against about
+1800 for the gaussian model. The gaussian model puts almost no probability on
+the long right tail, so the few people with a high dose get huge weights; the
+gamma model lies in between. None of the models removes the correlation
+completely here, partly because truncation trades a little bias for
+stability.
 
 ### New: count exposures (Poisson and negative binomial)
 
