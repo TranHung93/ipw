@@ -82,7 +82,13 @@ standard errors in simulations and recommends the bootstrap, in which the weight
 are re-estimated in each bootstrap sample. This takes the uncertainty in the
 estimated weights into account; see the bootstrap example below, or use
 \code{\link{ipwboot}}, which does this for you. About 200 bootstrap samples are
-usually enough to estimate a standard error.
+usually enough to estimate a standard error. In the package's simulation study
+(article "Simulation study" on the package website), the bootstrap standard
+error was accurate for a point treatment with good overlap, while robust
+standard errors were about 10\% too large. When some weights are extreme
+(poor overlap), no standard error was reliable, the bootstrap included. Check
+the weights first with \code{summary()} and \code{\link{ipwplot}}, and consider
+truncation (\code{trunc}) or overlap weights (\code{estimand = "ATO"}).
 }
 \examples{
 # Simulate data with continuous confounder and outcome, binomial exposure.
