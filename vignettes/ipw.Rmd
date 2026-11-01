@@ -184,31 +184,35 @@ duration: most values are small and a few are very large. A normal model is
 symmetric and fits that tail poorly, and the tail is where weights become
 large. `family = "gamma"` (log link) and `family = "lognormal"` (a normal
 model for the log of the exposure) are meant for such exposures; both
-require positive values. Below, the exposure is log-normal given `l`, and
-the true effect of one unit of `dose` on `y` is 1.
+require positive values. Below, the dose is log-normal given `l`, and the
+true effect of one unit of `dose` on `y` is 1.
 
 ```{r skewed}
 set.seed(8)
-sk <- data.frame(l = rnorm(1000))
-sk$dose <- exp(0.5 + 0.5 * sk$l + rnorm(1000, 0, 0.6))
-sk$y <- sk$dose + 2 * sk$l + rnorm(1000)
+n.sk <- 2000
+sk <- data.frame(l = rnorm(n.sk))
+sk$dose <- exp(0.5 + 0.5 * sk$l + rnorm(n.sk, 0, 0.6))
+sk$y <- sk$dose + 2 * sk$l + rnorm(n.sk)
 c(mean = mean(sk$dose), median = median(sk$dose))   # right-skewed
 
+# weighted correlation of the dose (or log dose) with the confounder l
+wcor <- function(x, w) cov.wt(cbind(x, sk$l), wt = w, cor = TRUE)$cor[1, 2]
+
 fit.dose <- function(family) {
-  wt <- ipwpoint(exposure = dose, family = family, numerator = ~ 1,
-                 denominator = ~ l, data = sk)$ipw.weights
-  c(effect = unname(coef(lm(y ~ dose, data = sk, weights = wt))["dose"]),
-    mean.weight = mean(wt), max.weight = max(wt))
+  w <- ipwpoint(exposure = dose, family = family, numerator = ~ 1,
+                denominator = ~ l, data = sk, trunc = 0.01)
+  wt <- w$weights.trunc
+  c(cor.dose.l = wcor(sk$dose, wt), cor.logdose.l = wcor(log(sk$dose), wt),
+    effect = unname(coef(lm(y ~ dose, data = sk, weights = wt))["dose"]),
+    max.weight.untruncated = max(w$ipw.weights))
 }
-sapply(c(gaussian = "gaussian", gamma = "gamma", lognormal = "lognormal"), fit.dose)
+round(cbind(
+  unweighted = c(wcor(sk$dose, rep(1, n.sk)), wcor(log(sk$dose), rep(1, n.sk)),
+                 unname(coef(lm(y ~ dose, data = sk))["dose"]), 1),
+  sapply(c(gaussian = "gaussian", gamma = "gamma", lognormal = "lognormal"), fit.dose)), 3)
 ```
 
-Choose the family by looking at the exposure: if it is right-skewed and
-looks bell-shaped after taking logs, use `"lognormal"`; if its spread grows
-with its mean, `"gamma"`. Do not use them for an exposure that is roughly
-symmetric: income in `healthdat` (mean and median both about 2700) is
-modelled well by `"gaussian"`, and a log-normal model there gives a few
-people with very low income enormous weights.
+DRAFT-TEXT-PLACEHOLDER
 
 ### New: count exposures (Poisson and negative binomial)
 
