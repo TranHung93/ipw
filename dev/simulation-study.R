@@ -37,8 +37,11 @@ set.seed(20261101)
 results <- list()
 coverage <- list()
 t_start <- Sys.time()
-timer <- function(label) message(sprintf("%-60s %6.0f s", label,
-                                         as.numeric(difftime(Sys.time(), t_start, units = "secs"))))
+timer <- function(label) {
+  msg <- sprintf("%s: %.0f s", label, as.numeric(difftime(Sys.time(), t_start, units = "secs")))
+  message(msg)
+  if (nzchar(Sys.getenv("GITHUB_ACTIONS"))) cat(sprintf("::notice title=progress::%s\n", msg))
+}
 
 # Run f() n times in parallel; a replication that fails gives a row of NA and
 # is left out (the number of failures is reported).
@@ -344,15 +347,16 @@ for (cont in c(FALSE, TRUE)) {
 }
 
 # 6c: causal effect. Exposure events (e.g. doses) happen in continuous time
-# with hazard 1.5 exp(0.6 L); L is updated at 4 visits, depends on the number
-# of earlier events and on an unmeasured U that also affects Y. Y rises by 1
+# with hazard 1.5 exp(0.6 L); L is updated at 4 visits, is lowered by earlier
+# events (as treatment raising CD4 lowers the need for more) and depends on an
+# unmeasured U that also affects Y. (A positive feedback would be explosive.) Y rises by 1
 # per exposure event; MSM: E[Y] = b0 + 1 * (number of events).
 sim_doses <- function(n = 400) {
   out <- vector("list", n); yv <- numeric(n); nv <- numeric(n)
   for (i in seq_len(n)) {
     U <- rnorm(1); nprev <- 0; rows <- list()
     for (k in 1:4) {
-      l <- U + 0.3 * nprev + rnorm(1, 0, 0.5)
+      l <- U - 0.3 * nprev + rnorm(1, 0, 0.5)
       h <- 1.5 * exp(0.6 * l)
       t0 <- (k - 1) / 4
       repeat {
