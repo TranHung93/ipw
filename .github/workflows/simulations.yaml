@@ -1,0 +1,47 @@
+# Runs the simulation study in dev/simulation-study.R and reports the results
+# in the job summary and as an annotation. Started by hand (Actions tab ->
+# simulations -> Run workflow) or by a pull request that changes the study.
+on:
+  workflow_dispatch:
+    inputs:
+      reps:
+        description: 'Number of replications per scenario'
+        default: '500'
+  pull_request:
+    paths:
+      - 'dev/simulation-study.R'
+      - '.github/workflows/simulations.yaml'
+
+name: simulations
+
+permissions: read-all
+
+jobs:
+  simulations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      IPW_SIM_REPS: ${{ github.event.inputs.reps || '500' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::mgcv, any::survey, local::.
+          needs: check
+
+      - name: Run simulation study
+        run: Rscript dev/simulation-study.R
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: simulation-results
+          path: |
+            vignettes/articles/simulation-results.csv
+            vignettes/articles/simulation-se.csv

@@ -1,0 +1,27 @@
+"scenario","method","truth","mean","bias","emp.sd","rmse","reps"
+"1. Binary exposure, effect varies","unweighted (target ATE)",1,1.989,0.989,0.114,0.995,500
+"1. Binary exposure, effect varies","ATE weights",1,1.002,0.002,0.089,0.089,500
+"1. Binary exposure, effect varies","ATT weights (target ATT)",1.276,1.275,-0.001,0.107,0.107,500
+"1. Binary exposure, effect varies","ATO weights (target ATO)",0.861,0.864,0.002,0.082,0.082,500
+"1. Binary exposure, effect varies","ipwprob, true probabilities (ATE)",1,1.006,0.007,0.144,0.144,500
+"2. Count exposure (overdispersed)","unweighted",0.5,0.671,0.171,0.022,0.172,500
+"2. Count exposure (overdispersed)","poisson weights (misspecified)",0.5,0.329,-0.171,0.078,0.188,500
+"2. Count exposure (overdispersed)","negbin weights (correct)",0.5,0.507,0.007,0.038,0.039,500
+"3. Skewed exposure (log-normal dose)","unweighted",1,1.534,0.534,0.042,0.536,500
+"3. Skewed exposure (log-normal dose)","gaussian weights (misspecified)",1,1.13,0.13,0.085,0.156,491
+"3. Skewed exposure (log-normal dose)","gamma weights (misspecified)",1,0.983,-0.017,0.165,0.166,500
+"3. Skewed exposure (log-normal dose)","lognormal weights (correct)",1,1.061,0.061,0.087,0.106,500
+"3. Skewed exposure (log-normal dose)","lognormal weights, truncated 1%",1,1.179,0.179,0.036,0.183,500
+"4. Curved propensity (mgcv)","unweighted",2,4.547,2.547,0.093,2.548,500
+"4. Curved propensity (mgcv)","linear logistic weights (misspecified)",2,2.659,0.659,0.086,0.665,500
+"4. Curved propensity (mgcv)","s(l) weights",2,2.07,0.07,0.064,0.095,500
+"5. Time-varying ordinal dose (type all)","unweighted",1,1.492,0.492,0.035,0.493,250
+"5. Time-varying ordinal dose (type all)","regression adjustment for L",1,0.855,-0.145,0.028,0.147,250
+"5. Time-varying ordinal dose (type all)","ordinal weights (correct)",1,1.027,0.027,0.11,0.113,250
+"5. Time-varying ordinal dose (type all)","multinomial weights",1,1.01,0.01,0.116,0.117,250
+"6a. Recurrent exposure, common grid of intervals","Cox coefficient of x",0.5,0.499,-0.001,0.084,0.083,250
+"6a. Recurrent exposure, common grid of intervals","Cox coefficient of xt",-1,-0.983,0.017,0.099,0.1,250
+"6a. Recurrent exposure, common grid of intervals","median |log(estimated / true weight)|",0,0.069,0.069,0.02,0.072,250
+"6b. Recurrent exposure, continuous time, irregular intervals","Cox coefficient of x",0.5,0.5,0,0.091,0.091,250
+"6b. Recurrent exposure, continuous time, irregular intervals","Cox coefficient of xt",-1,-0.996,0.004,0.093,0.093,250
+"6b. Recurrent exposure, continuous time, irregular intervals","median |log(estimated / true weight)|",0,0.091,0.091,0.024,0.094,250
