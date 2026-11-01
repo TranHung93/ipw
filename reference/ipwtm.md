@@ -121,6 +121,24 @@ A list of class `"ipwtm"` containing:
 
   Denominator model object.
 
+## Details
+
+Standard errors: `ipwtm` only estimates the weights. Standard errors for
+the marginal structural model have to be obtained when that model is
+fitted. Robust standard errors, for example from
+[`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) with
+`cluster(id)` as in Van der Wal and Geskus (2011), treat the weights as
+known and tend to be conservative (too large). Austin (2016) compared
+naive, robust and bootstrap standard errors in simulations and
+recommends the bootstrap, in which the weights are re-estimated in each
+bootstrap sample. Austin studied a point treatment with baseline
+confounders; for longitudinal data in long format the bootstrap must
+resample subjects, not rows: keep all rows of a sampled subject, give
+each sampled copy a new id, re-run `ipwtm` (for treatment and, if used,
+censoring weights) on the bootstrap sample and refit the marginal
+structural model. See the cluster bootstrap in Example 1 below. About
+200 bootstrap samples are usually enough to estimate a standard error.
+
 ## References
 
 Graffeo N., Latouche A., Geskus R.B. & Chevret S. (2018). Modeling
@@ -132,6 +150,11 @@ Van der Wal W.M. & Geskus R.B. (2011). ipw: An R Package for Inverse
 Probability Weighting. *Journal of Statistical Software*, **43**(13),
 1-23. [doi:10.18637/jss.v043.i13](https://doi.org/10.18637/jss.v043.i13)
 .
+
+Austin, P.C. (2016). Variance estimation when using inverse probability
+of treatment weighting (IPTW) with survival analysis. *Statistics in
+Medicine*, **35**, 5642-5655.
+[doi:10.1002/sim.7084](https://doi.org/10.1002/sim.7084) .
 
 ## Examples
 
@@ -227,6 +250,48 @@ summary(coxph(Surv(tstart, fuptime, event) ~ haartind, data = haartdat))
 #> Wald test            = 1.8  on 1 df,   p=0.2
 #> Score (logrank) test = 1.85  on 1 df,   p=0.2
 #> 
+
+#Bootstrap standard error for the MSM above (cluster bootstrap by patient).
+#cluster() gives a robust standard error that treats the weights as known and
+#tends to be conservative. Austin (2016) recommends the bootstrap, with the
+#weights re-estimated in each bootstrap sample.
+#With longitudinal data, resample patients, not rows: keep all rows of a
+#sampled patient, give each sampled copy a new id, re-run both ipwtm() calls
+#and refit the MSM.
+#B = 20 keeps the example short; use about 200 in practice.
+# \donttest{
+msm.fun <- function(d) {
+  tw <- ipwtm(exposure = haartind, family = "survival",
+              numerator = ~ sex + age, denominator = ~ sex + age + cd4.sqrt,
+              id = patient, tstart = tstart, timevar = fuptime,
+              type = "first", data = d)
+  cw <- ipwtm(exposure = dropout, family = "survival",
+              numerator = ~ sex + age, denominator = ~ sex + age + cd4.sqrt,
+              id = patient, tstart = tstart, timevar = fuptime,
+              type = "cens", data = d)
+  d$w <- tw$ipw.weights * cw$ipw.weights
+  coef(coxph(Surv(tstart, fuptime, event) ~ haartind, data = d,
+             weights = w))["haartind"]
+}
+rows.pat <- split(seq_len(nrow(haartdat)), haartdat$patient)
+set.seed(123)
+B <- 20
+est.boot <- numeric(B)
+for (b in seq_len(B)) {
+  pick <- sample(length(rows.pat), replace = TRUE)
+  d.boot <- haartdat[unlist(rows.pat[pick]), ]
+  d.boot$patient <- rep(seq_along(pick), lengths(rows.pat[pick]))
+  est.boot[b] <- msm.fun(d.boot)
+}
+#log hazard ratio with bootstrap standard error
+c(estimate = unname(msm.fun(haartdat)), boot.se = sd(est.boot))
+#>   estimate    boot.se 
+#> -0.9363330  0.5091285 
+#percentile interval (crude with B = 20)
+quantile(est.boot, c(0.025, 0.975))
+#>       2.5%      97.5% 
+#> -2.0041188 -0.3006563 
+# }
 
 ########################################################################
 #EXAMPLE 2

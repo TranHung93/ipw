@@ -150,10 +150,24 @@ denominator model.</p></dd>
 
 </dl></div>
     <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Standard errors: <code>ipwpoint</code> only estimates the weights. Standard errors
+for the marginal structural model have to be obtained when that model is fitted.
+Robust (sandwich) standard errors, for example from <code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">svyglm()</a></code> in the survey
+package as in Van der Wal and Geskus (2011), treat the weights as known and tend to
+be conservative (too large). Austin (2016) compared naive, robust and bootstrap
+standard errors in simulations and recommends the bootstrap, in which the weights
+are re-estimated in each bootstrap sample. This takes the uncertainty in the
+estimated weights into account; see the bootstrap example below. About 200
+bootstrap samples are usually enough to estimate a standard error.</p>
+    </div>
+    <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p>Cole, S.R. &amp; Hernán, M.A. (2008). Constructing inverse probability weights for marginal structural models. <em>American Journal of Epidemiology</em>, <b>168</b>(6), 656-664.</p>
 <p>Robins, J.M., Hernán, M.A. &amp; Brumback, B.A. (2000). Marginal structural models and causal inference in epidemiology. <em>Epidemiology</em>, <b>11</b>, 550-560.</p>
 <p>Van der Wal W.M. &amp; Geskus R.B. (2011). ipw: An R Package for Inverse Probability Weighting. <em>Journal of Statistical Software</em>, <b>43</b>(13), 1-23. <a href="https://doi.org/10.18637/jss.v043.i13" class="external-link">doi:10.18637/jss.v043.i13</a>
+.</p>
+<p>Austin, P.C. (2016). Variance estimation when using inverse probability of treatment weighting (IPTW) with survival analysis. <em>Statistics in Medicine</em>, <b>35</b>, 5642-5655. <a href="https://doi.org/10.1002/sim.7084" class="external-link">doi:10.1002/sim.7084</a>
 .</p>
     </div>
     <div class="section level2">
@@ -440,6 +454,57 @@ denominator model.</p></dd>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Number of Fisher Scoring iterations: 2</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Bootstrap standard error and percentile confidence interval for the MSM.</span></span></span>
+<span class="r-in"><span><span class="co"># The robust standard error from svyglm() treats the weights as known and</span></span></span>
+<span class="r-in"><span><span class="co"># tends to be conservative. Austin (2016) recommends the bootstrap, with the</span></span></span>
+<span class="r-in"><span><span class="co"># weights re-estimated in each bootstrap sample: each bootstrap sample below</span></span></span>
+<span class="r-in"><span><span class="co"># re-fits ipwpoint() and the MSM. (A weighted lm() gives the same point</span></span></span>
+<span class="r-in"><span><span class="co"># estimate as svyglm() and is faster.)</span></span></span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"boot"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="va">boot.fun</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">data</span>, <span class="va">index</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>    <span class="va">d</span> <span class="op">&lt;-</span> <span class="va">data</span><span class="op">[</span><span class="va">index</span>, <span class="op">]</span></span></span>
+<span class="r-in"><span>    <span class="va">w</span> <span class="op">&lt;-</span> <span class="fu">ipwpoint</span><span class="op">(</span></span></span>
+<span class="r-in"><span>      exposure <span class="op">=</span> <span class="va">a</span>,</span></span>
+<span class="r-in"><span>      family <span class="op">=</span> <span class="st">"binomial"</span>,</span></span>
+<span class="r-in"><span>      link <span class="op">=</span> <span class="st">"logit"</span>,</span></span>
+<span class="r-in"><span>      numerator <span class="op">=</span> <span class="op">~</span> <span class="fl">1</span>,</span></span>
+<span class="r-in"><span>      denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l</span>,</span></span>
+<span class="r-in"><span>      data <span class="op">=</span> <span class="va">d</span><span class="op">)</span></span></span>
+<span class="r-in"><span>    <span class="va">d</span><span class="op">$</span><span class="va">sw</span> <span class="op">&lt;-</span> <span class="va">w</span><span class="op">$</span><span class="va">ipw.weights</span></span></span>
+<span class="r-in"><span>    <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">a</span>, data <span class="op">=</span> <span class="va">d</span>, weights <span class="op">=</span> <span class="va">sw</span><span class="op">)</span><span class="op">)</span><span class="op">[</span><span class="st">"a"</span><span class="op">]</span></span></span>
+<span class="r-in"><span>  <span class="op">}</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="va">bootres</span> <span class="op">&lt;-</span> <span class="fu">boot</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/boot/man/boot.html" class="external-link">boot</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">simdat</span>, statistic <span class="op">=</span> <span class="va">boot.fun</span>, R <span class="op">=</span> <span class="fl">200</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">bootres</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="co"># bootstrap standard error</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/sd.html" class="external-link">sd</a></span><span class="op">(</span><span class="va">bootres</span><span class="op">$</span><span class="va">t</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="co"># percentile 95 percent confidence interval</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu">boot</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/boot/man/boot.ci.html" class="external-link">boot.ci</a></span><span class="op">(</span><span class="va">bootres</span>, type <span class="op">=</span> <span class="st">"perc"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ORDINARY NONPARAMETRIC BOOTSTRAP</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> boot::boot(data = simdat, statistic = boot.fun, R = 200)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Bootstrap Statistics :</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     original    bias    std. error</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> t1* 10.64661 0.2146065    1.115705</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1.115705</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> BOOTSTRAP CONFIDENCE INTERVAL CALCULATIONS</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Based on 200 bootstrap replicates</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> CALL : </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> boot::boot.ci(boot.out = bootres, type = "perc")</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Intervals : </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Level     Percentile     </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 95%   ( 8.43, 12.79 )  </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Calculations and Intervals on Original Scale</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Some percentile intervals may be unstable</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

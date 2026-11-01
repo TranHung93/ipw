@@ -35,6 +35,25 @@
   `estimand` defaults to `"ATE"`. A covariate named `s`, `te`, `ti` or
   `t2` is treated as an ordinary variable.
 
+### Documentation
+
+- Bootstrap standard errors. The help pages of
+  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  and [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
+  have a new “Standard errors” paragraph in Details and new examples: a
+  bootstrap that re-estimates the weights and the marginal structural
+  model in each bootstrap sample
+  ([`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)),
+  and a cluster bootstrap that resamples patients and re-runs both
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) calls
+  for the HAART example
+  ([`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)).
+  Robust standard errors
+  ([`svyglm()`](https://rdrr.io/pkg/survey/man/svyglm.html),
+  [`cluster()`](https://rdrr.io/pkg/survival/man/cluster.html)) treat
+  the weights as known and tend to be conservative; Austin (2016,
+  <doi:10.1002/sim.7084>) recommends the bootstrap.
+
 ## ipw 1.3.2
 
 ### Bug fixes

@@ -152,6 +152,22 @@ stopping (on the rows on treatment).</p></dd>
 
 </dl></div>
     <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Standard errors: <code>ipwtm</code> only estimates the weights. Standard errors
+for the marginal structural model have to be obtained when that model is fitted.
+Robust standard errors, for example from <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code> with <code>cluster(id)</code>
+as in Van der Wal and Geskus (2011), treat the weights as known and tend to be
+conservative (too large). Austin (2016) compared naive, robust and bootstrap
+standard errors in simulations and recommends the bootstrap, in which the weights
+are re-estimated in each bootstrap sample. Austin studied a point treatment with
+baseline confounders; for longitudinal data in long format the bootstrap must
+resample subjects, not rows: keep all rows of a sampled subject, give each sampled
+copy a new id, re-run <code>ipwtm</code> (for treatment and, if used, censoring weights)
+on the bootstrap sample and refit the marginal structural model. See the cluster
+bootstrap in Example 1 below. About 200 bootstrap samples are usually enough to
+estimate a standard error.</p>
+    </div>
+    <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p>Graffeo N., Latouche A., Geskus R.B. &amp; Chevret S. (2018). Modeling time-varying
 exposure using inverse probability of treatment weights. <em>Biometrical
@@ -160,6 +176,8 @@ Journal</em>, <b>60</b>(2), 323-332. <a href="https://doi.org/10.1002/bimj.20160
 <p>Van der Wal W.M. &amp; Geskus R.B. (2011). ipw: An R Package for Inverse Probability
 Weighting. <em>Journal of Statistical Software</em>, <b>43</b>(13), 1-23.
 <a href="https://doi.org/10.18637/jss.v043.i13" class="external-link">doi:10.18637/jss.v043.i13</a>
+.</p>
+<p>Austin, P.C. (2016). Variance estimation when using inverse probability of treatment weighting (IPTW) with survival analysis. <em>Statistics in Medicine</em>, <b>35</b>, 5642-5655. <a href="https://doi.org/10.1002/sim.7084" class="external-link">doi:10.1002/sim.7084</a>
 .</p>
     </div>
 
@@ -256,6 +274,48 @@ Weighting. <em>Journal of Statistical Software</em>, <b>43</b>(13), 1-23.
 <span class="r-out co"><span class="r-pr">#&gt;</span> Wald test            = 1.8  on 1 df,   p=0.2</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Score (logrank) test = 1.85  on 1 df,   p=0.2</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co">#Bootstrap standard error for the MSM above (cluster bootstrap by patient).</span></span></span>
+<span class="r-in"><span><span class="co">#cluster() gives a robust standard error that treats the weights as known and</span></span></span>
+<span class="r-in"><span><span class="co">#tends to be conservative. Austin (2016) recommends the bootstrap, with the</span></span></span>
+<span class="r-in"><span><span class="co">#weights re-estimated in each bootstrap sample.</span></span></span>
+<span class="r-in"><span><span class="co">#With longitudinal data, resample patients, not rows: keep all rows of a</span></span></span>
+<span class="r-in"><span><span class="co">#sampled patient, give each sampled copy a new id, re-run both ipwtm() calls</span></span></span>
+<span class="r-in"><span><span class="co">#and refit the MSM.</span></span></span>
+<span class="r-in"><span><span class="co">#B = 20 keeps the example short; use about 200 in practice.</span></span></span>
+<span class="r-in"><span><span class="co"># \donttest{</span></span></span>
+<span class="r-in"><span><span class="va">msm.fun</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">d</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="va">tw</span> <span class="op">&lt;-</span> <span class="fu">ipwtm</span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">haartind</span>, family <span class="op">=</span> <span class="st">"survival"</span>,</span></span>
+<span class="r-in"><span>              numerator <span class="op">=</span> <span class="op">~</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">age</span>, denominator <span class="op">=</span> <span class="op">~</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">cd4.sqrt</span>,</span></span>
+<span class="r-in"><span>              id <span class="op">=</span> <span class="va">patient</span>, tstart <span class="op">=</span> <span class="va">tstart</span>, timevar <span class="op">=</span> <span class="va">fuptime</span>,</span></span>
+<span class="r-in"><span>              type <span class="op">=</span> <span class="st">"first"</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="va">cw</span> <span class="op">&lt;-</span> <span class="fu">ipwtm</span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">dropout</span>, family <span class="op">=</span> <span class="st">"survival"</span>,</span></span>
+<span class="r-in"><span>              numerator <span class="op">=</span> <span class="op">~</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">age</span>, denominator <span class="op">=</span> <span class="op">~</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">cd4.sqrt</span>,</span></span>
+<span class="r-in"><span>              id <span class="op">=</span> <span class="va">patient</span>, tstart <span class="op">=</span> <span class="va">tstart</span>, timevar <span class="op">=</span> <span class="va">fuptime</span>,</span></span>
+<span class="r-in"><span>              type <span class="op">=</span> <span class="st">"cens"</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="va">d</span><span class="op">$</span><span class="va">w</span> <span class="op">&lt;-</span> <span class="va">tw</span><span class="op">$</span><span class="va">ipw.weights</span> <span class="op">*</span> <span class="va">cw</span><span class="op">$</span><span class="va">ipw.weights</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">tstart</span>, <span class="va">fuptime</span>, <span class="va">event</span><span class="op">)</span> <span class="op">~</span> <span class="va">haartind</span>, data <span class="op">=</span> <span class="va">d</span>,</span></span>
+<span class="r-in"><span>             weights <span class="op">=</span> <span class="va">w</span><span class="op">)</span><span class="op">)</span><span class="op">[</span><span class="st">"haartind"</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
+<span class="r-in"><span><span class="va">rows.pat</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/split.html" class="external-link">split</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">haartdat</span><span class="op">)</span><span class="op">)</span>, <span class="va">haartdat</span><span class="op">$</span><span class="va">patient</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">B</span> <span class="op">&lt;-</span> <span class="fl">20</span></span></span>
+<span class="r-in"><span><span class="va">est.boot</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">numeric</a></span><span class="op">(</span><span class="va">B</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="kw">for</span> <span class="op">(</span><span class="va">b</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">B</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="va">pick</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">rows.pat</span><span class="op">)</span>, replace <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="va">d.boot</span> <span class="op">&lt;-</span> <span class="va">haartdat</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">rows.pat</span><span class="op">[</span><span class="va">pick</span><span class="op">]</span><span class="op">)</span>, <span class="op">]</span></span></span>
+<span class="r-in"><span>  <span class="va">d.boot</span><span class="op">$</span><span class="va">patient</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">pick</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/lengths.html" class="external-link">lengths</a></span><span class="op">(</span><span class="va">rows.pat</span><span class="op">[</span><span class="va">pick</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="va">est.boot</span><span class="op">[</span><span class="va">b</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu">msm.fun</span><span class="op">(</span><span class="va">d.boot</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
+<span class="r-in"><span><span class="co">#log hazard ratio with bootstrap standard error</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>estimate <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="fu">msm.fun</span><span class="op">(</span><span class="va">haartdat</span><span class="op">)</span><span class="op">)</span>, boot.se <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/sd.html" class="external-link">sd</a></span><span class="op">(</span><span class="va">est.boot</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   estimate    boot.se </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> -0.9363330  0.5091285 </span>
+<span class="r-in"><span><span class="co">#percentile interval (crude with B = 20)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">est.boot</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.025</span>, <span class="fl">0.975</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       2.5%      97.5% </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> -2.0041188 -0.3006563 </span>
+<span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co">########################################################################</span></span></span>
 <span class="r-in"><span><span class="co">#EXAMPLE 2</span></span></span>
