@@ -165,7 +165,13 @@ standard errors in simulations and recommends the bootstrap, in which the weight
 are re-estimated in each bootstrap sample. This takes the uncertainty in the
 estimated weights into account; see the bootstrap example below, or use
 <code><a href="ipwboot.html">ipwboot</a></code>, which does this for you. About 200 bootstrap samples are
-usually enough to estimate a standard error.</p>
+usually enough to estimate a standard error. In the package's simulation study
+(article "Simulation study" on the package website), the bootstrap standard
+error was accurate for a point treatment with good overlap, while robust
+standard errors were about 10% too large. When some weights are extreme
+(poor overlap), no standard error was reliable, the bootstrap included. Check
+the weights first with <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> and <code><a href="ipwplot.html">ipwplot</a></code>, and consider
+truncation (<code>trunc</code>) or overlap weights (<code>estimand = "ATO"</code>).</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

@@ -171,7 +171,13 @@ copy a new id, re-run <code>ipwtm</code> (for treatment and, if used, censoring 
 on the bootstrap sample and refit the marginal structural model. See the cluster
 bootstrap in Example 1 below; <code><a href="ipwboot.html">ipwboot</a></code> does this resampling for you
 (argument <code>id</code>). About 200 bootstrap samples are usually enough to estimate
-a standard error.</p>
+a standard error. Time-varying weights are products over time, so a few
+subjects can get very large weights. In the package's simulation study (500
+subjects, 4 visits), bootstrap and robust standard errors were then both too
+small, with 95% confidence intervals covering the truth in only about 80% of
+samples. Check the weights with <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> and <code><a href="ipwplot.html">ipwplot</a></code>,
+consider truncation (<code>trunc</code>), and interpret standard errors with care
+when the weights are extreme.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

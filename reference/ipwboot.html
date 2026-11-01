@@ -167,6 +167,17 @@ large, while the bootstrap in which the weights are re-estimated in each
 sample gave correct standard errors and confidence intervals. Austin studied
 a point treatment with baseline confounders; for longitudinal data the same
 idea applies with subjects as the resampling unit.</p>
+<p>The package's simulation study (article "Simulation study" on the package
+website) shows when the bootstrap helps. For a point treatment with good
+overlap, the bootstrap standard error was accurate and robust standard errors
+were about 10% too large. For a weighted Cox model with good overlap, naive,
+robust and bootstrap standard errors were all close to correct. When some
+weights were extreme, through poor overlap or through products of
+time-varying weights, all standard errors were too small, the bootstrap ones
+included, and 95% confidence intervals covered the truth in only 60 to 80%
+of samples. The bootstrap does not repair unstable weights: check the weights
+first with <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> and <code><a href="ipwplot.html">ipwplot</a></code>, and consider
+truncation, overlap weights or a different exposure model.</p>
 <p>Bootstrap samples in which <code>statistic</code> fails, or returns a result of a
 different length, are left out of the summaries; their number is reported.
 Use <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> before calling <code>ipwboot</code> to make the results

@@ -88,8 +88,9 @@ over time), or from your own probabilities with
 <code><a href="../reference/ipwplot.html">ipwplot()</a></code>.</li>
 <li>
 <strong>Fit the MSM</strong> with the weights, and get
-<strong>standard errors</strong>, preferably with
-<code><a href="../reference/ipwboot.html">ipwboot()</a></code>.</li>
+<strong>standard errors</strong>, for example with
+<code><a href="../reference/ipwboot.html">ipwboot()</a></code> when the weights are well behaved (section
+5).</li>
 </ol>
 <table class="table">
 <colgroup>
@@ -184,7 +185,7 @@ the causal effect; the unweighted regression is confounded by
 <span><span class="co">#&gt;   13.87050   10.64661</span></span></code></pre></div>
 <p>For inference, the weighted model is usually fitted with robust
 standard errors, for example with the survey package as in the JSS
-paper; see section 7 for why the bootstrap is better.</p>
+paper; see section 5 for the bootstrap alternative.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">msm</span> <span class="op">&lt;-</span> <span class="fu">survey</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">svyglm</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">a</span>, design <span class="op">=</span> <span class="fu">survey</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/survey/man/svydesign.html" class="external-link">svydesign</a></span><span class="op">(</span><span class="op">~</span> <span class="fl">1</span>, weights <span class="op">=</span> <span class="op">~</span> <span class="va">w</span><span class="op">$</span><span class="va">ipw.weights</span>,</span>
 <span>                                                        data <span class="op">=</span> <span class="va">simdat</span><span class="op">)</span><span class="op">)</span></span>
@@ -643,6 +644,24 @@ sets of weights for the HAART example are re-estimated in each sample
 within groups) and records samples in which the analysis fails instead
 of stopping. Set a seed with <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> for reproducible
 results.</p>
+<p><strong>When does the bootstrap help?</strong> The <a href="https://tranhung93.github.io/ipw/articles/simulations.html">simulation
+study</a> gives a mixed answer:</p>
+<ul>
+<li>For a point treatment with <strong>good overlap</strong>, the
+bootstrap standard error was accurate, while robust standard errors were
+about 10% too large.</li>
+<li>For a <strong>weighted Cox model</strong> with good overlap, naive,
+robust and bootstrap standard errors were all close to correct.</li>
+<li>When some <strong>weights are extreme</strong>, through poor overlap
+(the <code>simdat</code> example above) or through products of
+time-varying weights over several visits, all standard errors were too
+small, the bootstrap ones included, and 95% confidence intervals covered
+the truth in only 60 to 80% of samples.</li>
+</ul>
+<p>So the bootstrap does not repair unstable weights. Check the weights
+first (section 6), and if some are extreme, consider truncation
+(<code>trunc</code>), overlap weights (<code>estimand = "ATO"</code>) or
+a better exposure model before relying on any standard error.</p>
 </div>
 <div class="section level2">
 <h2 id="checking-the-weights">6. Checking the weights<a class="anchor" aria-label="anchor" href="#checking-the-weights"></a>
