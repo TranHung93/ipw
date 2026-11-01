@@ -47,7 +47,9 @@ ipwtm(
 
 - denominator:
 
-  Formula for denominator model.
+  Formula for denominator model. For `family = "binomial"`, smooth terms
+  (`s()`, `te()`, `ti()`, `t2()`) are allowed; the model is then fitted
+  with [`mgcv::gam`](https://rdrr.io/pkg/mgcv/man/gam.html).
 
 - id:
 
@@ -64,7 +66,15 @@ ipwtm(
 
 - type:
 
-  Exposure switch type: `"first"`, `"cens"`, or `"all"`.
+  Exposure switch type: `"first"`, `"cens"`, or `"all"`. `"all"` is
+  available for all families. With `family = "survival"` and
+  `type = "all"`, `exposure` is an event indicator (1 when an exposure
+  event, such as starting treatment, happens at the end of the interval)
+  that may occur more than once per subject: an Andersen-Gill Cox model
+  is fitted on all rows and every row contributes to the weights
+  (Graffeo et al. 2018). For treatment that is started and stopped,
+  compute weights separately for starting (on the rows off treatment)
+  and for stopping (on the rows on treatment).
 
 - data:
 
@@ -110,6 +120,18 @@ A list of class `"ipwtm"` containing:
 - den.mod:
 
   Denominator model object.
+
+## References
+
+Graffeo N., Latouche A., Geskus R.B. & Chevret S. (2018). Modeling
+time-varying exposure using inverse probability of treatment weights.
+*Biometrical Journal*, **60**(2), 323-332.
+[doi:10.1002/bimj.201600223](https://doi.org/10.1002/bimj.201600223) .
+
+Van der Wal W.M. & Geskus R.B. (2011). ipw: An R Package for Inverse
+Probability Weighting. *Journal of Statistical Software*, **43**(13),
+1-23. [doi:10.18637/jss.v043.i13](https://doi.org/10.18637/jss.v043.i13)
+.
 
 ## Examples
 

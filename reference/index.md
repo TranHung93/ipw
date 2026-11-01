@@ -9,6 +9,8 @@ weights.
   : Estimate Inverse Probability Weights (Point Treatment)
 - [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) :
   Estimate Inverse Probability Weights (Time Varying)
+- [`ipwprob()`](https://tranhung93.github.io/ipw/reference/ipwprob.md) :
+  Inverse Probability Weights From User-Supplied Probabilities
 
 ## Diagnostics
 

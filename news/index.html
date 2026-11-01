@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">ipw</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.2.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -32,6 +32,23 @@
       <small>Source: <a href="https://github.com/TranHung93/ipw/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="development version" id="ipw-development-version">ipw (development version)<a class="anchor" aria-label="anchor" href="#ipw-development-version"></a></h2>
+<div class="section level3">
+<h3 id="new-features-development-version">New features<a class="anchor" aria-label="anchor" href="#new-features-development-version"></a></h3>
+<ul><li>
+<code><a href="../reference/ipwtm.html">ipwtm()</a></code>: <code>type = "all"</code> now works for <code>family = "multinomial"</code> and <code>"ordinal"</code> (time-varying categorical exposures that switch back and forth).</li>
+<li>
+<code><a href="../reference/ipwtm.html">ipwtm()</a></code>: <code>type = "all"</code> now works for <code>family = "survival"</code>, following Graffeo, Latouche, Geskus &amp; Chevret (2018, <em>Biometrical Journal</em>): exposure events may recur, an Andersen-Gill Cox model is fitted on all rows, and each row’s probability uses the cumulative baseline hazard over its own interval.</li>
+<li>New <code><a href="../reference/ipwprob.html">ipwprob()</a></code>: inverse probability weights from probabilities you estimated yourself (for example with machine learning or SuperLearner), for point treatments or cumulated over time within subjects.</li>
+<li>
+<code><a href="../reference/ipwpoint.html">ipwpoint()</a></code>: new families for count exposures (<code>"poisson"</code>, <code>"negbin"</code>) and skewed continuous exposures (<code>"gamma"</code>, <code>"lognormal"</code>).</li>
+<li>Smooth terms (<code>s()</code>, <code>te()</code>, <code>ti()</code>, <code>t2()</code>) in model formulas are fitted as generalized additive models with mgcv: in <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> for the binomial, gaussian and poisson families, and in <code><a href="../reference/ipwtm.html">ipwtm()</a></code> for the binomial family.</li>
+<li>
+<code><a href="../reference/ipwpoint.html">ipwpoint()</a></code>: new <code>estimand</code> argument for a binomial exposure: <code>"ATE"</code> (default), <code>"ATT"</code> (effect in the treated) and <code>"ATO"</code> (overlap weights).</li>
+<li>Existing calls are unchanged: without smooth terms the models are still fitted with <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>, and <code>estimand</code> defaults to <code>"ATE"</code>. A covariate named <code>s</code>, <code>te</code>, <code>ti</code> or <code>t2</code> is treated as an ordinary variable.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.3.2" id="ipw-132">ipw 1.3.2<a class="anchor" aria-label="anchor" href="#ipw-132"></a></h2>
 <div class="section level3">

@@ -2,8 +2,12 @@
 
 Estimates inverse probability weights to fit marginal structural models
 in a point treatment situation. Exposure can be binomial, multinomial,
-ordinal, or continuous (gaussian). Both stabilized and unstabilized
-weights can be estimated.
+ordinal, a count (Poisson or negative binomial) or continuous (gaussian,
+gamma or log-normal). Both stabilized and unstabilized weights can be
+estimated, and for a binomial exposure also weights for the effect in
+the treated (ATT) and overlap weights (ATO). Formulas may contain smooth
+terms such as `s(x)`, which are then fitted as generalized additive
+models with mgcv.
 
 ## Usage
 
@@ -16,6 +20,7 @@ ipwpoint(
   denominator,
   data,
   trunc = NULL,
+  estimand = c("ATE", "ATT", "ATO"),
   ...
 )
 ```
@@ -30,7 +35,11 @@ ipwpoint(
 - family:
 
   Model family for exposure: `"binomial"`, `"multinomial"`, `"ordinal"`,
-  or `"gaussian"`.
+  `"gaussian"`, `"poisson"`, `"negbin"` (negative binomial, fitted with
+  [`MASS::glm.nb`](https://rdrr.io/pkg/MASS/man/glm.nb.html)), `"gamma"`
+  (gamma GLM with log link) or `"lognormal"` (normal model for the log
+  of the exposure). Count exposures must be non-negative integers; gamma
+  and log-normal exposures must be positive.
 
 - link:
 
@@ -41,11 +50,16 @@ ipwpoint(
 - numerator:
 
   Formula specifying the right-hand side of the numerator model. If
-  `NULL`, unstabilized weights (numerator = 1) are calculated.
+  `NULL`, unstabilized weights (numerator = 1) are calculated. Required
+  for the continuous families (`"gaussian"`, `"gamma"`, `"lognormal"`);
+  must be `NULL` when `estimand` is `"ATT"` or `"ATO"`.
 
 - denominator:
 
   Formula specifying the right-hand side of the denominator model.
+  Smooth terms (`s()`, `te()`, `ti()`, `t2()`) are allowed for the
+  binomial, gaussian and poisson families; the model is then fitted with
+  [`mgcv::gam`](https://rdrr.io/pkg/mgcv/man/gam.html).
 
 - data:
 
@@ -56,10 +70,18 @@ ipwpoint(
   Optional truncation percentile between 0 and 0.5 (e.g., 0.01 for
   1st/99th percentiles).
 
+- estimand:
+
+  Target estimand for a binomial exposure: `"ATE"` (default; inverse
+  probability weights), `"ATT"` (treated get weight 1, untreated
+  \\p/(1-p)\\) or `"ATO"` (overlap weights: treated \\1-p\\, untreated
+  \\p\\), where \\p\\ is the fitted probability of exposure from the
+  denominator model.
+
 - ...:
 
   Additional arguments passed to model fitting functions (`glm`,
-  `multinom`, `polr`).
+  `multinom`, `polr`, `glm.nb`, `gam`).
 
 ## Value
 
