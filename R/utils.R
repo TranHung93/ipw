@@ -92,3 +92,52 @@
   }
   mod
 }
+
+# ---- Generalized additive models (mgcv) --------------------------------------
+
+.smooth_fns <- c("s", "te", "ti", "t2")
+
+# TRUE if a formula calls an mgcv smooth such as s(x), te(x, z) or mgcv::s(x).
+# Only function calls count: a covariate that happens to be named s, te, ti or
+# t2 is an ordinary variable.
+.uses_smooths <- function(f) {
+  if (is.null(f)) return(FALSE)
+  is_smooth_call <- function(e) {
+    if (!is.call(e)) return(FALSE)
+    fn <- e[[1]]
+    if (is.name(fn) && as.character(fn) %in% .smooth_fns) return(TRUE)
+    if (is.call(fn) && identical(fn[[1]], as.name("::")) &&
+        as.character(fn[[3]]) %in% .smooth_fns) return(TRUE)
+    any(vapply(as.list(e)[-1], is_smooth_call, logical(1)))
+  }
+  is_smooth_call(f)
+}
+
+.require_mgcv <- function() {
+  if (!requireNamespace("mgcv", quietly = TRUE)) {
+    stop("Package 'mgcv' is needed for smooth terms (s(), te(), ti(), t2()). ",
+         "Please install it.", call. = FALSE)
+  }
+}
+
+# Give a formula an environment in which s(), te(), ti() and t2() are mgcv's,
+# so smooth terms work without the user attaching mgcv.
+.gam_formula <- function(form) {
+  env <- new.env(parent = environment(form))
+  for (fn in .smooth_fns) assign(fn, getExportedValue("mgcv", fn), envir = env)
+  environment(form) <- env
+  form
+}
+
+# Fit a GLM, or a GAM when the formula has smooth terms. `args` holds formula,
+# data, family and any further arguments for glm()/gam().
+.fit_glm_or_gam <- function(args) {
+  if (.uses_smooths(args$formula)) {
+    .require_mgcv()
+    args$formula <- .gam_formula(args$formula)
+    args$na.action <- NULL
+    do.call(mgcv::gam, args)
+  } else {
+    do.call(stats::glm, args)
+  }
+}

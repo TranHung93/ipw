@@ -1,3 +1,27 @@
+# ipw (development version)
+
+## New features
+
+* `ipwtm()`: `type = "all"` now works for `family = "multinomial"` and
+  `"ordinal"` (time-varying categorical exposures that switch back and forth).
+* `ipwtm()`: `type = "all"` now works for `family = "survival"`, following
+  Graffeo, Latouche, Geskus & Chevret (2018, *Biometrical Journal*): exposure
+  events may recur, an Andersen-Gill Cox model is fitted on all rows, and each
+  row's probability uses the cumulative baseline hazard over its own interval.
+* New `ipwprob()`: inverse probability weights from probabilities you
+  estimated yourself (for example with machine learning or SuperLearner), for
+  point treatments or cumulated over time within subjects.
+* `ipwpoint()`: new families for count exposures (`"poisson"`, `"negbin"`) and
+  skewed continuous exposures (`"gamma"`, `"lognormal"`).
+* Smooth terms (`s()`, `te()`, `ti()`, `t2()`) in model formulas are fitted as
+  generalized additive models with mgcv: in `ipwpoint()` for the binomial,
+  gaussian and poisson families, and in `ipwtm()` for the binomial family.
+* `ipwpoint()`: new `estimand` argument for a binomial exposure: `"ATE"`
+  (default), `"ATT"` (effect in the treated) and `"ATO"` (overlap weights).
+* Existing calls are unchanged: without smooth terms the models are still
+  fitted with `glm()`, and `estimand` defaults to `"ATE"`. A covariate named
+  `s`, `te`, `ti` or `t2` is treated as an ordinary variable.
+
 # ipw 1.3.2
 
 ## Bug fixes

@@ -12,6 +12,7 @@ ipwpoint(
   denominator,
   data,
   trunc = NULL,
+  estimand = c("ATE", "ATT", "ATO"),
   ...
 )
 }
@@ -20,22 +21,39 @@ ipwpoint(
 Binomial exposure variables should be coded as 0/1.}
 
 \item{family}{Model family for exposure: \code{"binomial"}, \code{"multinomial"},
-\code{"ordinal"}, or \code{"gaussian"}.}
+\code{"ordinal"}, \code{"gaussian"}, \code{"poisson"}, \code{"negbin"}
+(negative binomial, fitted with \code{MASS::glm.nb}), \code{"gamma"}
+(gamma GLM with log link) or \code{"lognormal"} (normal model for the log
+of the exposure). Count exposures must be non-negative integers; gamma and
+log-normal exposures must be positive.}
 
 \item{link}{Link function for binomial (\code{"logit"}, \code{"probit"}, \code{"cauchit"},
 \code{"log"}, \code{"cloglog"}) or ordinal (\code{"logit"}, \code{"probit"},
 \code{"cauchit"}, \code{"cloglog"}). Ignored for multinomial and gaussian.}
 
 \item{numerator}{Formula specifying the right-hand side of the numerator model.
-If \code{NULL}, unstabilized weights (numerator = 1) are calculated.}
+If \code{NULL}, unstabilized weights (numerator = 1) are calculated. Required
+for the continuous families (\code{"gaussian"}, \code{"gamma"},
+\code{"lognormal"}); must be \code{NULL} when \code{estimand} is
+\code{"ATT"} or \code{"ATO"}.}
 
-\item{denominator}{Formula specifying the right-hand side of the denominator model.}
+\item{denominator}{Formula specifying the right-hand side of the denominator model.
+Smooth terms (\code{s()}, \code{te()}, \code{ti()}, \code{t2()}) are allowed
+for the binomial, gaussian and poisson families; the model is then fitted with
+\code{mgcv::gam}.}
 
 \item{data}{Data frame containing exposure and model covariates.}
 
 \item{trunc}{Optional truncation percentile between 0 and 0.5 (e.g., 0.01 for 1st/99th percentiles).}
 
-\item{...}{Additional arguments passed to model fitting functions (\code{glm}, \code{multinom}, \code{polr}).}
+\item{estimand}{Target estimand for a binomial exposure: \code{"ATE"} (default;
+inverse probability weights), \code{"ATT"} (treated get weight 1, untreated
+\eqn{p/(1-p)}) or \code{"ATO"} (overlap weights: treated \eqn{1-p}, untreated
+\eqn{p}), where \eqn{p} is the fitted probability of exposure from the
+denominator model.}
+
+\item{...}{Additional arguments passed to model fitting functions (\code{glm},
+\code{multinom}, \code{polr}, \code{glm.nb}, \code{gam}).}
 }
 \value{
 A list of class \code{"ipwpoint"} containing:
@@ -48,7 +66,11 @@ A list of class \code{"ipwpoint"} containing:
 \description{
 Estimates inverse probability weights to fit marginal structural models in a
 point treatment situation. Exposure can be binomial, multinomial, ordinal,
-or continuous (gaussian). Both stabilized and unstabilized weights can be estimated.
+a count (Poisson or negative binomial) or continuous (gaussian, gamma or
+log-normal). Both stabilized and unstabilized weights can be estimated, and
+for a binomial exposure also weights for the effect in the treated (ATT) and
+overlap weights (ATO). Formulas may contain smooth terms such as \code{s(x)},
+which are then fitted as generalized additive models with \pkg{mgcv}.
 }
 \examples{
 # Simulate data with continuous confounder and outcome, binomial exposure.

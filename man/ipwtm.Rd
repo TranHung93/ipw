@@ -30,7 +30,9 @@ ipwtm(
 
 \item{numerator}{Formula for numerator model. If \code{NULL}, unstabilized weights are computed.}
 
-\item{denominator}{Formula for denominator model.}
+\item{denominator}{Formula for denominator model. For \code{family = "binomial"},
+smooth terms (\code{s()}, \code{te()}, \code{ti()}, \code{t2()}) are allowed;
+the model is then fitted with \code{mgcv::gam}.}
 
 \item{id}{Name of the subject identifier column in \code{data}.}
 
@@ -38,7 +40,15 @@ ipwtm(
 
 \item{timevar}{Name of the follow-up (interval end) time column.}
 
-\item{type}{Exposure switch type: \code{"first"}, \code{"cens"}, or \code{"all"}.}
+\item{type}{Exposure switch type: \code{"first"}, \code{"cens"}, or \code{"all"}.
+\code{"all"} is available for all families. With \code{family = "survival"}
+and \code{type = "all"}, \code{exposure} is an event indicator (1 when an
+exposure event, such as starting treatment, happens at the end of the
+interval) that may occur more than once per subject: an Andersen-Gill Cox
+model is fitted on all rows and every row contributes to the weights
+(Graffeo et al. 2018). For treatment that is started and stopped, compute
+weights separately for starting (on the rows off treatment) and for
+stopping (on the rows on treatment).}
 
 \item{data}{Data frame containing all required variables.}
 
@@ -232,6 +242,15 @@ summary(coxph(Surv(tstart, fuptime, event) ~ tb + cd4.sqrt, data = startstop))
 #  boot.ci(bootres, type = "basic")
 #
 ## End(Not run)
+}
+\references{
+Graffeo N., Latouche A., Geskus R.B. & Chevret S. (2018). Modeling time-varying
+exposure using inverse probability of treatment weights. \emph{Biometrical
+Journal}, \bold{60}(2), 323-332. \doi{10.1002/bimj.201600223}.
+
+Van der Wal W.M. & Geskus R.B. (2011). ipw: An R Package for Inverse Probability
+Weighting. \emph{Journal of Statistical Software}, \bold{43}(13), 1-23.
+\doi{10.18637/jss.v043.i13}.
 }
 \keyword{htest}
 \keyword{models}
