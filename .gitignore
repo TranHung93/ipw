@@ -6,3 +6,6 @@
 *.Rcheck/
 ipw_*.tar.gz
 docs/
+inst/doc
+vignettes/*.html
+vignettes/*.R

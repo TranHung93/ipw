@@ -30,6 +30,9 @@
 
 ## Documentation
 
+* New vignette, "Inverse probability weighting with ipw"
+  (`vignette("ipw")`), covering every function, with the new models and
+  `ipwboot()` highlighted.
 * Bootstrap standard errors. The help pages of `ipwpoint()` and
   `ipwtm()` have a new "Standard errors" paragraph in Details and new examples:
   a bootstrap that re-estimates the weights and the marginal structural model
