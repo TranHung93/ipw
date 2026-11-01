@@ -153,6 +153,15 @@ weights.
 - [`ipwprob()`](https://tranhung93.github.io/ipw/reference/ipwprob.md) :
   Inverse Probability Weights From User-Supplied Probabilities
 
+## Standard errors
+
+Bootstrap a weighted analysis, re-estimating the weights in each sample.
+
+- [`ipwboot()`](https://tranhung93.github.io/ipw/reference/ipwboot.md)
+  [`print(`*`<ipwboot>`*`)`](https://tranhung93.github.io/ipw/reference/ipwboot.md)
+  [`confint(`*`<ipwboot>`*`)`](https://tranhung93.github.io/ipw/reference/ipwboot.md)
+  : Bootstrap Standard Errors for Inverse Probability Weighted Analyses
+
 ## Diagnostics
 
 - [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md) :

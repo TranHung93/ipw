@@ -118,8 +118,10 @@ and tend to be conservative (too large). Austin (2016) compared naive,
 robust and bootstrap standard errors in simulations and recommends the
 bootstrap, in which the weights are re-estimated in each bootstrap
 sample. This takes the uncertainty in the estimated weights into
-account; see the bootstrap example below. About 200 bootstrap samples
-are usually enough to estimate a standard error.
+account; see the bootstrap example below, or use
+[`ipwboot`](https://tranhung93.github.io/ipw/reference/ipwboot.md),
+which does this for you. About 200 bootstrap samples are usually enough
+to estimate a standard error.
 
 ## References
 

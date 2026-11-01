@@ -164,8 +164,9 @@ baseline confounders; for longitudinal data in long format the bootstrap must
 resample subjects, not rows: keep all rows of a sampled subject, give each sampled
 copy a new id, re-run <code>ipwtm</code> (for treatment and, if used, censoring weights)
 on the bootstrap sample and refit the marginal structural model. See the cluster
-bootstrap in Example 1 below. About 200 bootstrap samples are usually enough to
-estimate a standard error.</p>
+bootstrap in Example 1 below; <code><a href="ipwboot.html">ipwboot</a></code> does this resampling for you
+(argument <code>id</code>). About 200 bootstrap samples are usually enough to estimate
+a standard error.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
