@@ -1,0 +1,69 @@
+# Runs the test suite and reports the results as GitHub annotations, so a
+# failing test's message shows on the pull request page (Files changed tab
+# and the check summary) without opening the job log. It also reports any
+# change roxygen2 would make to NAMESPACE or man/ (documentation out of date).
+on:
+  pull_request:
+  workflow_dispatch:
+
+name: test-report
+
+permissions: read-all
+
+jobs:
+  test-report:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::testthat, any::pkgload, any::roxygen2
+          needs: check
+
+      - name: Run tests and annotate results
+        shell: Rscript {0}
+        run: |
+          esc <- function(x) gsub("\n", "%0A", gsub("\r", "", gsub("%", "%25", x, fixed = TRUE)), fixed = TRUE)
+          res <- testthat::test_local(".", reporter = "summary", stop_on_failure = FALSE,
+                                      stop_on_warning = FALSE)
+          df <- as.data.frame(res)
+          msgs <- character()
+          for (t in res) {
+            for (e in t$results) {
+              if (inherits(e, c("expectation_failure", "expectation_error", "expectation_warning"))) {
+                kind <- sub("expectation_", "", class(e)[1])
+                msgs <- c(msgs, sprintf("[%s] %s > %s\n%s", toupper(kind), t$file, t$test,
+                                        conditionMessage(e)))
+              }
+            }
+          }
+          cat(sprintf("::notice title=testthat summary::passed %d | failed %d | errors %d | warnings %d | skipped %d\n",
+                      sum(df$passed), sum(df$failed), sum(df$error), sum(df$warning), sum(df$skipped)))
+          if (length(msgs)) {
+            txt <- paste(msgs, collapse = "\n\n----\n\n")
+            if (nchar(txt) > 60000) txt <- substr(txt, 1, 60000)
+            cat(sprintf("::error title=testthat problems (%d)::%s\n", length(msgs), esc(txt)))
+          }
+          if (sum(df$failed) > 0 || any(df$error)) quit(status = 1)
+
+      - name: Check documentation is up to date
+        if: always()
+        shell: Rscript {0}
+        run: |
+          esc <- function(x) gsub("\n", "%0A", gsub("\r", "", gsub("%", "%25", x, fixed = TRUE)), fixed = TRUE)
+          roxygen2::roxygenise()
+          d <- system2("git", c("diff", "--", "NAMESPACE", "man"), stdout = TRUE)
+          if (length(d)) {
+            txt <- paste(d, collapse = "\n")
+            if (nchar(txt) > 60000) txt <- substr(txt, 1, 60000)
+            cat(sprintf("::warning title=roxygen2 would change the docs::%s\n", esc(txt)))
+          } else {
+            cat("::notice title=roxygen2::Documentation is up to date\n")
+          }

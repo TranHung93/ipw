@@ -3,7 +3,11 @@
 #' @description
 #' Estimates inverse probability weights to fit marginal structural models in a
 #' point treatment situation. Exposure can be binomial, multinomial, ordinal,
-#' or continuous (gaussian). Both stabilized and unstabilized weights can be estimated.
+#' a count (Poisson or negative binomial) or continuous (gaussian, gamma or
+#' log-normal). Both stabilized and unstabilized weights can be estimated, and
+#' for a binomial exposure also weights for the effect in the treated (ATT) and
+#' overlap weights (ATO). Formulas may contain smooth terms such as \code{s(x)},
+#' which are then fitted as generalized additive models with \pkg{mgcv}.
 #'
 #' @details
 #' Standard errors: \code{ipwpoint} only estimates the weights. Standard errors
@@ -19,16 +23,32 @@
 #' @param exposure Name of the exposure column in \code{data} (unquoted or as a string).
 #'   Binomial exposure variables should be coded as 0/1.
 #' @param family Model family for exposure: \code{"binomial"}, \code{"multinomial"},
-#'   \code{"ordinal"}, or \code{"gaussian"}.
+#'   \code{"ordinal"}, \code{"gaussian"}, \code{"poisson"}, \code{"negbin"}
+#'   (negative binomial, fitted with \code{MASS::glm.nb}), \code{"gamma"}
+#'   (gamma GLM with log link) or \code{"lognormal"} (normal model for the log
+#'   of the exposure). Count exposures must be non-negative integers; gamma and
+#'   log-normal exposures must be positive.
 #' @param link Link function for binomial (\code{"logit"}, \code{"probit"}, \code{"cauchit"},
 #'   \code{"log"}, \code{"cloglog"}) or ordinal (\code{"logit"}, \code{"probit"},
 #'   \code{"cauchit"}, \code{"cloglog"}). Ignored for multinomial and gaussian.
 #' @param numerator Formula specifying the right-hand side of the numerator model.
-#'   If \code{NULL}, unstabilized weights (numerator = 1) are calculated.
+#'   If \code{NULL}, unstabilized weights (numerator = 1) are calculated. Required
+#'   for the continuous families (\code{"gaussian"}, \code{"gamma"},
+#'   \code{"lognormal"}); must be \code{NULL} when \code{estimand} is
+#'   \code{"ATT"} or \code{"ATO"}.
 #' @param denominator Formula specifying the right-hand side of the denominator model.
+#'   Smooth terms (\code{s()}, \code{te()}, \code{ti()}, \code{t2()}) are allowed
+#'   for the binomial, gaussian and poisson families; the model is then fitted with
+#'   \code{mgcv::gam}.
 #' @param data Data frame containing exposure and model covariates.
 #' @param trunc Optional truncation percentile between 0 and 0.5 (e.g., 0.01 for 1st/99th percentiles).
-#' @param ... Additional arguments passed to model fitting functions (\code{glm}, \code{multinom}, \code{polr}).
+#' @param estimand Target estimand for a binomial exposure: \code{"ATE"} (default;
+#'   inverse probability weights), \code{"ATT"} (treated get weight 1, untreated
+#'   \eqn{p/(1-p)}) or \code{"ATO"} (overlap weights: treated \eqn{1-p}, untreated
+#'   \eqn{p}), where \eqn{p} is the fitted probability of exposure from the
+#'   denominator model.
+#' @param ... Additional arguments passed to model fitting functions (\code{glm},
+#'   \code{multinom}, \code{polr}, \code{glm.nb}, \code{gam}).
 #'
 #' @return A list of class \code{"ipwpoint"} containing:
 #' \item{ipw.weights}{Numeric vector of inverse probability weights.}
@@ -127,13 +147,16 @@ ipwpoint <- function(
     denominator,
     data,
     trunc = NULL,
+    estimand = c("ATE", "ATT", "ATO"),
     ...)
 {
   call_obj <- match.call()
   dots <- list(...)
+  estimand <- match.arg(estimand)
 
   # 1. Validate arguments ---------------------------------------------------
-  valid_families <- c("binomial", "multinomial", "ordinal", "gaussian")
+  valid_families <- c("binomial", "multinomial", "ordinal", "gaussian",
+                      "poisson", "negbin", "gamma", "lognormal")
   if (missing(family) || length(family) != 1 || !(family %in% valid_families)) {
     stop("Invalid 'family' specified. Must be one of: ",
          paste(sprintf('"%s"', valid_families), collapse = ", "), call. = FALSE)
@@ -146,8 +169,23 @@ ipwpoint <- function(
   if (!is.null(numerator) && !inherits(numerator, "formula")) {
     stop("When specified, 'numerator' must be a valid formula.", call. = FALSE)
   }
-  if (family == "gaussian" && is.null(numerator)) {
-    stop("'numerator' formula is required when family = 'gaussian'.", call. = FALSE)
+  continuous <- c("gaussian", "gamma", "lognormal")
+  if (family %in% continuous && is.null(numerator)) {
+    stop("'numerator' formula is required when family = '", family, "'.", call. = FALSE)
+  }
+  if (estimand != "ATE") {
+    if (family != "binomial") {
+      stop("estimand = '", estimand, "' is only available for family = 'binomial'.",
+           call. = FALSE)
+    }
+    if (!is.null(numerator)) {
+      stop("'numerator' must be NULL when estimand = '", estimand, "'.", call. = FALSE)
+    }
+  }
+  smooth_ok <- c("binomial", "gaussian", "poisson")
+  if ((.uses_smooths(denominator) || .uses_smooths(numerator)) && !(family %in% smooth_ok)) {
+    stop("Smooth terms (s(), te(), ti(), t2()) are only supported for family = ",
+         paste(sprintf("'%s'", smooth_ok), collapse = ", "), ".", call. = FALSE)
   }
   if (missing(data) || !is.data.frame(data)) {
     stop("A valid 'data' frame must be provided.", call. = FALSE)
@@ -176,18 +214,46 @@ ipwpoint <- function(
   if (family == "binomial" && !all(exp_vec %in% c(0, 1))) {
     stop("Binomial exposure must be coded as 0 or 1.", call. = FALSE)
   }
+  if (family %in% c("poisson", "negbin") &&
+      (!is.numeric(exp_vec) || any(exp_vec < 0) || any(exp_vec != round(exp_vec)))) {
+    stop("Count exposure must contain non-negative integers for family = '", family, "'.",
+         call. = FALSE)
+  }
+  if (family %in% c("gamma", "lognormal") && (!is.numeric(exp_vec) || any(exp_vec <= 0))) {
+    stop("Exposure must be positive for family = '", family, "'.", call. = FALSE)
+  }
 
-  lhs <- if (family == "ordinal") sprintf("as.factor(%s)", exp_name) else exp_name
+  lhs <- switch(family,
+                ordinal   = sprintf("as.factor(%s)", exp_name),
+                lognormal = sprintf("log(%s)", exp_name),
+                exp_name)
 
   # 4. One fitting routine per family: returns model + P(observed exposure) --
   fit_one <- function(rhs) {
     form <- .build_model_formula(lhs, rhs)
     base <- list(formula = form, data = data, na.action = stats::na.fail)
 
+    p <- NULL
     if (family == "binomial") {
-      mod <- do.call(stats::glm, c(base, list(family = stats::binomial(link = link)), dots))
-      p <- stats::predict(mod, type = "response")
+      mod <- .fit_glm_or_gam(c(base, list(family = stats::binomial(link = link)), dots))
+      p <- as.numeric(stats::predict(mod, type = "response"))
       dens <- ifelse(exp_vec == 1, p, 1 - p)
+    } else if (family == "poisson") {
+      mod <- .fit_glm_or_gam(c(base, list(family = stats::poisson()), dots))
+      dens <- stats::dpois(exp_vec, lambda = as.numeric(stats::predict(mod, type = "response")))
+    } else if (family == "negbin") {
+      mod <- do.call(MASS::glm.nb, c(base, dots))
+      dens <- stats::dnbinom(exp_vec, size = mod$theta,
+                             mu = as.numeric(stats::predict(mod, type = "response")))
+    } else if (family == "gamma") {
+      mod <- do.call(stats::glm, c(base, list(family = stats::Gamma(link = "log")), dots))
+      shape <- 1 / summary(mod)$dispersion
+      mu <- as.numeric(stats::predict(mod, type = "response"))
+      dens <- stats::dgamma(exp_vec, shape = shape, rate = shape / mu)
+    } else if (family == "lognormal") {
+      mod <- do.call(stats::glm, c(base, list(family = stats::gaussian()), dots))
+      dens <- stats::dlnorm(exp_vec, meanlog = as.numeric(stats::predict(mod)),
+                            sdlog = stats::sd(stats::residuals(mod)))
     } else if (family == "multinomial") {
       mod <- do.call(nnet::multinom,
                      .with_defaults(base, dots, list(trace = FALSE, Hess = TRUE)))
@@ -198,25 +264,32 @@ ipwpoint <- function(
                                     list(Hess = TRUE)))
       dens <- .prob_of_observed(stats::predict(mod, type = "probs"), exp_vec, mod$lev)
     } else {
-      mod <- do.call(stats::glm, c(base, list(family = stats::gaussian()), dots))
-      dens <- stats::dnorm(exp_vec, mean = stats::predict(mod),
-                           sd = stats::sd(stats::residuals(mod)))
+      mod <- .fit_glm_or_gam(c(base, list(family = stats::gaussian()), dots))
+      sigma <- if (inherits(mod, "gam")) sqrt(mod$sig2) else stats::sd(stats::residuals(mod))
+      dens <- stats::dnorm(exp_vec, mean = as.numeric(stats::predict(mod)), sd = sigma)
     }
     mod <- .tidy_model_call(mod, list(
       data   = call_obj$data,
       family = switch(family,
-                      binomial = call("binomial", link = link),
-                      gaussian = quote(gaussian()),
+                      binomial  = call("binomial", link = link),
+                      gaussian  = quote(gaussian()),
+                      lognormal = quote(gaussian()),
+                      poisson   = quote(poisson()),
+                      gamma     = quote(Gamma(link = "log")),
                       NULL)
     ))
-    list(model = mod, dens = unname(dens))
+    list(model = mod, dens = unname(dens), p = p)
   }
 
   den <- fit_one(denominator)
   num <- if (!is.null(numerator)) fit_one(numerator) else list(model = NULL, dens = 1)
 
   # 5. Weights --------------------------------------------------------------
-  ipw_weights <- num$dens / den$dens
+  ipw_weights <- switch(estimand,
+    ATE = num$dens / den$dens,
+    ATT = ifelse(exp_vec == 1, 1, den$p / (1 - den$p)),
+    ATO = ifelse(exp_vec == 1, 1 - den$p, den$p)
+  )
   if (anyNA(ipw_weights) || any(is.infinite(ipw_weights))) {
     stop("Invalid IPW weights calculated (NA or Inf detected). ",
          "Check for near-zero denominator probabilities.", call. = FALSE)

@@ -149,11 +149,11 @@ test_that("ipwtm rejects invalid family and argument combinations", {
     "tstart"
   )
 
-  # Type 'all' not implemented for survival
+  # Type 'cens' not implemented for multinomial
   sim_long$tstart <- sim_long$time - 1
   expect_error(
-    ipwtm(exposure = a, family = "survival", denominator = ~ l, id = id, tstart = tstart,
-          timevar = time, type = "all", data = sim_long),
+    ipwtm(exposure = a, family = "multinomial", denominator = ~ l, id = id,
+          timevar = time, type = "cens", data = sim_long),
     "not yet implemented"
   )
 
