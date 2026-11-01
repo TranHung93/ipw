@@ -12,11 +12,14 @@ Authors@R: c(
 Depends: R (>= 3.2.0)
 Imports: MASS, nnet, survival, geepack, graphics, stats
 Suggests:
+    knitr,
+    rmarkdown,
     mgcv,
     nlme,
     survey,
     boot,
     testthat (>= 3.0.0)
+VignetteBuilder: knitr
 Description: Functions to estimate the probability to receive the observed treatment, based on
     individual characteristics. The inverse of these probabilities can be used as weights when
     estimating causal effects from observational data via marginal structural models. Both point
