@@ -40,7 +40,6 @@ t_start <- Sys.time()
 timer <- function(label) {
   msg <- sprintf("%s: %.0f s", label, as.numeric(difftime(Sys.time(), t_start, units = "secs")))
   message(msg)
-  if (nzchar(Sys.getenv("GITHUB_ACTIONS"))) cat(sprintf("::notice title=progress::%s\n", msg))
 }
 
 # Run f() n times in parallel; a replication that fails gives a row of NA and
@@ -536,11 +535,12 @@ if (nzchar(Sys.getenv("GITHUB_ACTIONS"))) {
     cat(c("## Simulation study", "", md_table(res), "", "### Standard errors", "", md_table(cov_tab)),
         file = summary_file, sep = "\n", append = TRUE)
   }
-  # Annotations are truncated when long: emit the results as CSV in chunks
+  # GitHub shows at most 10 notices per step and truncates long ones: emit the
+  # results as CSV in chunks of 15 rows
   esc <- function(x) gsub("\n", "%0A", gsub("%", "%25", x, fixed = TRUE), fixed = TRUE)
   emit <- function(df, title) {
     lines <- capture.output(write.csv(df, row.names = FALSE))
-    chunks <- split(lines[-1], ceiling(seq_along(lines[-1]) / 9))
+    chunks <- split(lines[-1], ceiling(seq_along(lines[-1]) / 15))
     for (i in seq_along(chunks)) {
       cat(sprintf("::notice title=%s part %d::%s\n", title, i, esc(paste(c(lines[1], chunks[[i]]), collapse = "\n"))))
     }
