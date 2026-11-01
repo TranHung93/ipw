@@ -5,8 +5,11 @@ on:
   workflow_dispatch:
     inputs:
       reps:
-        description: 'Number of replications per scenario'
+        description: 'Replications for the bias scenarios'
         default: '500'
+      reps_se:
+        description: 'Replications for standard-error scenarios 7a and 7b'
+        default: '1000'
   pull_request:
     paths:
       - 'dev/simulation-study.R'
@@ -19,10 +22,11 @@ permissions: read-all
 jobs:
   simulations:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       IPW_SIM_REPS: ${{ github.event.inputs.reps || '500' }}
+      IPW_SIM_REPS_SE: ${{ github.event.inputs.reps_se || '1000' }}
     steps:
       - uses: actions/checkout@v4
 
