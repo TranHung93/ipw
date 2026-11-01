@@ -79,13 +79,20 @@ jobs:
           failed <- FALSE
           for (f in files) {
             t0 <- Sys.time()
+            md <- file.path(tempdir(), sub("[.]Rmd$", ".md", basename(f)))
             msg <- tryCatch({
-              rmarkdown::render(f, output_dir = tempdir(), quiet = TRUE, envir = new.env())
+              rmarkdown::render(f, output_format = rmarkdown::md_document(), output_file = md,
+                                quiet = TRUE, envir = new.env())
               NULL
             }, error = function(e) conditionMessage(e))
             secs <- round(as.numeric(difftime(Sys.time(), t0, units = "secs")))
             if (is.null(msg)) {
               cat(sprintf("::notice title=vignette %s::built in %d seconds\n", basename(f), secs))
+              # printed results (lines starting with #>), so they can be reviewed on the PR
+              out <- grep("^ *#>", readLines(md), value = TRUE)
+              txt <- paste(trimws(out, "right"), collapse = "\n")
+              if (nchar(txt) > 60000) txt <- substr(txt, 1, 60000)
+              cat(sprintf("::notice title=vignette %s output::%s\n", basename(f), esc(txt)))
             } else {
               failed <- TRUE
               cat(sprintf("::error title=vignette %s failed::%s\n", basename(f), esc(msg)))
