@@ -318,10 +318,16 @@ if (nzchar(Sys.getenv("GITHUB_ACTIONS"))) {
                   truth1["ATE"], truth1["ATT"], truth1["ATO"]))
   if (nzchar(summary_file)) cat(md, file = summary_file, sep = "\n", append = TRUE)
   esc <- function(x) gsub("\n", "%0A", gsub("%", "%25", x, fixed = TRUE), fixed = TRUE)
-  txt <- paste(c(capture.output(print(res, row.names = FALSE)), "",
-                 capture.output(print(cov_tab, row.names = FALSE)), "",
-                 sprintf("Truth scenario 1: ATE %.3f, ATT %.3f, ATO %.3f",
-                         truth1["ATE"], truth1["ATT"], truth1["ATO"])), collapse = "\n")
-  cat(sprintf("::notice title=simulation results (S = %d)::%s\n", S, esc(txt)))
+  # annotations are truncated when long, so report the two tables separately
+  short <- res[, c("scenario", "method", "truth", "mean", "bias", "emp.sd", "rmse", "reps")]
+  short$scenario <- substr(short$scenario, 1, 3)
+  txt1 <- paste(c(capture.output(print(short, row.names = FALSE)),
+                  sprintf("Truth scenario 1: ATE %.3f, ATT %.3f, ATO %.3f",
+                          truth1["ATE"], truth1["ATT"], truth1["ATO"])), collapse = "\n")
+  cov_short <- cov_tab
+  cov_short$scenario <- substr(cov_short$scenario, 1, 3)
+  txt2 <- paste(capture.output(print(cov_short, row.names = FALSE)), collapse = "\n")
+  cat(sprintf("::notice title=simulation results (S = %d)::%s\n", S, esc(txt1)))
+  cat(sprintf("::notice title=standard errors (scenario 7)::%s\n", esc(txt2)))
 }
 timer("finished")
