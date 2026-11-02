@@ -109,7 +109,10 @@ add(sc, "ATO weights (target ATO)", r1[, 4], truth1["ATO"])
 add(sc, "ipwprob, true probabilities (ATE)", r1[, 5], truth1["ATE"])
 timer("1. ATE / ATT / ATO / ipwprob")
 
-# ---- 2. Count exposures -----------------------------------------------------
+# Scenarios are numbered in the order of the main vignette (skewed exposures
+# are 2, counts 3), but counts run first so that the random number streams,
+# and so the saved results, stay the same. Results are sorted before saving.
+# ---- 3. Count exposures -----------------------------------------------------
 count_reps <- function(gen_v) reps(S, function() {
   d <- data.frame(l = rnorm(1000))
   d$v <- gen_v(d$l)
@@ -119,19 +122,19 @@ count_reps <- function(gen_v) reps(S, function() {
   c(wlm(y ~ v, d), wlm(y ~ v, d, w("poisson")), wlm(y ~ v, d, w("negbin")))
 })
 r2 <- count_reps(function(l) rnbinom(length(l), size = 2, mu = exp(0.5 + 0.4 * l)))
-sc <- "2a. Counts, overdispersed (negative binomial data)"
+sc <- "3a. Counts, overdispersed (negative binomial data)"
 add(sc, "unweighted", r2[, 1], 0.5)
 add(sc, "poisson weights (misspecified)", r2[, 2], 0.5)
 add(sc, "negbin weights (correct)", r2[, 3], 0.5)
 r2b <- count_reps(function(l) rpois(length(l), exp(0.5 + 0.4 * l)))
-sc <- "2b. Counts, Poisson data"
+sc <- "3b. Counts, Poisson data"
 add(sc, "unweighted", r2b[, 1], 0.5)
 add(sc, "poisson weights (correct)", r2b[, 2], 0.5)
 add(sc, "negbin weights (also valid: theta large)", r2b[, 3], 0.5)
-timer("2. counts")
+timer("3. counts")
 
-# ---- 3. Skewed continuous exposures -----------------------------------------
-# 3a: log-normal dose. Oracle weights use the true densities: dose | l is
+# ---- 2. Skewed continuous exposures -----------------------------------------
+# 2a: log-normal dose. Oracle weights use the true densities: dose | l is
 #     log-normal(0.5 + 0.5 l, 0.6) and, marginally, log-normal(0.5, sqrt(0.61)).
 gen_lnorm <- function(n) {
   d <- data.frame(l = rnorm(n))
@@ -155,7 +158,7 @@ r3big <- reps(S_BIG, function() {
   d <- gen_lnorm(10000)
   c(wlm(y ~ dose, d, w_dose(d, "lognormal")), wlm(y ~ dose, d, oracle_lnorm(d)))
 })
-sc <- "3a. Skewed exposure, log-normal dose"
+sc <- "2a. Skewed exposure, log-normal dose"
 add(sc, "unweighted", r3[, 1], 1)
 add(sc, "gaussian weights (misspecified)", r3[, 2], 1)
 add(sc, "gamma weights (misspecified)", r3[, 3], 1)
@@ -165,7 +168,7 @@ add(sc, "lognormal weights, truncated 1%", r3[, 5], 1)
 add(sc, "oracle weights (true densities), n = 2000", r3[, 6], 1)
 add(sc, "oracle weights (true densities), n = 10000", r3big[, 2], 1)
 
-# 3b: gamma dose (shape 3, mean exp(0.5 + 0.3 l)): gamma is the correct model
+# 2b: gamma dose (shape 3, mean exp(0.5 + 0.3 l)): gamma is the correct model
 r3b <- reps(S, function() {
   d <- data.frame(l = rnorm(2000))
   d$dose <- rgamma(2000, shape = 3, rate = 3 / exp(0.5 + 0.3 * d$l))
@@ -173,12 +176,12 @@ r3b <- reps(S, function() {
   c(wlm(y ~ dose, d), wlm(y ~ dose, d, w_dose(d, "gaussian")), wlm(y ~ dose, d, w_dose(d, "gamma")),
     wlm(y ~ dose, d, w_dose(d, "lognormal")))
 })
-sc <- "3b. Skewed exposure, gamma dose"
+sc <- "2b. Skewed exposure, gamma dose"
 add(sc, "unweighted", r3b[, 1], 1)
 add(sc, "gaussian weights (misspecified)", r3b[, 2], 1)
 add(sc, "gamma weights (correct)", r3b[, 3], 1)
 add(sc, "lognormal weights (misspecified)", r3b[, 4], 1)
-timer("3. skewed exposures")
+timer("2. skewed exposures")
 
 # ---- 4. Curved propensity: smooth terms -------------------------------------
 gen_curve <- function(n) {
@@ -504,6 +507,7 @@ timer("7d. time-varying bootstrap")
 
 # ---- Report -----------------------------------------------------------------
 res <- do.call(rbind, results)
+res <- res[order(sub("\\..*", "", res$scenario), method = "radix"), ]  # numbered order, stable
 cov_tab <- do.call(rbind, coverage)
 round_df <- function(df, skip = "reps") {
   num <- vapply(df, is.numeric, logical(1)) & !(names(df) %in% skip)
