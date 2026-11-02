@@ -80,6 +80,8 @@
 
 ## ipw 1.3.2
 
+CRAN release: 2026-11-01
+
 ### Bug fixes
 
 - [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md):

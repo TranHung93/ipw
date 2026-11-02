@@ -4,7 +4,7 @@ Each new way of estimating weights added since ipw 1.3.2 comes down to
 the same step: estimate the probability, or density, of the exposure
 each person actually received, then take a ratio. This article gives,
 for each new feature, the formula, the code in the package and why that
-approach was chosen. Section 7 covers recurrent exposure events (Graffeo
+approach was chosen. Section 6 covers recurrent exposure events (Graffeo
 et al. 2018), and section 8 the bootstrap helper
 [`ipwboot()`](https://tranhung93.github.io/ipw/reference/ipwboot.md),
 which estimates standard errors instead of weights. How to use the
@@ -48,174 +48,62 @@ models, and one line forms the weight:
 ipw_weights <- num$dens / den$dens   # num$dens = 1 when numerator = NULL
 ```
 
-## 1. `ipwtm()`: type “all” for multinomial and ordinal exposures
+## 1. `estimand`: ATT and overlap weights for a binomial point treatment
 
-Every interval now contributes the probability of the observed category,
-so the weight follows exposures that move between categories in both
-directions.
+The `estimand` argument changes which population the weights standardise
+to, using the same fitted propensity score *e*(*L*) = P(*A* = 1 \| *L*)
+from the denominator model.
 
-**Formula.** With categories 1, …, *J*, the multinomial model is a
-baseline-category logit; the ordinal model a cumulative link model with
-link *g* (logit, probit, cauchit or cloglog):
+**Formula.**
 
 ``` math
-P(A_{ik} = j \mid L_{ik}) = \frac{\exp(L_{ik}^\top \beta_j)}{\sum_{m=1}^{J} \exp(L_{ik}^\top \beta_m)}, \quad \beta_1 = 0
-```
-
-``` math
-P(A_{ik} \le j \mid L_{ik}) = g^{-1}(\zeta_j - L_{ik}^\top \beta)
-```
-
-The weight is the time-varying product in the notation section, with
-*f*(*A_(ik)* \| ·) the fitted probability of the category observed in
-interval *k*.
-
-**Code.** With `type = "all"` every row is selected (`selvar = 1`), so
-the existing categorical engine fits
-[`nnet::multinom()`](https://rdrr.io/pkg/nnet/man/multinom.html) or
-[`MASS::polr()`](https://rdrr.io/pkg/MASS/man/polr.html) on all rows:
-
-``` r
-
-p_vec[active] <- .prob_of_observed(stats::predict(mod, type = "probs"),
-                                   data[[exp_col]][active], mod$lev)
-weights <- unsplit(lapply(split(p_ratio, data[[id_col]]), cumprod), data[[id_col]])
-```
-
-**Why this approach.**
-
-- **The problem:** some exposures change more than once. A patient’s
-  adherence can be high, then low, then high again. With
-  `type = "first"`, ipw stops following a person after their first
-  change, so the later changes are ignored.
-- **What it does:** every visit counts. At each visit the model asks:
-  given this person’s history, how likely was the category they actually
-  had? These chances are multiplied over time to give the weight.
-- **Why this way:** it is the method ipw already uses for yes/no
-  exposures with `type = "all"`, extended to more than two categories.
-  The multinomial and ordinal models were already in the package, so
-  little new code was needed.
-- **Which model to use:** multinomial when the categories have no order
-  (drug A, B or C); ordinal when they do (low, medium, high). The
-  ordinal model uses one effect per covariate instead of one per
-  category, so it needs less data.
-
-**Caveat.** The models are pooled over time, so the user must put past
-exposure (for example the previous category) and time in the formulas;
-the function does not add them.
-
-## 2. `ipwprob()`: user-supplied probabilities
-
-[`ipwprob()`](https://tranhung93.github.io/ipw/reference/ipwprob.md)
-separates the weight arithmetic from the modelling: the user brings *f*
-from any model, and ipw forms, cumulates and truncates the weights.
-
-**Formula.** With `den` = *f*(*A* \| *L*) and `num` = *f*(*A* \| *V*)
-per row (`num` = 1 when not given), the point weight is their ratio;
-with `id` and `timevar` it is the cumulative product within each
-subject, ordered by time, as in the notation section.
-
-``` math
-W_i = \frac{num_i}{den_i}, \qquad W_i(t) = \prod_{k \le t} \frac{num_{ik}}{den_{ik}}
+\text{ATE: } w = \frac{A}{e} + \frac{1-A}{1-e} \qquad \text{ATT: } w = A + (1-A)\frac{e}{1-e} \qquad \text{ATO: } w = A(1-e) + (1-A)\,e
 ```
 
 **Code.**
 
 ``` r
 
-ratio <- num / den
-ord <- order(id, timevar)
-cum <- unsplit(lapply(split(ratio[ord], id[ord]), cumprod), id[ord])
-weights <- numeric(n)
-weights[ord] <- cum        # back to the user's row order
+ipw_weights <- switch(estimand,
+  ATE = num$dens / den$dens,
+  ATT = ifelse(exp_vec == 1, 1, den$p / (1 - den$p)),
+  ATO = ifelse(exp_vec == 1, 1 - den$p, den$p)
+)
 ```
 
-It checks that `den` and `num` are positive and finite, that lengths
-match, and that each id–time pair occurs once.
+`den$p` is the fitted P(*A* = 1 \| *L*) kept from the binomial
+denominator model; `"ATT"` and `"ATO"` require `numerator = NULL` and a
+binomial family.
 
-**Why this approach.**
+**Why this approach.** Each estimand answers a different clinical
+question; the formulas only change who gets how much weight.
 
-- **The problem:** ipw only fits regression models. Many analysts now
-  estimate the chance of treatment with machine learning (random
-  forests, boosting, SuperLearner), which can pick up complex patterns a
-  regression misses. Until now they had to compute the weights by hand.
-- **What it does:** you give, for each row, the probability of the
-  treatment the person actually received. ipw does the rest: divides
-  numerator by denominator, multiplies over time within each person, and
-  truncates if asked.
-- **Why this way:** building every learner into ipw would add many
-  dependencies and break whenever those packages change. Accepting
-  probabilities works with any method, now and in future, and keeps ipw
-  small.
-- **Why it asks for `timevar`:** time-varying weights must be multiplied
-  in time order. Asking for the time, instead of trusting the row order,
-  avoids wrong weights when the data are not sorted.
-- **When to use:** when you fitted the treatment model yourself, or want
-  to compare several models on the same data.
+- **ATE (default):** “What would happen if everyone were treated,
+  compared with no one?” Each person is weighted to stand for the whole
+  study population.
+- **ATT:** “Did the treatment help the people who actually received it?”
+  Treated people keep weight 1; untreated people are reweighted to look
+  like the treated group. Useful when treatment is only realistic for
+  some patients.
+- **ATO (overlap):** “What is the effect in patients for whom doctors
+  could have gone either way?” Every weight lies between 0 and 1, so no
+  single person can dominate. This helps when some patients are almost
+  always or almost never treated: there, ATE weights become huge and
+  need truncation. With a logistic model, overlap weights also make the
+  average of every covariate in the model exactly equal between the
+  groups.
+- **Why no numerator:** ATT and overlap weights are not a ratio of two
+  probabilities, so stabilizing them has no meaning. ipw gives an error
+  instead of silently ignoring a numerator.
+- **Which to use:** choose by the clinical question first. If ATE
+  weights are extreme, consider ATO, and state clearly which patients
+  the result describes.
 
-**Caveats.** Flexible models can give probabilities near 0 or 1 and so
-extreme weights; truncation (`trunc`) and cross-fitting help. The user
-is responsible for setting probabilities to 1 after the first switch for
-`type = "first"` or `"cens"`. Standard errors that ignore the estimation
-of the probabilities are only approximate.
+**Caveat.** The overlap population is defined by the propensity score
+itself, so results describe that population, not a pre-specified one;
+this should be stated when reporting ATO estimates.
 
-## 3. Count exposures: `"poisson"` and `"negbin"`
-
-For a count exposure (number of doses, visits), *f* is the probability
-mass of the observed count, from a log-linear model for its mean.
-
-**Formula.** Both models have a log link, μ_(i) = exp(*L*_(i)ᵀβ).
-Poisson, then negative binomial with dispersion parameter θ (variance
-μ + μ²/θ):
-
-``` math
-f(a \mid L) = \frac{e^{-\mu} \mu^{a}}{a!}
-```
-
-``` math
-f(a \mid L) = \frac{\Gamma(a + \theta)}{\Gamma(\theta)\, a!} \left(\frac{\theta}{\theta + \mu}\right)^{\theta} \left(\frac{\mu}{\theta + \mu}\right)^{a}
-```
-
-**Code.**
-
-``` r
-
-# poisson
-mod  <- .fit_glm_or_gam(c(base, list(family = stats::poisson()), dots))
-dens <- stats::dpois(exp_vec, lambda = as.numeric(stats::predict(mod, type = "response")))
-
-# negbin: theta estimated by glm.nb, separately for numerator and denominator
-mod  <- do.call(MASS::glm.nb, c(base, dots))
-dens <- stats::dnbinom(exp_vec, size = mod$theta,
-                       mu = as.numeric(stats::predict(mod, type = "response")))
-```
-
-The exposure must be a non-negative integer.
-
-**Why this approach.**
-
-- **The problem:** a count (number of doses: 0, 1, 2, …) is neither
-  yes/no nor a smooth measurement. A normal model allows impossible
-  values such as −1.3 doses and gives poor probabilities for large
-  counts, which is exactly where weights become large.
-- **Poisson:** the standard model for counts. It assumes the spread of
-  the counts equals their average.
-- **Negative binomial:** real counts often vary more than that: many
-  patients get no doses and a few get very many. A Poisson model then
-  gives too small a chance to these unusual counts, and so too large a
-  weight. The negative binomial adds one parameter for the extra spread.
-- **Which to use:** start with Poisson; if the variance of the exposure
-  is clearly larger than its mean, use the negative binomial. In the
-  simulation study, the negative binomial also worked for Poisson counts
-  (bias 3.6%), while Poisson weights for overdispersed counts were badly
-  biased.
-- **Why the numerator is optional:** for counts, *f* is a true
-  probability between 0 and 1, as for a yes/no exposure, so unstabilized
-  weights 1/*f* still make sense.
-
-**Caveat.** Zero-inflated or truncated counts are not covered.
-
-## 4. Skewed continuous exposures: `"gamma"` and `"lognormal"`
+## 2. Skewed continuous exposures: `"gamma"` and `"lognormal"`
 
 For a positive, right-skewed exposure (dose, duration, a biomarker), *f*
 is a gamma or log-normal density instead of a normal one.
@@ -292,7 +180,63 @@ the correct family. Weights computed from the true densities had the
 same bias, so it is a property of weighting with a skewed exposure in
 finite samples, and it shrinks slowly as the sample grows.
 
-## 5. Smooth terms with mgcv
+## 3. Count exposures: `"poisson"` and `"negbin"`
+
+For a count exposure (number of doses, visits), *f* is the probability
+mass of the observed count, from a log-linear model for its mean.
+
+**Formula.** Both models have a log link, μ_(i) = exp(*L*_(i)ᵀβ).
+Poisson, then negative binomial with dispersion parameter θ (variance
+μ + μ²/θ):
+
+``` math
+f(a \mid L) = \frac{e^{-\mu} \mu^{a}}{a!}
+```
+
+``` math
+f(a \mid L) = \frac{\Gamma(a + \theta)}{\Gamma(\theta)\, a!} \left(\frac{\theta}{\theta + \mu}\right)^{\theta} \left(\frac{\mu}{\theta + \mu}\right)^{a}
+```
+
+**Code.**
+
+``` r
+
+# poisson
+mod  <- .fit_glm_or_gam(c(base, list(family = stats::poisson()), dots))
+dens <- stats::dpois(exp_vec, lambda = as.numeric(stats::predict(mod, type = "response")))
+
+# negbin: theta estimated by glm.nb, separately for numerator and denominator
+mod  <- do.call(MASS::glm.nb, c(base, dots))
+dens <- stats::dnbinom(exp_vec, size = mod$theta,
+                       mu = as.numeric(stats::predict(mod, type = "response")))
+```
+
+The exposure must be a non-negative integer.
+
+**Why this approach.**
+
+- **The problem:** a count (number of doses: 0, 1, 2, …) is neither
+  yes/no nor a smooth measurement. A normal model allows impossible
+  values such as −1.3 doses and gives poor probabilities for large
+  counts, which is exactly where weights become large.
+- **Poisson:** the standard model for counts. It assumes the spread of
+  the counts equals their average.
+- **Negative binomial:** real counts often vary more than that: many
+  patients get no doses and a few get very many. A Poisson model then
+  gives too small a chance to these unusual counts, and so too large a
+  weight. The negative binomial adds one parameter for the extra spread.
+- **Which to use:** start with Poisson; if the variance of the exposure
+  is clearly larger than its mean, use the negative binomial. In the
+  simulation study, the negative binomial also worked for Poisson counts
+  (bias 3.6%), while Poisson weights for overdispersed counts were badly
+  biased.
+- **Why the numerator is optional:** for counts, *f* is a true
+  probability between 0 and 1, as for a yes/no exposure, so unstabilized
+  weights 1/*f* still make sense.
+
+**Caveat.** Zero-inflated or truncated counts are not covered.
+
+## 4. Smooth terms with mgcv
 
 When a formula contains `s()`, `te()`, `ti()` or `t2()`, the exposure
 model is fitted as a generalized additive model, so a confounder’s
@@ -365,62 +309,63 @@ users need not attach mgcv:
 degrees of freedom), while the GLM path keeps `sd(residuals)` from
 earlier versions, so the two are not on exactly the same footing.
 
-## 6. `estimand`: ATT and overlap weights for a binomial point treatment
+## 5. `ipwtm()`: type “all” for multinomial and ordinal exposures
 
-The `estimand` argument changes which population the weights standardise
-to, using the same fitted propensity score *e*(*L*) = P(*A* = 1 \| *L*)
-from the denominator model.
+Every interval now contributes the probability of the observed category,
+so the weight follows exposures that move between categories in both
+directions.
 
-**Formula.**
+**Formula.** With categories 1, …, *J*, the multinomial model is a
+baseline-category logit; the ordinal model a cumulative link model with
+link *g* (logit, probit, cauchit or cloglog):
 
 ``` math
-\text{ATE: } w = \frac{A}{e} + \frac{1-A}{1-e} \qquad \text{ATT: } w = A + (1-A)\frac{e}{1-e} \qquad \text{ATO: } w = A(1-e) + (1-A)\,e
+P(A_{ik} = j \mid L_{ik}) = \frac{\exp(L_{ik}^\top \beta_j)}{\sum_{m=1}^{J} \exp(L_{ik}^\top \beta_m)}, \quad \beta_1 = 0
 ```
 
-**Code.**
+``` math
+P(A_{ik} \le j \mid L_{ik}) = g^{-1}(\zeta_j - L_{ik}^\top \beta)
+```
+
+The weight is the time-varying product in the notation section, with
+*f*(*A_(ik)* \| ·) the fitted probability of the category observed in
+interval *k*.
+
+**Code.** With `type = "all"` every row is selected (`selvar = 1`), so
+the existing categorical engine fits
+[`nnet::multinom()`](https://rdrr.io/pkg/nnet/man/multinom.html) or
+[`MASS::polr()`](https://rdrr.io/pkg/MASS/man/polr.html) on all rows:
 
 ``` r
 
-ipw_weights <- switch(estimand,
-  ATE = num$dens / den$dens,
-  ATT = ifelse(exp_vec == 1, 1, den$p / (1 - den$p)),
-  ATO = ifelse(exp_vec == 1, 1 - den$p, den$p)
-)
+p_vec[active] <- .prob_of_observed(stats::predict(mod, type = "probs"),
+                                   data[[exp_col]][active], mod$lev)
+weights <- unsplit(lapply(split(p_ratio, data[[id_col]]), cumprod), data[[id_col]])
 ```
 
-`den$p` is the fitted P(*A* = 1 \| *L*) kept from the binomial
-denominator model; `"ATT"` and `"ATO"` require `numerator = NULL` and a
-binomial family.
+**Why this approach.**
 
-**Why this approach.** Each estimand answers a different clinical
-question; the formulas only change who gets how much weight.
+- **The problem:** some exposures change more than once. A patient’s
+  adherence can be high, then low, then high again. With
+  `type = "first"`, ipw stops following a person after their first
+  change, so the later changes are ignored.
+- **What it does:** every visit counts. At each visit the model asks:
+  given this person’s history, how likely was the category they actually
+  had? These chances are multiplied over time to give the weight.
+- **Why this way:** it is the method ipw already uses for yes/no
+  exposures with `type = "all"`, extended to more than two categories.
+  The multinomial and ordinal models were already in the package, so
+  little new code was needed.
+- **Which model to use:** multinomial when the categories have no order
+  (drug A, B or C); ordinal when they do (low, medium, high). The
+  ordinal model uses one effect per covariate instead of one per
+  category, so it needs less data.
 
-- **ATE (default):** “What would happen if everyone were treated,
-  compared with no one?” Each person is weighted to stand for the whole
-  study population.
-- **ATT:** “Did the treatment help the people who actually received it?”
-  Treated people keep weight 1; untreated people are reweighted to look
-  like the treated group. Useful when treatment is only realistic for
-  some patients.
-- **ATO (overlap):** “What is the effect in patients for whom doctors
-  could have gone either way?” Every weight lies between 0 and 1, so no
-  single person can dominate. This helps when some patients are almost
-  always or almost never treated: there, ATE weights become huge and
-  need truncation. With a logistic model, overlap weights also make the
-  average of every covariate in the model exactly equal between the
-  groups.
-- **Why no numerator:** ATT and overlap weights are not a ratio of two
-  probabilities, so stabilizing them has no meaning. ipw gives an error
-  instead of silently ignoring a numerator.
-- **Which to use:** choose by the clinical question first. If ATE
-  weights are extreme, consider ATO, and state clearly which patients
-  the result describes.
+**Caveat.** The models are pooled over time, so the user must put past
+exposure (for example the previous category) and time in the formulas;
+the function does not add them.
 
-**Caveat.** The overlap population is defined by the propensity score
-itself, so results describe that population, not a pre-specified one;
-this should be stated when reporting ATO estimates.
-
-## 7. `ipwtm()`: type “all” for recurrent exposure events (survival)
+## 6. `ipwtm()`: type “all” for recurrent exposure events (survival)
 
 Exposure events can now happen more than once per person, for example
 repeated prescriptions or hospital admissions. This follows Graffeo,
@@ -483,6 +428,61 @@ probability of an event at some time during the interval, which is an
 approximation (Graffeo et al. 2018). The model assumes events are
 independent given the covariates, so the number of earlier events should
 be in the formula when it affects the hazard.
+
+## 7. `ipwprob()`: user-supplied probabilities
+
+[`ipwprob()`](https://tranhung93.github.io/ipw/reference/ipwprob.md)
+separates the weight arithmetic from the modelling: the user brings *f*
+from any model, and ipw forms, cumulates and truncates the weights.
+
+**Formula.** With `den` = *f*(*A* \| *L*) and `num` = *f*(*A* \| *V*)
+per row (`num` = 1 when not given), the point weight is their ratio;
+with `id` and `timevar` it is the cumulative product within each
+subject, ordered by time, as in the notation section.
+
+``` math
+W_i = \frac{num_i}{den_i}, \qquad W_i(t) = \prod_{k \le t} \frac{num_{ik}}{den_{ik}}
+```
+
+**Code.**
+
+``` r
+
+ratio <- num / den
+ord <- order(id, timevar)
+cum <- unsplit(lapply(split(ratio[ord], id[ord]), cumprod), id[ord])
+weights <- numeric(n)
+weights[ord] <- cum        # back to the user's row order
+```
+
+It checks that `den` and `num` are positive and finite, that lengths
+match, and that each id–time pair occurs once.
+
+**Why this approach.**
+
+- **The problem:** ipw only fits regression models. Many analysts now
+  estimate the chance of treatment with machine learning (random
+  forests, boosting, SuperLearner), which can pick up complex patterns a
+  regression misses. Until now they had to compute the weights by hand.
+- **What it does:** you give, for each row, the probability of the
+  treatment the person actually received. ipw does the rest: divides
+  numerator by denominator, multiplies over time within each person, and
+  truncates if asked.
+- **Why this way:** building every learner into ipw would add many
+  dependencies and break whenever those packages change. Accepting
+  probabilities works with any method, now and in future, and keeps ipw
+  small.
+- **Why it asks for `timevar`:** time-varying weights must be multiplied
+  in time order. Asking for the time, instead of trusting the row order,
+  avoids wrong weights when the data are not sorted.
+- **When to use:** when you fitted the treatment model yourself, or want
+  to compare several models on the same data.
+
+**Caveats.** Flexible models can give probabilities near 0 or 1 and so
+extreme weights; truncation (`trunc`) and cross-fitting help. The user
+is responsible for setting probabilities to 1 after the first switch for
+`type = "first"` or `"cens"`. Standard errors that ignore the estimation
+of the probabilities are only approximate.
 
 ## 8. `ipwboot()`: bootstrap standard errors
 

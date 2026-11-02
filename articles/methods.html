@@ -71,7 +71,7 @@
 to the same step: estimate the probability, or density, of the exposure
 each person actually received, then take a ratio. This article gives,
 for each new feature, the formula, the code in the package and why that
-approach was chosen. Section 7 covers recurrent exposure events (Graffeo
+approach was chosen. Section 6 covers recurrent exposure events (Graffeo
 et al. 2018), and section 8 the bootstrap helper <code><a href="../reference/ipwboot.html">ipwboot()</a></code>,
 which estimates standard errors instead of weights. How to use the
 features is shown in the <a href="ipw.html">main vignette</a>; whether
@@ -110,117 +110,134 @@ forms the weight:</p>
 <code class="sourceCode R"><span><span class="va">ipw_weights</span> <span class="op">&lt;-</span> <span class="va">num</span><span class="op">$</span><span class="va">dens</span> <span class="op">/</span> <span class="va">den</span><span class="op">$</span><span class="va">dens</span>   <span class="co"># num$dens = 1 when numerator = NULL</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="ipwtm-type-all-for-multinomial-and-ordinal-exposures">1. <code>ipwtm()</code>: type “all” for multinomial and ordinal
-exposures<a class="anchor" aria-label="anchor" href="#ipwtm-type-all-for-multinomial-and-ordinal-exposures"></a>
+<h2 id="estimand-att-and-overlap-weights-for-a-binomial-point-treatment">1. <code>estimand</code>: ATT and overlap weights for a binomial
+point treatment<a class="anchor" aria-label="anchor" href="#estimand-att-and-overlap-weights-for-a-binomial-point-treatment"></a>
 </h2>
-<p>Every interval now contributes the probability of the observed
-category, so the weight follows exposures that move between categories
-in both directions.</p>
-<p><strong>Formula.</strong> With categories 1, …, <em>J</em>, the
-multinomial model is a baseline-category logit; the ordinal model a
-cumulative link model with link <em>g</em> (logit, probit, cauchit or
-cloglog):</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>A</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo>=</mo><mi>j</mi><mo>∣</mo><msub><mi>L</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mfrac><mrow><mrow><mi mathvariant="normal">exp</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><msubsup><mi>L</mi><mrow><mi>i</mi><mi>k</mi></mrow><mi>⊤</mi></msubsup><msub><mi>β</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><mrow><munderover><mo>∑</mo><mrow><mi>m</mi><mo>=</mo><mn>1</mn></mrow><mi>J</mi></munderover><mrow><mi mathvariant="normal">exp</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><msubsup><mi>L</mi><mrow><mi>i</mi><mi>k</mi></mrow><mi>⊤</mi></msubsup><msub><mi>β</mi><mi>m</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow></mfrac><mo>,</mo><mspace width="1.0em"></mspace><msub><mi>β</mi><mn>1</mn></msub><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">
-P(A_{ik} = j \mid L_{ik}) = \frac{\exp(L_{ik}^\top \beta_j)}{\sum_{m=1}^{J} \exp(L_{ik}^\top \beta_m)}, \quad \beta_1 = 0
-</annotation></semantics></math></p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>A</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo>≤</mo><mi>j</mi><mo>∣</mo><msub><mi>L</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo stretchy="false" form="postfix">)</mo><mo>=</mo><msup><mi>g</mi><mrow><mi>−</mi><mn>1</mn></mrow></msup><mo stretchy="false" form="prefix">(</mo><msub><mi>ζ</mi><mi>j</mi></msub><mo>−</mo><msubsup><mi>L</mi><mrow><mi>i</mi><mi>k</mi></mrow><mi>⊤</mi></msubsup><mi>β</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">
-P(A_{ik} \le j \mid L_{ik}) = g^{-1}(\zeta_j - L_{ik}^\top \beta)
-</annotation></semantics></math></p>
-<p>The weight is the time-varying product in the notation section, with
-<em>f</em>(<em>A<sub>ik</sub></em> | ·) the fitted probability of the
-category observed in interval <em>k</em>.</p>
-<p><strong>Code.</strong> With <code>type = "all"</code> every row is
-selected (<code>selvar = 1</code>), so the existing categorical engine
-fits <code><a href="https://rdrr.io/pkg/nnet/man/multinom.html" class="external-link">nnet::multinom()</a></code> or <code><a href="https://rdrr.io/pkg/MASS/man/polr.html" class="external-link">MASS::polr()</a></code> on all
-rows:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">p_vec</span><span class="op">[</span><span class="va">active</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu">.prob_of_observed</span><span class="op">(</span><span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">mod</span>, type <span class="op">=</span> <span class="st">"probs"</span><span class="op">)</span>,</span>
-<span>                                   <span class="va">data</span><span class="op">[[</span><span class="va">exp_col</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="va">active</span><span class="op">]</span>, <span class="va">mod</span><span class="op">$</span><span class="va">lev</span><span class="op">)</span></span>
-<span><span class="va">weights</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/split.html" class="external-link">unsplit</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/split.html" class="external-link">split</a></span><span class="op">(</span><span class="va">p_ratio</span>, <span class="va">data</span><span class="op">[[</span><span class="va">id_col</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>, <span class="va">cumprod</span><span class="op">)</span>, <span class="va">data</span><span class="op">[[</span><span class="va">id_col</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span></code></pre></div>
-<p><strong>Why this approach.</strong></p>
-<ul>
-<li>
-<strong>The problem:</strong> some exposures change more than once.
-A patient’s adherence can be high, then low, then high again. With
-<code>type = "first"</code>, ipw stops following a person after their
-first change, so the later changes are ignored.</li>
-<li>
-<strong>What it does:</strong> every visit counts. At each visit the
-model asks: given this person’s history, how likely was the category
-they actually had? These chances are multiplied over time to give the
-weight.</li>
-<li>
-<strong>Why this way:</strong> it is the method ipw already uses for
-yes/no exposures with <code>type = "all"</code>, extended to more than
-two categories. The multinomial and ordinal models were already in the
-package, so little new code was needed.</li>
-<li>
-<strong>Which model to use:</strong> multinomial when the categories
-have no order (drug A, B or C); ordinal when they do (low, medium,
-high). The ordinal model uses one effect per covariate instead of one
-per category, so it needs less data.</li>
-</ul>
-<p><strong>Caveat.</strong> The models are pooled over time, so the user
-must put past exposure (for example the previous category) and time in
-the formulas; the function does not add them.</p>
-</div>
-<div class="section level2">
-<h2 id="ipwprob-user-supplied-probabilities">2. <code>ipwprob()</code>: user-supplied probabilities<a class="anchor" aria-label="anchor" href="#ipwprob-user-supplied-probabilities"></a>
-</h2>
-<p><code><a href="../reference/ipwprob.html">ipwprob()</a></code> separates the weight arithmetic from the
-modelling: the user brings <em>f</em> from any model, and ipw forms,
-cumulates and truncates the weights.</p>
-<p><strong>Formula.</strong> With <code>den</code> =
-<em>f</em>(<em>A</em> | <em>L</em>) and <code>num</code> =
-<em>f</em>(<em>A</em> | <em>V</em>) per row (<code>num</code> = 1 when
-not given), the point weight is their ratio; with <code>id</code> and
-<code>timevar</code> it is the cumulative product within each subject,
-ordered by time, as in the notation section.</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mi>i</mi></msub><mo>=</mo><mfrac><mrow><mi>n</mi><mi>u</mi><msub><mi>m</mi><mi>i</mi></msub></mrow><mrow><mi>d</mi><mi>e</mi><msub><mi>n</mi><mi>i</mi></msub></mrow></mfrac><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>W</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><munder><mo>∏</mo><mrow><mi>k</mi><mo>≤</mo><mi>t</mi></mrow></munder><mfrac><mrow><mi>n</mi><mi>u</mi><msub><mi>m</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub></mrow><mrow><mi>d</mi><mi>e</mi><msub><mi>n</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub></mrow></mfrac></mrow><annotation encoding="application/x-tex">
-W_i = \frac{num_i}{den_i}, \qquad W_i(t) = \prod_{k \le t} \frac{num_{ik}}{den_{ik}}
+<p>The <code>estimand</code> argument changes which population the
+weights standardise to, using the same fitted propensity score
+<em>e</em>(<em>L</em>) = P(<em>A</em> = 1 | <em>L</em>) from the
+denominator model.</p>
+<p><strong>Formula.</strong></p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mtext mathvariant="normal">ATE: </mtext><mspace width="0.333em"></mspace></mrow><mi>w</mi><mo>=</mo><mfrac><mi>A</mi><mi>e</mi></mfrac><mo>+</mo><mfrac><mrow><mn>1</mn><mo>−</mo><mi>A</mi></mrow><mrow><mn>1</mn><mo>−</mo><mi>e</mi></mrow></mfrac><mspace width="2.0em"></mspace><mrow><mtext mathvariant="normal">ATT: </mtext><mspace width="0.333em"></mspace></mrow><mi>w</mi><mo>=</mo><mi>A</mi><mo>+</mo><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>A</mi><mo stretchy="false" form="postfix">)</mo><mfrac><mi>e</mi><mrow><mn>1</mn><mo>−</mo><mi>e</mi></mrow></mfrac><mspace width="2.0em"></mspace><mrow><mtext mathvariant="normal">ATO: </mtext><mspace width="0.333em"></mspace></mrow><mi>w</mi><mo>=</mo><mi>A</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>e</mi><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>A</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mi>e</mi></mrow><annotation encoding="application/x-tex">
+\text{ATE: } w = \frac{A}{e} + \frac{1-A}{1-e} \qquad \text{ATT: } w = A + (1-A)\frac{e}{1-e} \qquad \text{ATO: } w = A(1-e) + (1-A)\,e
 </annotation></semantics></math></p>
 <p><strong>Code.</strong></p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">ipw_weights</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/switch.html" class="external-link">switch</a></span><span class="op">(</span><span class="va">estimand</span>,</span>
+<span>  ATE <span class="op">=</span> <span class="va">num</span><span class="op">$</span><span class="va">dens</span> <span class="op">/</span> <span class="va">den</span><span class="op">$</span><span class="va">dens</span>,</span>
+<span>  ATT <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">exp_vec</span> <span class="op">==</span> <span class="fl">1</span>, <span class="fl">1</span>, <span class="va">den</span><span class="op">$</span><span class="va">p</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">den</span><span class="op">$</span><span class="va">p</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  ATO <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">exp_vec</span> <span class="op">==</span> <span class="fl">1</span>, <span class="fl">1</span> <span class="op">-</span> <span class="va">den</span><span class="op">$</span><span class="va">p</span>, <span class="va">den</span><span class="op">$</span><span class="va">p</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><code>den$p</code> is the fitted P(<em>A</em> = 1 | <em>L</em>) kept
+from the binomial denominator model; <code>"ATT"</code> and
+<code>"ATO"</code> require <code>numerator = NULL</code> and a binomial
+family.</p>
+<p><strong>Why this approach.</strong> Each estimand answers a different
+clinical question; the formulas only change who gets how much
+weight.</p>
+<ul>
+<li>
+<strong>ATE (default):</strong> “What would happen if everyone were
+treated, compared with no one?” Each person is weighted to stand for the
+whole study population.</li>
+<li>
+<strong>ATT:</strong> “Did the treatment help the people who
+actually received it?” Treated people keep weight 1; untreated people
+are reweighted to look like the treated group. Useful when treatment is
+only realistic for some patients.</li>
+<li>
+<strong>ATO (overlap):</strong> “What is the effect in patients for
+whom doctors could have gone either way?” Every weight lies between 0
+and 1, so no single person can dominate. This helps when some patients
+are almost always or almost never treated: there, ATE weights become
+huge and need truncation. With a logistic model, overlap weights also
+make the average of every covariate in the model exactly equal between
+the groups.</li>
+<li>
+<strong>Why no numerator:</strong> ATT and overlap weights are not a
+ratio of two probabilities, so stabilizing them has no meaning. ipw
+gives an error instead of silently ignoring a numerator.</li>
+<li>
+<strong>Which to use:</strong> choose by the clinical question
+first. If ATE weights are extreme, consider ATO, and state clearly which
+patients the result describes.</li>
+</ul>
+<p><strong>Caveat.</strong> The overlap population is defined by the
+propensity score itself, so results describe that population, not a
+pre-specified one; this should be stated when reporting ATO
+estimates.</p>
+</div>
+<div class="section level2">
+<h2 id="skewed-continuous-exposures-gamma-and-lognormal">2. Skewed continuous exposures: <code>"gamma"</code> and
+<code>"lognormal"</code><a class="anchor" aria-label="anchor" href="#skewed-continuous-exposures-gamma-and-lognormal"></a>
+</h2>
+<p>For a positive, right-skewed exposure (dose, duration, a biomarker),
+<em>f</em> is a gamma or log-normal density instead of a normal one.</p>
+<p><strong>Formula.</strong> Gamma with log link, mean μ<sub>i</sub> =
+exp(<em>L</em><sub>i</sub>ᵀβ) and shape <em>k</em> = 1/φ, where φ is the
+dispersion estimated by the GLM:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>a</mi><mo>∣</mo><mi>L</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mfrac><mrow><mo stretchy="false" form="prefix">(</mo><mi>k</mi><mi>/</mi><mi>μ</mi><msup><mo stretchy="false" form="postfix">)</mo><mi>k</mi></msup></mrow><mrow><mi mathvariant="normal">Γ</mi><mo stretchy="false" form="prefix">(</mo><mi>k</mi><mo stretchy="false" form="postfix">)</mo></mrow></mfrac><mspace width="0.167em"></mspace><msup><mi>a</mi><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow></msup><msup><mi>e</mi><mrow><mi>−</mi><mi>k</mi><mi>a</mi><mi>/</mi><mi>μ</mi></mrow></msup></mrow><annotation encoding="application/x-tex">
+f(a \mid L) = \frac{(k/\mu)^{k}}{\Gamma(k)}\, a^{k-1} e^{-k a / \mu}
+</annotation></semantics></math></p>
+<p>Log-normal: a normal linear model for log <em>A</em> with mean
+μ<sub>i</sub> = <em>L</em><sub>i</sub>ᵀβ and standard deviation σ:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>a</mi><mo>∣</mo><mi>L</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mfrac><mn>1</mn><mrow><mi>a</mi><mi>σ</mi><msqrt><mrow><mn>2</mn><mi>π</mi></mrow></msqrt></mrow></mfrac><mrow><mi mathvariant="normal">exp</mi><mo>⁡</mo></mrow><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mi>−</mi><mfrac><mrow><mo stretchy="false" form="prefix">(</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>a</mi><mo>−</mo><mi>μ</mi><msup><mo stretchy="false" form="postfix">)</mo><mn>2</mn></msup></mrow><mrow><mn>2</mn><msup><mi>σ</mi><mn>2</mn></msup></mrow></mfrac><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">
+f(a \mid L) = \frac{1}{a \sigma \sqrt{2\pi}} \exp\!\left(-\frac{(\log a - \mu)^2}{2\sigma^2}\right)
+</annotation></semantics></math></p>
+<p>The factor 1/<em>a</em> is the same in numerator and denominator, so
+the stabilized log-normal weight equals the gaussian weight computed on
+log <em>A</em>.</p>
+<p><strong>Code.</strong></p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">ratio</span> <span class="op">&lt;-</span> <span class="va">num</span> <span class="op">/</span> <span class="va">den</span></span>
-<span><span class="va">ord</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">timevar</span><span class="op">)</span></span>
-<span><span class="va">cum</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/split.html" class="external-link">unsplit</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/split.html" class="external-link">split</a></span><span class="op">(</span><span class="va">ratio</span><span class="op">[</span><span class="va">ord</span><span class="op">]</span>, <span class="va">id</span><span class="op">[</span><span class="va">ord</span><span class="op">]</span><span class="op">)</span>, <span class="va">cumprod</span><span class="op">)</span>, <span class="va">id</span><span class="op">[</span><span class="va">ord</span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="va">weights</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">numeric</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span></span>
-<span><span class="va">weights</span><span class="op">[</span><span class="va">ord</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">cum</span>        <span class="co"># back to the user's row order</span></span></code></pre></div>
-<p>It checks that <code>den</code> and <code>num</code> are positive and
-finite, that lengths match, and that each id–time pair occurs once.</p>
+<code class="sourceCode R"><span><span class="co"># gamma</span></span>
+<span><span class="va">mod</span>   <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="fu">stats</span><span class="fu">::</span><span class="va"><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm</a></span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">base</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>family <span class="op">=</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">Gamma</a></span><span class="op">(</span>link <span class="op">=</span> <span class="st">"log"</span><span class="op">)</span><span class="op">)</span>, <span class="va">dots</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">shape</span> <span class="op">&lt;-</span> <span class="fl">1</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span><span class="op">$</span><span class="va">dispersion</span></span>
+<span><span class="va">mu</span>    <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">mod</span>, type <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">dens</span>  <span class="op">&lt;-</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/GammaDist.html" class="external-link">dgamma</a></span><span class="op">(</span><span class="va">exp_vec</span>, shape <span class="op">=</span> <span class="va">shape</span>, rate <span class="op">=</span> <span class="va">shape</span> <span class="op">/</span> <span class="va">mu</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># lognormal: the model formula is log(exposure) ~ ...</span></span>
+<span><span class="va">mod</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="fu">stats</span><span class="fu">::</span><span class="va"><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm</a></span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">base</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>family <span class="op">=</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span>, <span class="va">dots</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">dens</span> <span class="op">&lt;-</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/Lognormal.html" class="external-link">dlnorm</a></span><span class="op">(</span><span class="va">exp_vec</span>, meanlog <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>                      sdlog <span class="op">=</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/sd.html" class="external-link">sd</a></span><span class="op">(</span><span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p>The exposure must be positive, and a numerator model is required.</p>
 <p><strong>Why this approach.</strong></p>
 <ul>
 <li>
-<strong>The problem:</strong> ipw only fits regression models. Many
-analysts now estimate the chance of treatment with machine learning
-(random forests, boosting, SuperLearner), which can pick up complex
-patterns a regression misses. Until now they had to compute the weights
-by hand.</li>
+<strong>The problem:</strong> doses, durations and many lab values
+are always positive and have a long right tail: most values are small, a
+few are very large. The normal model is symmetric and allows negative
+values, so it fits the tails badly, and the tails are where the weights
+are largest.</li>
 <li>
-<strong>What it does:</strong> you give, for each row, the
-probability of the treatment the person actually received. ipw does the
-rest: divides numerator by denominator, multiplies over time within each
-person, and truncates if asked.</li>
+<strong>Gamma:</strong> suits exposures whose spread grows with
+their size, for example a duration that varies by about 20% whatever its
+typical length. Common for durations, doses and costs.</li>
 <li>
-<strong>Why this way:</strong> building every learner into ipw would
-add many dependencies and break whenever those packages change.
-Accepting probabilities works with any method, now and in future, and
-keeps ipw small.</li>
+<strong>Log-normal:</strong> suits exposures that look bell-shaped
+after taking the log, such as viral load and many biomarkers. In
+practice it is the gaussian model applied to log(exposure).</li>
 <li>
-<strong>Why it asks for <code>timevar</code>:</strong> time-varying
-weights must be multiplied in time order. Asking for the time, instead
-of trusting the row order, avoids wrong weights when the data are not
-sorted.</li>
+<strong>Which to use:</strong> draw a histogram of log(exposure). If
+it looks bell-shaped, use log-normal; otherwise try gamma. You can also
+compare the AIC of the two denominator models.</li>
 <li>
-<strong>When to use:</strong> when you fitted the treatment model
-yourself, or want to compare several models on the same data.</li>
+<strong>Why the numerator is required:</strong> for a continuous
+exposure, <em>f</em> is a density, not a probability. Its size depends
+on the units (mg or g), so 1/<em>f</em> has no fixed meaning and can be
+huge. Dividing by a numerator density, as already required for gaussian,
+cancels the units and keeps the weights around 1.</li>
 </ul>
-<p><strong>Caveats.</strong> Flexible models can give probabilities near
-0 or 1 and so extreme weights; truncation (<code>trunc</code>) and
-cross-fitting help. The user is responsible for setting probabilities to
-1 after the first switch for <code>type = "first"</code> or
-<code>"cens"</code>. Standard errors that ignore the estimation of the
-probabilities are only approximate.</p>
+<p><strong>Implementation notes.</strong> The gamma shape uses the
+moment (Pearson) estimate of φ from <code><a href="https://rdrr.io/r/stats/summary.glm.html" class="external-link">summary.glm()</a></code>, not
+maximum likelihood (<code><a href="https://rdrr.io/pkg/MASS/man/gamma.shape.glm.html" class="external-link">MASS::gamma.shape()</a></code> would be the
+alternative). The log-normal σ uses <code><a href="https://rdrr.io/r/stats/sd.html" class="external-link">sd()</a></code> of the residuals
+(divisor <em>n</em> − 1, not <em>n</em> − <em>p</em>), to match the
+existing gaussian family.</p>
+<p><strong>Caveat.</strong> In the simulation study a small bias (3–5%)
+remained with the correct family. Weights computed from the true
+densities had the same bias, so it is a property of weighting with a
+skewed exposure in finite samples, and it shrinks slowly as the sample
+grows.</p>
 </div>
 <div class="section level2">
 <h2 id="count-exposures-poisson-and-negbin">3. Count exposures: <code>"poisson"</code> and
@@ -280,79 +297,7 @@ exposure, so unstabilized weights 1/<em>f</em> still make sense.</li>
 covered.</p>
 </div>
 <div class="section level2">
-<h2 id="skewed-continuous-exposures-gamma-and-lognormal">4. Skewed continuous exposures: <code>"gamma"</code> and
-<code>"lognormal"</code><a class="anchor" aria-label="anchor" href="#skewed-continuous-exposures-gamma-and-lognormal"></a>
-</h2>
-<p>For a positive, right-skewed exposure (dose, duration, a biomarker),
-<em>f</em> is a gamma or log-normal density instead of a normal one.</p>
-<p><strong>Formula.</strong> Gamma with log link, mean μ<sub>i</sub> =
-exp(<em>L</em><sub>i</sub>ᵀβ) and shape <em>k</em> = 1/φ, where φ is the
-dispersion estimated by the GLM:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>a</mi><mo>∣</mo><mi>L</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mfrac><mrow><mo stretchy="false" form="prefix">(</mo><mi>k</mi><mi>/</mi><mi>μ</mi><msup><mo stretchy="false" form="postfix">)</mo><mi>k</mi></msup></mrow><mrow><mi mathvariant="normal">Γ</mi><mo stretchy="false" form="prefix">(</mo><mi>k</mi><mo stretchy="false" form="postfix">)</mo></mrow></mfrac><mspace width="0.167em"></mspace><msup><mi>a</mi><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow></msup><msup><mi>e</mi><mrow><mi>−</mi><mi>k</mi><mi>a</mi><mi>/</mi><mi>μ</mi></mrow></msup></mrow><annotation encoding="application/x-tex">
-f(a \mid L) = \frac{(k/\mu)^{k}}{\Gamma(k)}\, a^{k-1} e^{-k a / \mu}
-</annotation></semantics></math></p>
-<p>Log-normal: a normal linear model for log <em>A</em> with mean
-μ<sub>i</sub> = <em>L</em><sub>i</sub>ᵀβ and standard deviation σ:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>a</mi><mo>∣</mo><mi>L</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mfrac><mn>1</mn><mrow><mi>a</mi><mi>σ</mi><msqrt><mrow><mn>2</mn><mi>π</mi></mrow></msqrt></mrow></mfrac><mrow><mi mathvariant="normal">exp</mi><mo>⁡</mo></mrow><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mi>−</mi><mfrac><mrow><mo stretchy="false" form="prefix">(</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>a</mi><mo>−</mo><mi>μ</mi><msup><mo stretchy="false" form="postfix">)</mo><mn>2</mn></msup></mrow><mrow><mn>2</mn><msup><mi>σ</mi><mn>2</mn></msup></mrow></mfrac><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">
-f(a \mid L) = \frac{1}{a \sigma \sqrt{2\pi}} \exp\!\left(-\frac{(\log a - \mu)^2}{2\sigma^2}\right)
-</annotation></semantics></math></p>
-<p>The factor 1/<em>a</em> is the same in numerator and denominator, so
-the stabilized log-normal weight equals the gaussian weight computed on
-log <em>A</em>.</p>
-<p><strong>Code.</strong></p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># gamma</span></span>
-<span><span class="va">mod</span>   <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="fu">stats</span><span class="fu">::</span><span class="va"><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm</a></span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">base</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>family <span class="op">=</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">Gamma</a></span><span class="op">(</span>link <span class="op">=</span> <span class="st">"log"</span><span class="op">)</span><span class="op">)</span>, <span class="va">dots</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">shape</span> <span class="op">&lt;-</span> <span class="fl">1</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span><span class="op">$</span><span class="va">dispersion</span></span>
-<span><span class="va">mu</span>    <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">mod</span>, type <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">dens</span>  <span class="op">&lt;-</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/GammaDist.html" class="external-link">dgamma</a></span><span class="op">(</span><span class="va">exp_vec</span>, shape <span class="op">=</span> <span class="va">shape</span>, rate <span class="op">=</span> <span class="va">shape</span> <span class="op">/</span> <span class="va">mu</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># lognormal: the model formula is log(exposure) ~ ...</span></span>
-<span><span class="va">mod</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="fu">stats</span><span class="fu">::</span><span class="va"><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm</a></span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">base</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>family <span class="op">=</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span>, <span class="va">dots</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">dens</span> <span class="op">&lt;-</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/Lognormal.html" class="external-link">dlnorm</a></span><span class="op">(</span><span class="va">exp_vec</span>, meanlog <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>                      sdlog <span class="op">=</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/sd.html" class="external-link">sd</a></span><span class="op">(</span><span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p>The exposure must be positive, and a numerator model is required.</p>
-<p><strong>Why this approach.</strong></p>
-<ul>
-<li>
-<strong>The problem:</strong> doses, durations and many lab values
-are always positive and have a long right tail: most values are small, a
-few are very large. The normal model is symmetric and allows negative
-values, so it fits the tails badly, and the tails are where the weights
-are largest.</li>
-<li>
-<strong>Gamma:</strong> suits exposures whose spread grows with
-their size, for example a duration that varies by about 20% whatever its
-typical length. Common for durations, doses and costs.</li>
-<li>
-<strong>Log-normal:</strong> suits exposures that look bell-shaped
-after taking the log, such as viral load and many biomarkers. In
-practice it is the gaussian model applied to log(exposure).</li>
-<li>
-<strong>Which to use:</strong> draw a histogram of log(exposure). If
-it looks bell-shaped, use log-normal; otherwise try gamma. You can also
-compare the AIC of the two denominator models.</li>
-<li>
-<strong>Why the numerator is required:</strong> for a continuous
-exposure, <em>f</em> is a density, not a probability. Its size depends
-on the units (mg or g), so 1/<em>f</em> has no fixed meaning and can be
-huge. Dividing by a numerator density, as already required for gaussian,
-cancels the units and keeps the weights around 1.</li>
-</ul>
-<p><strong>Implementation notes.</strong> The gamma shape uses the
-moment (Pearson) estimate of φ from <code><a href="https://rdrr.io/r/stats/summary.glm.html" class="external-link">summary.glm()</a></code>, not
-maximum likelihood (<code><a href="https://rdrr.io/pkg/MASS/man/gamma.shape.glm.html" class="external-link">MASS::gamma.shape()</a></code> would be the
-alternative). The log-normal σ uses <code><a href="https://rdrr.io/r/stats/sd.html" class="external-link">sd()</a></code> of the residuals
-(divisor <em>n</em> − 1, not <em>n</em> − <em>p</em>), to match the
-existing gaussian family.</p>
-<p><strong>Caveat.</strong> In the simulation study a small bias (3–5%)
-remained with the correct family. Weights computed from the true
-densities had the same bias, so it is a property of weighting with a
-skewed exposure in finite samples, and it shrinks slowly as the sample
-grows.</p>
-</div>
-<div class="section level2">
-<h2 id="smooth-terms-with-mgcv">5. Smooth terms with mgcv<a class="anchor" aria-label="anchor" href="#smooth-terms-with-mgcv"></a>
+<h2 id="smooth-terms-with-mgcv">4. Smooth terms with mgcv<a class="anchor" aria-label="anchor" href="#smooth-terms-with-mgcv"></a>
 </h2>
 <p>When a formula contains <code>s()</code>, <code>te()</code>,
 <code>ti()</code> or <code>t2()</code>, the exposure model is fitted as
@@ -377,7 +322,7 @@ from the GAM’s fitted values.</p>
 <code><a href="https://rdrr.io/pkg/mgcv/man/gam.html" class="external-link">mgcv::gam()</a></code>, and gives the formula an environment in which
 <code>s()</code> and the others are mgcv’s, so users need not attach
 mgcv:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">.fit_glm_or_gam</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">args</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="kw">if</span> <span class="op">(</span><span class="fu">.uses_smooths</span><span class="op">(</span><span class="va">args</span><span class="op">$</span><span class="va">formula</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="fu">.require_mgcv</span><span class="op">(</span><span class="op">)</span></span>
@@ -426,65 +371,62 @@ keeps <code>sd(residuals)</code> from earlier versions, so the two are
 not on exactly the same footing.</p>
 </div>
 <div class="section level2">
-<h2 id="estimand-att-and-overlap-weights-for-a-binomial-point-treatment">6. <code>estimand</code>: ATT and overlap weights for a binomial
-point treatment<a class="anchor" aria-label="anchor" href="#estimand-att-and-overlap-weights-for-a-binomial-point-treatment"></a>
+<h2 id="ipwtm-type-all-for-multinomial-and-ordinal-exposures">5. <code>ipwtm()</code>: type “all” for multinomial and ordinal
+exposures<a class="anchor" aria-label="anchor" href="#ipwtm-type-all-for-multinomial-and-ordinal-exposures"></a>
 </h2>
-<p>The <code>estimand</code> argument changes which population the
-weights standardise to, using the same fitted propensity score
-<em>e</em>(<em>L</em>) = P(<em>A</em> = 1 | <em>L</em>) from the
-denominator model.</p>
-<p><strong>Formula.</strong></p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mtext mathvariant="normal">ATE: </mtext><mspace width="0.333em"></mspace></mrow><mi>w</mi><mo>=</mo><mfrac><mi>A</mi><mi>e</mi></mfrac><mo>+</mo><mfrac><mrow><mn>1</mn><mo>−</mo><mi>A</mi></mrow><mrow><mn>1</mn><mo>−</mo><mi>e</mi></mrow></mfrac><mspace width="2.0em"></mspace><mrow><mtext mathvariant="normal">ATT: </mtext><mspace width="0.333em"></mspace></mrow><mi>w</mi><mo>=</mo><mi>A</mi><mo>+</mo><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>A</mi><mo stretchy="false" form="postfix">)</mo><mfrac><mi>e</mi><mrow><mn>1</mn><mo>−</mo><mi>e</mi></mrow></mfrac><mspace width="2.0em"></mspace><mrow><mtext mathvariant="normal">ATO: </mtext><mspace width="0.333em"></mspace></mrow><mi>w</mi><mo>=</mo><mi>A</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>e</mi><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>A</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mi>e</mi></mrow><annotation encoding="application/x-tex">
-\text{ATE: } w = \frac{A}{e} + \frac{1-A}{1-e} \qquad \text{ATT: } w = A + (1-A)\frac{e}{1-e} \qquad \text{ATO: } w = A(1-e) + (1-A)\,e
+<p>Every interval now contributes the probability of the observed
+category, so the weight follows exposures that move between categories
+in both directions.</p>
+<p><strong>Formula.</strong> With categories 1, …, <em>J</em>, the
+multinomial model is a baseline-category logit; the ordinal model a
+cumulative link model with link <em>g</em> (logit, probit, cauchit or
+cloglog):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>A</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo>=</mo><mi>j</mi><mo>∣</mo><msub><mi>L</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mfrac><mrow><mrow><mi mathvariant="normal">exp</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><msubsup><mi>L</mi><mrow><mi>i</mi><mi>k</mi></mrow><mi>⊤</mi></msubsup><msub><mi>β</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><mrow><munderover><mo>∑</mo><mrow><mi>m</mi><mo>=</mo><mn>1</mn></mrow><mi>J</mi></munderover><mrow><mi mathvariant="normal">exp</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><msubsup><mi>L</mi><mrow><mi>i</mi><mi>k</mi></mrow><mi>⊤</mi></msubsup><msub><mi>β</mi><mi>m</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow></mfrac><mo>,</mo><mspace width="1.0em"></mspace><msub><mi>β</mi><mn>1</mn></msub><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">
+P(A_{ik} = j \mid L_{ik}) = \frac{\exp(L_{ik}^\top \beta_j)}{\sum_{m=1}^{J} \exp(L_{ik}^\top \beta_m)}, \quad \beta_1 = 0
 </annotation></semantics></math></p>
-<p><strong>Code.</strong></p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">ipw_weights</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/switch.html" class="external-link">switch</a></span><span class="op">(</span><span class="va">estimand</span>,</span>
-<span>  ATE <span class="op">=</span> <span class="va">num</span><span class="op">$</span><span class="va">dens</span> <span class="op">/</span> <span class="va">den</span><span class="op">$</span><span class="va">dens</span>,</span>
-<span>  ATT <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">exp_vec</span> <span class="op">==</span> <span class="fl">1</span>, <span class="fl">1</span>, <span class="va">den</span><span class="op">$</span><span class="va">p</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">den</span><span class="op">$</span><span class="va">p</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  ATO <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">exp_vec</span> <span class="op">==</span> <span class="fl">1</span>, <span class="fl">1</span> <span class="op">-</span> <span class="va">den</span><span class="op">$</span><span class="va">p</span>, <span class="va">den</span><span class="op">$</span><span class="va">p</span><span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p><code>den$p</code> is the fitted P(<em>A</em> = 1 | <em>L</em>) kept
-from the binomial denominator model; <code>"ATT"</code> and
-<code>"ATO"</code> require <code>numerator = NULL</code> and a binomial
-family.</p>
-<p><strong>Why this approach.</strong> Each estimand answers a different
-clinical question; the formulas only change who gets how much
-weight.</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>A</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo>≤</mo><mi>j</mi><mo>∣</mo><msub><mi>L</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo stretchy="false" form="postfix">)</mo><mo>=</mo><msup><mi>g</mi><mrow><mi>−</mi><mn>1</mn></mrow></msup><mo stretchy="false" form="prefix">(</mo><msub><mi>ζ</mi><mi>j</mi></msub><mo>−</mo><msubsup><mi>L</mi><mrow><mi>i</mi><mi>k</mi></mrow><mi>⊤</mi></msubsup><mi>β</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">
+P(A_{ik} \le j \mid L_{ik}) = g^{-1}(\zeta_j - L_{ik}^\top \beta)
+</annotation></semantics></math></p>
+<p>The weight is the time-varying product in the notation section, with
+<em>f</em>(<em>A<sub>ik</sub></em> | ·) the fitted probability of the
+category observed in interval <em>k</em>.</p>
+<p><strong>Code.</strong> With <code>type = "all"</code> every row is
+selected (<code>selvar = 1</code>), so the existing categorical engine
+fits <code><a href="https://rdrr.io/pkg/nnet/man/multinom.html" class="external-link">nnet::multinom()</a></code> or <code><a href="https://rdrr.io/pkg/MASS/man/polr.html" class="external-link">MASS::polr()</a></code> on all
+rows:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">p_vec</span><span class="op">[</span><span class="va">active</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu">.prob_of_observed</span><span class="op">(</span><span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">mod</span>, type <span class="op">=</span> <span class="st">"probs"</span><span class="op">)</span>,</span>
+<span>                                   <span class="va">data</span><span class="op">[[</span><span class="va">exp_col</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="va">active</span><span class="op">]</span>, <span class="va">mod</span><span class="op">$</span><span class="va">lev</span><span class="op">)</span></span>
+<span><span class="va">weights</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/split.html" class="external-link">unsplit</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/split.html" class="external-link">split</a></span><span class="op">(</span><span class="va">p_ratio</span>, <span class="va">data</span><span class="op">[[</span><span class="va">id_col</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>, <span class="va">cumprod</span><span class="op">)</span>, <span class="va">data</span><span class="op">[[</span><span class="va">id_col</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span></code></pre></div>
+<p><strong>Why this approach.</strong></p>
 <ul>
 <li>
-<strong>ATE (default):</strong> “What would happen if everyone were
-treated, compared with no one?” Each person is weighted to stand for the
-whole study population.</li>
+<strong>The problem:</strong> some exposures change more than once.
+A patient’s adherence can be high, then low, then high again. With
+<code>type = "first"</code>, ipw stops following a person after their
+first change, so the later changes are ignored.</li>
 <li>
-<strong>ATT:</strong> “Did the treatment help the people who
-actually received it?” Treated people keep weight 1; untreated people
-are reweighted to look like the treated group. Useful when treatment is
-only realistic for some patients.</li>
+<strong>What it does:</strong> every visit counts. At each visit the
+model asks: given this person’s history, how likely was the category
+they actually had? These chances are multiplied over time to give the
+weight.</li>
 <li>
-<strong>ATO (overlap):</strong> “What is the effect in patients for
-whom doctors could have gone either way?” Every weight lies between 0
-and 1, so no single person can dominate. This helps when some patients
-are almost always or almost never treated: there, ATE weights become
-huge and need truncation. With a logistic model, overlap weights also
-make the average of every covariate in the model exactly equal between
-the groups.</li>
+<strong>Why this way:</strong> it is the method ipw already uses for
+yes/no exposures with <code>type = "all"</code>, extended to more than
+two categories. The multinomial and ordinal models were already in the
+package, so little new code was needed.</li>
 <li>
-<strong>Why no numerator:</strong> ATT and overlap weights are not a
-ratio of two probabilities, so stabilizing them has no meaning. ipw
-gives an error instead of silently ignoring a numerator.</li>
-<li>
-<strong>Which to use:</strong> choose by the clinical question
-first. If ATE weights are extreme, consider ATO, and state clearly which
-patients the result describes.</li>
+<strong>Which model to use:</strong> multinomial when the categories
+have no order (drug A, B or C); ordinal when they do (low, medium,
+high). The ordinal model uses one effect per covariate instead of one
+per category, so it needs less data.</li>
 </ul>
-<p><strong>Caveat.</strong> The overlap population is defined by the
-propensity score itself, so results describe that population, not a
-pre-specified one; this should be stated when reporting ATO
-estimates.</p>
+<p><strong>Caveat.</strong> The models are pooled over time, so the user
+must put past exposure (for example the previous category) and time in
+the formulas; the function does not add them.</p>
 </div>
 <div class="section level2">
-<h2 id="ipwtm-type-all-for-recurrent-exposure-events-survival">7. <code>ipwtm()</code>: type “all” for recurrent exposure events
+<h2 id="ipwtm-type-all-for-recurrent-exposure-events-survival">6. <code>ipwtm()</code>: type “all” for recurrent exposure events
 (survival)<a class="anchor" aria-label="anchor" href="#ipwtm-type-all-for-recurrent-exposure-events-survival"></a>
 </h2>
 <p>Exposure events can now happen more than once per person, for example
@@ -508,7 +450,7 @@ observed in row <em>k</em> (event or no event).</p>
 <code>coxph(Surv(tstart, timevar, exposure) ~ ...)</code> on all rows;
 each row’s probability uses the baseline hazard over that row’s own
 interval:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">bh</span> <span class="op">&lt;-</span> <span class="fu">survival</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/basehaz.html" class="external-link">basehaz</a></span><span class="op">(</span><span class="va">mod</span>, centered <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">d_cum_haz</span> <span class="op">&lt;-</span> <span class="fu">cum_haz_at</span><span class="op">(</span><span class="va">data</span><span class="op">[[</span><span class="va">time_col</span><span class="op">]</span><span class="op">]</span><span class="op">)</span> <span class="op">-</span> <span class="fu">cum_haz_at</span><span class="op">(</span><span class="va">data</span><span class="op">[[</span><span class="va">start_col</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="va">h</span> <span class="op">&lt;-</span> <span class="va">d_cum_haz</span> <span class="op">*</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">mod</span>, type <span class="op">=</span> <span class="st">"risk"</span>, centered <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -546,6 +488,64 @@ method uses the probability of an event at some time during the
 interval, which is an approximation (Graffeo et al. 2018). The model
 assumes events are independent given the covariates, so the number of
 earlier events should be in the formula when it affects the hazard.</p>
+</div>
+<div class="section level2">
+<h2 id="ipwprob-user-supplied-probabilities">7. <code>ipwprob()</code>: user-supplied probabilities<a class="anchor" aria-label="anchor" href="#ipwprob-user-supplied-probabilities"></a>
+</h2>
+<p><code><a href="../reference/ipwprob.html">ipwprob()</a></code> separates the weight arithmetic from the
+modelling: the user brings <em>f</em> from any model, and ipw forms,
+cumulates and truncates the weights.</p>
+<p><strong>Formula.</strong> With <code>den</code> =
+<em>f</em>(<em>A</em> | <em>L</em>) and <code>num</code> =
+<em>f</em>(<em>A</em> | <em>V</em>) per row (<code>num</code> = 1 when
+not given), the point weight is their ratio; with <code>id</code> and
+<code>timevar</code> it is the cumulative product within each subject,
+ordered by time, as in the notation section.</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mi>i</mi></msub><mo>=</mo><mfrac><mrow><mi>n</mi><mi>u</mi><msub><mi>m</mi><mi>i</mi></msub></mrow><mrow><mi>d</mi><mi>e</mi><msub><mi>n</mi><mi>i</mi></msub></mrow></mfrac><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>W</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><munder><mo>∏</mo><mrow><mi>k</mi><mo>≤</mo><mi>t</mi></mrow></munder><mfrac><mrow><mi>n</mi><mi>u</mi><msub><mi>m</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub></mrow><mrow><mi>d</mi><mi>e</mi><msub><mi>n</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub></mrow></mfrac></mrow><annotation encoding="application/x-tex">
+W_i = \frac{num_i}{den_i}, \qquad W_i(t) = \prod_{k \le t} \frac{num_{ik}}{den_{ik}}
+</annotation></semantics></math></p>
+<p><strong>Code.</strong></p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">ratio</span> <span class="op">&lt;-</span> <span class="va">num</span> <span class="op">/</span> <span class="va">den</span></span>
+<span><span class="va">ord</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">timevar</span><span class="op">)</span></span>
+<span><span class="va">cum</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/split.html" class="external-link">unsplit</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/split.html" class="external-link">split</a></span><span class="op">(</span><span class="va">ratio</span><span class="op">[</span><span class="va">ord</span><span class="op">]</span>, <span class="va">id</span><span class="op">[</span><span class="va">ord</span><span class="op">]</span><span class="op">)</span>, <span class="va">cumprod</span><span class="op">)</span>, <span class="va">id</span><span class="op">[</span><span class="va">ord</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="va">weights</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">numeric</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span></span>
+<span><span class="va">weights</span><span class="op">[</span><span class="va">ord</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">cum</span>        <span class="co"># back to the user's row order</span></span></code></pre></div>
+<p>It checks that <code>den</code> and <code>num</code> are positive and
+finite, that lengths match, and that each id–time pair occurs once.</p>
+<p><strong>Why this approach.</strong></p>
+<ul>
+<li>
+<strong>The problem:</strong> ipw only fits regression models. Many
+analysts now estimate the chance of treatment with machine learning
+(random forests, boosting, SuperLearner), which can pick up complex
+patterns a regression misses. Until now they had to compute the weights
+by hand.</li>
+<li>
+<strong>What it does:</strong> you give, for each row, the
+probability of the treatment the person actually received. ipw does the
+rest: divides numerator by denominator, multiplies over time within each
+person, and truncates if asked.</li>
+<li>
+<strong>Why this way:</strong> building every learner into ipw would
+add many dependencies and break whenever those packages change.
+Accepting probabilities works with any method, now and in future, and
+keeps ipw small.</li>
+<li>
+<strong>Why it asks for <code>timevar</code>:</strong> time-varying
+weights must be multiplied in time order. Asking for the time, instead
+of trusting the row order, avoids wrong weights when the data are not
+sorted.</li>
+<li>
+<strong>When to use:</strong> when you fitted the treatment model
+yourself, or want to compare several models on the same data.</li>
+</ul>
+<p><strong>Caveats.</strong> Flexible models can give probabilities near
+0 or 1 and so extreme weights; truncation (<code>trunc</code>) and
+cross-fitting help. The user is responsible for setting probabilities to
+1 after the first switch for <code>type = "first"</code> or
+<code>"cens"</code>. Standard errors that ignore the estimation of the
+probabilities are only approximate.</p>
 </div>
 <div class="section level2">
 <h2 id="ipwboot-bootstrap-standard-errors">8. <code>ipwboot()</code>: bootstrap standard errors<a class="anchor" aria-label="anchor" href="#ipwboot-bootstrap-standard-errors"></a>

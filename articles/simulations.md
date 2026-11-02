@@ -72,39 +72,10 @@ coef(lm(y ~ a, data = d, weights = w.att))["a"]
 All weighted estimates are within 1% of their own estimand; the
 unweighted difference is twice the ATE.
 
-## 2. Count exposures: Poisson or negative binomial
+## 2. Skewed continuous exposures: gaussian, gamma or log-normal
 
-Each extra unit of a count exposure raises the outcome by 0.5. In 2a the
-counts are overdispersed (negative binomial); in 2b they are Poisson.
-
-``` r
-
-d <- data.frame(l = rnorm(1000))
-d$v <- rnbinom(1000, size = 2, mu = exp(0.5 + 0.4 * d$l))   # 2b: rpois(1000, exp(0.5 + 0.4 * d$l))
-d$y <- 0.5 * d$v + d$l + rnorm(1000)
-w.nb <- ipwpoint(exposure = v, family = "negbin", numerator = ~ 1,
-                 denominator = ~ l, data = d)$ipw.weights
-```
-
-| Method | Truth | Mean estimate | Bias | MCSE of bias | Empirical SD | RMSE | Replications |
-|:---|---:|---:|---:|---:|---:|---:|---:|
-| unweighted | 0.5 | 0.670 | 0.170 | 0.001 | 0.022 | 0.171 | 500 |
-| poisson weights (misspecified) | 0.5 | 0.336 | -0.164 | 0.003 | 0.068 | 0.178 | 500 |
-| negbin weights (correct) | 0.5 | 0.507 | 0.007 | 0.002 | 0.035 | 0.035 | 500 |
-| unweighted | 0.5 | 0.805 | 0.305 | 0.001 | 0.028 | 0.307 | 500 |
-| poisson weights (correct) | 0.5 | 0.507 | 0.007 | 0.003 | 0.062 | 0.063 | 500 |
-| negbin weights (also valid: theta large) | 0.5 | 0.518 | 0.018 | 0.003 | 0.064 | 0.066 | 500 |
-
-With the correct model, both families are within 1.5% of the truth. The
-Poisson model applied to overdispersed counts over-corrects as strongly
-as the unweighted analysis under-corrects. The negative binomial model
-remains usable for Poisson data (bias 3.6%), so it is the safer choice
-when in doubt.
-
-## 3. Skewed continuous exposures: gaussian, gamma or log-normal
-
-One unit of dose raises the outcome by 1. In 3a the dose is log-normal
-given `l`, in 3b gamma. In 3a the true densities are known, so *oracle*
+One unit of dose raises the outcome by 1. In 2a the dose is log-normal
+given `l`, in 2b gamma. In 2a the true densities are known, so *oracle*
 weights (the true marginal density over the true conditional density)
 show what weighting can achieve without any estimation error; they are
 also computed for a 5 times larger sample.
@@ -112,7 +83,7 @@ also computed for a 5 times larger sample.
 ``` r
 
 d <- data.frame(l = rnorm(2000))
-d$dose <- exp(0.5 + 0.5 * d$l + rnorm(2000, 0, 0.6))   # 3b: rgamma(2000, 3, 3 / exp(0.5 + 0.3 * d$l))
+d$dose <- exp(0.5 + 0.5 * d$l + rnorm(2000, 0, 0.6))   # 2b: rgamma(2000, 3, 3 / exp(0.5 + 0.3 * d$l))
 d$y <- d$dose + 2 * d$l + rnorm(2000)
 w.ln <- ipwpoint(exposure = dose, family = "lognormal", numerator = ~ 1,
                  denominator = ~ l, data = d)$ipw.weights
@@ -149,6 +120,35 @@ weights, which
 refuses. A misspecified skewed family (gamma for log-normal data or the
 reverse) has a small bias but up to twice the spread. Truncation reduces
 the spread a lot but adds bias.
+
+## 3. Count exposures: Poisson or negative binomial
+
+Each extra unit of a count exposure raises the outcome by 0.5. In 3a the
+counts are overdispersed (negative binomial); in 3b they are Poisson.
+
+``` r
+
+d <- data.frame(l = rnorm(1000))
+d$v <- rnbinom(1000, size = 2, mu = exp(0.5 + 0.4 * d$l))   # 3b: rpois(1000, exp(0.5 + 0.4 * d$l))
+d$y <- 0.5 * d$v + d$l + rnorm(1000)
+w.nb <- ipwpoint(exposure = v, family = "negbin", numerator = ~ 1,
+                 denominator = ~ l, data = d)$ipw.weights
+```
+
+| Method | Truth | Mean estimate | Bias | MCSE of bias | Empirical SD | RMSE | Replications |
+|:---|---:|---:|---:|---:|---:|---:|---:|
+| unweighted | 0.5 | 0.670 | 0.170 | 0.001 | 0.022 | 0.171 | 500 |
+| poisson weights (misspecified) | 0.5 | 0.336 | -0.164 | 0.003 | 0.068 | 0.178 | 500 |
+| negbin weights (correct) | 0.5 | 0.507 | 0.007 | 0.002 | 0.035 | 0.035 | 500 |
+| unweighted | 0.5 | 0.805 | 0.305 | 0.001 | 0.028 | 0.307 | 500 |
+| poisson weights (correct) | 0.5 | 0.507 | 0.007 | 0.003 | 0.062 | 0.063 | 500 |
+| negbin weights (also valid: theta large) | 0.5 | 0.518 | 0.018 | 0.003 | 0.064 | 0.066 | 500 |
+
+With the correct model, both families are within 1.5% of the truth. The
+Poisson model applied to overdispersed counts over-corrects as strongly
+as the unweighted analysis under-corrects. The negative binomial model
+remains usable for Poisson data (bias 3.6%), so it is the safer choice
+when in doubt.
 
 ## 4. Curved propensity: smooth terms with mgcv
 
