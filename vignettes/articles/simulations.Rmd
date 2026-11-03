@@ -35,8 +35,8 @@ the simulated example in the JSS paper (van der Wal & Geskus 2011).
   200%; the new weights reduce this to 0 to 5%.
 * **The remaining small biases (3 to 5%) are properties of inverse
   probability weighting, not of the implementation.** Weights computed from
-  the true model (*oracle* weights) have the same bias for log-normal doses,
-  and for smooth terms and ordinal exposures the bias shrinks as the sample
+  the true model (*oracle* weights) have the same bias for log-normal and
+  gamma doses and for counts, and for smooth terms and ordinal exposures the bias shrinks as the sample
   grows.
 * **`ipwboot()` gives accurate standard errors when the weights are well
   behaved**, where robust standard errors are 8 to 10% too large. It does
@@ -116,10 +116,11 @@ difference is twice the ATE.
 # 2. Skewed continuous exposures: gaussian, gamma or log-normal
 
 One unit of dose raises the outcome by 1. In 2a the dose is log-normal given
-`l`, in 2b gamma. In 2a the true densities are known, so *oracle* weights
-(the true marginal density over the true conditional density) show what
-weighting can achieve without any estimation error; they are also computed
-for a 5 times larger sample.
+`l`, in 2b gamma. *Oracle* weights divide the true marginal density by the
+true conditional density. For the log-normal dose the marginal has a closed
+form; for the gamma dose it is the average of the true conditional density
+over the sample's values of `l`. In 2a they are also computed for a 5 times
+larger sample.
 
 ```{r eval = FALSE}
 d <- data.frame(l = rnorm(2000))
@@ -128,6 +129,8 @@ d$y <- d$dose + 2 * d$l + rnorm(2000)
 w.ln <- ipwpoint(exposure = dose, family = "lognormal", numerator = ~ 1,
                  denominator = ~ l, data = d)$ipw.weights
 oracle <- dlnorm(d$dose, 0.5, sqrt(0.61)) / dlnorm(d$dose, 0.5 + 0.5 * d$l, 0.6)
+# 2b: f <- function(x, l) dgamma(x, shape = 3, rate = 3 / exp(0.5 + 0.3 * l))
+#     oracle <- rowMeans(outer(d$dose, d$l, f)) / f(d$dose, d$l)
 ```
 
 ## 2a. Log-normal dose
@@ -153,13 +156,17 @@ show("2b")
 ```
 
 Gamma weights reduce the unweighted bias of 76% to 3.2%; gaussian weights
-leave 14%. Log-normal weights, the wrong skewed family here, again have a
-small bias but twice the spread.
+leave 14%. As in 2a, oracle weights have the same bias (3.3%), so it comes
+from weighting with a skewed exposure, not from estimating the gamma model.
+Log-normal weights, the wrong skewed family here, again have a small bias
+but twice the spread.
 
 # 3. Count exposures: Poisson or negative binomial
 
 Each extra unit of a count exposure raises the outcome by 0.5. In 3a the
 counts are overdispersed (negative binomial); in 3b they are Poisson.
+Oracle weights are computed as for the gamma dose, with the true
+probability of each count.
 
 ```{r eval = FALSE}
 d <- data.frame(l = rnorm(1000))
@@ -167,6 +174,8 @@ d$v <- rnbinom(1000, size = 2, mu = exp(0.5 + 0.4 * d$l))   # 3b: rpois(1000, ex
 d$y <- 0.5 * d$v + d$l + rnorm(1000)
 w.nb <- ipwpoint(exposure = v, family = "negbin", numerator = ~ 1,
                  denominator = ~ l, data = d)$ipw.weights
+f <- function(v, l) dnbinom(v, size = 2, mu = exp(0.5 + 0.4 * l))   # 3b: dpois(v, exp(0.5 + 0.4 * l))
+oracle <- rowMeans(outer(d$v, d$l, f)) / f(d$v, d$l)
 ```
 
 ## 3a. Overdispersed counts
@@ -175,8 +184,9 @@ w.nb <- ipwpoint(exposure = v, family = "negbin", numerator = ~ 1,
 show("3a")
 ```
 
-Negative binomial weights, the correct model, are within 1.5% of the truth.
-Poisson weights over-correct as strongly as the unweighted analysis
+Negative binomial weights, the correct model, are within 1.5% of the truth,
+and oracle weights have the same small bias (1.6%). Poisson weights
+over-correct as strongly as the unweighted analysis
 under-corrects.
 
 ## 3b. Poisson counts
@@ -185,7 +195,10 @@ under-corrects.
 show("3b")
 ```
 
-Poisson weights, now the correct model, are within 1.5% of the truth. The
+Poisson weights, now the correct model, are within 1.5% of the truth.
+Oracle weights do no better (bias 2.6%, with a larger spread): weights from
+an estimated model are often more precise than weights from the true model
+(Hirano, Imbens & Ridder 2003), so the estimated weights lose nothing. The
 negative binomial model remains usable for Poisson data (bias 3.6%), so it
 is the safer choice when in doubt.
 
@@ -409,6 +422,9 @@ overlap weights, truncation or a different model.
 * Graffeo N, Latouche A, Geskus RB, Chevret S (2018). Modeling time-varying
   exposure using inverse probability of treatment weights. *Biometrical
   Journal* 60, 323-332.
+* Hirano K, Imbens GW, Ridder G (2003). Efficient estimation of average
+  treatment effects using the estimated propensity score. *Econometrica* 71,
+  1161-1189.
 * Li F, Morgan KL, Zaslavsky AM (2018). Balancing covariates via propensity
   score weighting. *Journal of the American Statistical Association* 113,
   390-400.
