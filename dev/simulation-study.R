@@ -112,25 +112,37 @@ timer("1. ATE / ATT / ATO / ipwprob")
 # Scenarios are numbered in the order of the main vignette (skewed exposures
 # are 2, counts 3), but counts run first so that the random number streams,
 # and so the saved results, stay the same. Results are sorted before saving.
+# Oracle weights for exposures whose marginal distribution has no closed form:
+# denominator = true conditional density (or probability) f(x_i | l_i),
+# numerator = true marginal density, the average of f(x_i | l_j) over the
+# sample's l. No random numbers are drawn, so adding these weights leaves the
+# other results unchanged.
+oracle_marg <- function(x, l, dens) rowMeans(outer(x, l, dens)) / dens(x, l)
+
 # ---- 3. Count exposures -----------------------------------------------------
-count_reps <- function(gen_v) reps(S, function() {
+count_reps <- function(gen_v, dens_v) reps(S, function() {
   d <- data.frame(l = rnorm(1000))
   d$v <- gen_v(d$l)
   d$y <- 0.5 * d$v + d$l + rnorm(1000)
   w <- function(fam) ipwpoint(exposure = v, family = fam, numerator = ~ 1,
                               denominator = ~ l, data = d)$ipw.weights
-  c(wlm(y ~ v, d), wlm(y ~ v, d, w("poisson")), wlm(y ~ v, d, w("negbin")))
+  c(wlm(y ~ v, d), wlm(y ~ v, d, w("poisson")), wlm(y ~ v, d, w("negbin")),
+    wlm(y ~ v, d, oracle_marg(d$v, d$l, dens_v)))
 })
-r2 <- count_reps(function(l) rnbinom(length(l), size = 2, mu = exp(0.5 + 0.4 * l)))
+r2 <- count_reps(function(l) rnbinom(length(l), size = 2, mu = exp(0.5 + 0.4 * l)),
+                 function(v, l) dnbinom(v, size = 2, mu = exp(0.5 + 0.4 * l)))
 sc <- "3a. Counts, overdispersed (negative binomial data)"
 add(sc, "unweighted", r2[, 1], 0.5)
 add(sc, "poisson weights (misspecified)", r2[, 2], 0.5)
 add(sc, "negbin weights (correct)", r2[, 3], 0.5)
-r2b <- count_reps(function(l) rpois(length(l), exp(0.5 + 0.4 * l)))
+add(sc, "oracle weights (true probabilities)", r2[, 4], 0.5)
+r2b <- count_reps(function(l) rpois(length(l), exp(0.5 + 0.4 * l)),
+                  function(v, l) dpois(v, exp(0.5 + 0.4 * l)))
 sc <- "3b. Counts, Poisson data"
 add(sc, "unweighted", r2b[, 1], 0.5)
 add(sc, "poisson weights (correct)", r2b[, 2], 0.5)
 add(sc, "negbin weights (also valid: theta large)", r2b[, 3], 0.5)
+add(sc, "oracle weights (true probabilities)", r2b[, 4], 0.5)
 timer("3. counts")
 
 # ---- 2. Skewed continuous exposures -----------------------------------------
@@ -174,13 +186,16 @@ r3b <- reps(S, function() {
   d$dose <- rgamma(2000, shape = 3, rate = 3 / exp(0.5 + 0.3 * d$l))
   d$y <- d$dose + 2 * d$l + rnorm(2000)
   c(wlm(y ~ dose, d), wlm(y ~ dose, d, w_dose(d, "gaussian")), wlm(y ~ dose, d, w_dose(d, "gamma")),
-    wlm(y ~ dose, d, w_dose(d, "lognormal")))
+    wlm(y ~ dose, d, w_dose(d, "lognormal")),
+    wlm(y ~ dose, d, oracle_marg(d$dose, d$l, function(x, l)
+      dgamma(x, shape = 3, rate = 3 / exp(0.5 + 0.3 * l)))))
 })
 sc <- "2b. Skewed exposure, gamma dose"
 add(sc, "unweighted", r3b[, 1], 1)
 add(sc, "gaussian weights (misspecified)", r3b[, 2], 1)
 add(sc, "gamma weights (correct)", r3b[, 3], 1)
 add(sc, "lognormal weights (misspecified)", r3b[, 4], 1)
+add(sc, "oracle weights (true densities)", r3b[, 5], 1)
 timer("2. skewed exposures")
 
 # ---- 4. Curved propensity: smooth terms -------------------------------------
