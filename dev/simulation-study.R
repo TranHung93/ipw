@@ -260,10 +260,12 @@ ord_fit <- function(n) {
                  denominator = ~ a.lag + l, id = id, timevar = time, type = "all", data = long)
   w_mult <- ipwtm(exposure = a, family = "multinomial", numerator = ~ a.lag,
                   denominator = ~ a.lag + l, id = id, timevar = time, type = "all", data = long)
-  # oracle: 1 / cumulative product of the true probabilities (unstabilized)
+  # oracle: ipwprob() with the true probabilities, multiplied over time within
+  # each person (unstabilized)
+  w_orc <- ipwprob(den = long$p.obs, id = long$id, timevar = long$time)$ipw.weights
   c(wlm(y ~ cum, wide), wlm(y ~ cum + l.1 + l.2 + l.3 + l.4, wide),
     wlm(y ~ cum, wide, w_ord$ipw.weights[last]), wlm(y ~ cum, wide, w_mult$ipw.weights[last]),
-    wlm(y ~ cum, wide, (ave(long$p.obs, long$id, FUN = cumprod)^-1)[last]))
+    wlm(y ~ cum, wide, w_orc[last]))
 }
 r5 <- reps(max(100, round(S / 2)), function() ord_fit(500))
 r5big <- reps(S_BIG, function() ord_fit(2500)[c(3, 5)])
@@ -273,8 +275,8 @@ add(sc, "regression adjustment for L", r5[, 2], 1)
 add(sc, "ordinal weights (correct), 500 people", r5[, 3], 1)
 add(sc, "ordinal weights (correct), 2500 people", r5big[, 1], 1)
 add(sc, "multinomial weights, 500 people", r5[, 4], 1)
-add(sc, "oracle weights (true probabilities, unstabilized), 500 people", r5[, 5], 1)
-add(sc, "oracle weights (true probabilities, unstabilized), 2500 people", r5big[, 2], 1)
+add(sc, "oracle weights, ipwprob() with true probabilities, 500 people", r5[, 5], 1)
+add(sc, "oracle weights, ipwprob() with true probabilities, 2500 people", r5big[, 2], 1)
 timer("5a. time-varying ordinal")
 
 # 5b: smooth terms in ipwtm(): binary exposure over time, curved effect of L
