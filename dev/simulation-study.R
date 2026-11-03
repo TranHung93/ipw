@@ -14,7 +14,8 @@
 #   IPW_SIM_REPS_BIG replications for the large-sample and oracle checks [200]
 #   IPW_SIM_REPS_SE  replications for the standard-error scenarios 7a, 7b [1000]
 #   IPW_SIM_REPS_SE2 replications for scenarios 7c, 7d [500]
-#   IPW_SIM_CORES    parallel workers (Linux/macOS) [all cores]
+#   IPW_SIM_CORES    parallel workers (Linux/macOS) [all cores]; the results
+#                    are the same for any number of workers and on Windows
 # Results are written to vignettes/articles/simulation-results.csv and
 # simulation-se.csv (read by the "Simulation study" article; commit them to
 # update it) and reported on GitHub Actions when run there.
@@ -42,11 +43,37 @@ timer <- function(label) {
   message(msg)
 }
 
+# Random number streams. Every replication gets its own L'Ecuyer stream, taken
+# in turn from one master sequence, so the results do not depend on the number
+# of workers or the operating system (on Windows, which cannot fork, the
+# replications run one after another with the same streams). After a call,
+# the main session moves to a stream no replication has used, so later
+# scenarios and the true values computed in the main session get new random
+# numbers.
+rep_streams <- function(n) {
+  s <- get(".Random.seed", envir = .GlobalEnv)
+  out <- vector("list", n)
+  for (i in seq_len(n)) {
+    s <- nextRNGStream(s)
+    out[[i]] <- s
+  }
+  list(streams = out, after = nextRNGStream(s))
+}
+
 # Run f() n times in parallel; a replication that fails gives a row of NA and
 # is left out (the number of failures is reported).
 reps <- function(n, f) {
-  out <- mclapply(seq_len(n), function(i) tryCatch(f(), error = function(e) conditionMessage(e)),
-                  mc.cores = CORES, mc.set.seed = TRUE)
+  st <- rep_streams(n)
+  run <- function(i) {
+    assign(".Random.seed", st$streams[[i]], envir = .GlobalEnv)
+    tryCatch(f(), error = function(e) conditionMessage(e))
+  }
+  out <- if (CORES > 1) {
+    mclapply(seq_len(n), run, mc.cores = CORES, mc.set.seed = FALSE)
+  } else {
+    lapply(seq_len(n), run)
+  }
+  assign(".Random.seed", st$after, envir = .GlobalEnv)
   bad <- vapply(out, function(x) is.character(x) || is.null(x), logical(1))
   if (any(bad)) message(sum(bad), " of ", n, " replications failed; first error: ", out[bad][[1]])
   if (all(bad)) stop("All replications failed: ", out[[1]], call. = FALSE)
@@ -109,41 +136,12 @@ add(sc, "ATO weights (target ATO)", r1[, 4], truth1["ATO"])
 add(sc, "ipwprob, true probabilities (ATE)", r1[, 5], truth1["ATE"])
 timer("1. ATE / ATT / ATO / ipwprob")
 
-# Scenarios are numbered in the order of the main vignette (skewed exposures
-# are 2, counts 3), but counts run first so that the random number streams,
-# and so the saved results, stay the same. Results are sorted before saving.
 # Oracle weights for exposures whose marginal distribution has no closed form:
 # denominator = true conditional density (or probability) f(x_i | l_i),
 # numerator = true marginal density, the average of f(x_i | l_j) over the
 # sample's l. No random numbers are drawn, so adding these weights leaves the
 # other results unchanged.
 oracle_marg <- function(x, l, dens) rowMeans(outer(x, l, dens)) / dens(x, l)
-
-# ---- 3. Count exposures -----------------------------------------------------
-count_reps <- function(gen_v, dens_v) reps(S, function() {
-  d <- data.frame(l = rnorm(1000))
-  d$v <- gen_v(d$l)
-  d$y <- 0.5 * d$v + d$l + rnorm(1000)
-  w <- function(fam) ipwpoint(exposure = v, family = fam, numerator = ~ 1,
-                              denominator = ~ l, data = d)$ipw.weights
-  c(wlm(y ~ v, d), wlm(y ~ v, d, w("poisson")), wlm(y ~ v, d, w("negbin")),
-    wlm(y ~ v, d, oracle_marg(d$v, d$l, dens_v)))
-})
-r2 <- count_reps(function(l) rnbinom(length(l), size = 2, mu = exp(0.5 + 0.4 * l)),
-                 function(v, l) dnbinom(v, size = 2, mu = exp(0.5 + 0.4 * l)))
-sc <- "3a. Counts, overdispersed (negative binomial data)"
-add(sc, "unweighted", r2[, 1], 0.5)
-add(sc, "poisson weights (misspecified)", r2[, 2], 0.5)
-add(sc, "negbin weights (correct)", r2[, 3], 0.5)
-add(sc, "oracle weights (true probabilities)", r2[, 4], 0.5)
-r2b <- count_reps(function(l) rpois(length(l), exp(0.5 + 0.4 * l)),
-                  function(v, l) dpois(v, exp(0.5 + 0.4 * l)))
-sc <- "3b. Counts, Poisson data"
-add(sc, "unweighted", r2b[, 1], 0.5)
-add(sc, "poisson weights (correct)", r2b[, 2], 0.5)
-add(sc, "negbin weights (also valid: theta large)", r2b[, 3], 0.5)
-add(sc, "oracle weights (true probabilities)", r2b[, 4], 0.5)
-timer("3. counts")
 
 # ---- 2. Skewed continuous exposures -----------------------------------------
 # 2a: log-normal dose. Oracle weights use the true densities: dose | l is
@@ -160,28 +158,28 @@ w_dose <- function(d, fam, trunc = NULL) {
   if (is.null(trunc)) r$ipw.weights else r$weights.trunc
 }
 oracle_lnorm <- function(d) dlnorm(d$dose, 0.5, sqrt(0.61)) / dlnorm(d$dose, 0.5 + 0.5 * d$l, 0.6)
-r3 <- reps(S, function() {
+r2 <- reps(S, function() {
   d <- gen_lnorm(2000)
   c(wlm(y ~ dose, d), wlm(y ~ dose, d, w_dose(d, "gaussian")), wlm(y ~ dose, d, w_dose(d, "gamma")),
     wlm(y ~ dose, d, w_dose(d, "lognormal")), wlm(y ~ dose, d, w_dose(d, "lognormal", 0.01)),
     wlm(y ~ dose, d, oracle_lnorm(d)))
 })
-r3big <- reps(S_BIG, function() {
+r2big <- reps(S_BIG, function() {
   d <- gen_lnorm(10000)
   c(wlm(y ~ dose, d, w_dose(d, "lognormal")), wlm(y ~ dose, d, oracle_lnorm(d)))
 })
 sc <- "2a. Skewed exposure, log-normal dose"
-add(sc, "unweighted", r3[, 1], 1)
-add(sc, "gaussian weights (misspecified)", r3[, 2], 1)
-add(sc, "gamma weights (misspecified)", r3[, 3], 1)
-add(sc, "lognormal weights (correct), n = 2000", r3[, 4], 1)
-add(sc, "lognormal weights (correct), n = 10000", r3big[, 1], 1)
-add(sc, "lognormal weights, truncated 1%", r3[, 5], 1)
-add(sc, "oracle weights (true densities), n = 2000", r3[, 6], 1)
-add(sc, "oracle weights (true densities), n = 10000", r3big[, 2], 1)
+add(sc, "unweighted", r2[, 1], 1)
+add(sc, "gaussian weights (misspecified)", r2[, 2], 1)
+add(sc, "gamma weights (misspecified)", r2[, 3], 1)
+add(sc, "lognormal weights (correct), n = 2000", r2[, 4], 1)
+add(sc, "lognormal weights (correct), n = 10000", r2big[, 1], 1)
+add(sc, "lognormal weights, truncated 1%", r2[, 5], 1)
+add(sc, "oracle weights (true densities), n = 2000", r2[, 6], 1)
+add(sc, "oracle weights (true densities), n = 10000", r2big[, 2], 1)
 
 # 2b: gamma dose (shape 3, mean exp(0.5 + 0.3 l)): gamma is the correct model
-r3b <- reps(S, function() {
+r2b <- reps(S, function() {
   d <- data.frame(l = rnorm(2000))
   d$dose <- rgamma(2000, shape = 3, rate = 3 / exp(0.5 + 0.3 * d$l))
   d$y <- d$dose + 2 * d$l + rnorm(2000)
@@ -191,12 +189,38 @@ r3b <- reps(S, function() {
       dgamma(x, shape = 3, rate = 3 / exp(0.5 + 0.3 * l)))))
 })
 sc <- "2b. Skewed exposure, gamma dose"
-add(sc, "unweighted", r3b[, 1], 1)
-add(sc, "gaussian weights (misspecified)", r3b[, 2], 1)
-add(sc, "gamma weights (correct)", r3b[, 3], 1)
-add(sc, "lognormal weights (misspecified)", r3b[, 4], 1)
-add(sc, "oracle weights (true densities)", r3b[, 5], 1)
+add(sc, "unweighted", r2b[, 1], 1)
+add(sc, "gaussian weights (misspecified)", r2b[, 2], 1)
+add(sc, "gamma weights (correct)", r2b[, 3], 1)
+add(sc, "lognormal weights (misspecified)", r2b[, 4], 1)
+add(sc, "oracle weights (true densities)", r2b[, 5], 1)
 timer("2. skewed exposures")
+
+# ---- 3. Count exposures -----------------------------------------------------
+count_reps <- function(gen_v, dens_v) reps(S, function() {
+  d <- data.frame(l = rnorm(1000))
+  d$v <- gen_v(d$l)
+  d$y <- 0.5 * d$v + d$l + rnorm(1000)
+  w <- function(fam) ipwpoint(exposure = v, family = fam, numerator = ~ 1,
+                              denominator = ~ l, data = d)$ipw.weights
+  c(wlm(y ~ v, d), wlm(y ~ v, d, w("poisson")), wlm(y ~ v, d, w("negbin")),
+    wlm(y ~ v, d, oracle_marg(d$v, d$l, dens_v)))
+})
+r3 <- count_reps(function(l) rnbinom(length(l), size = 2, mu = exp(0.5 + 0.4 * l)),
+                 function(v, l) dnbinom(v, size = 2, mu = exp(0.5 + 0.4 * l)))
+sc <- "3a. Counts, overdispersed (negative binomial data)"
+add(sc, "unweighted", r3[, 1], 0.5)
+add(sc, "poisson weights (misspecified)", r3[, 2], 0.5)
+add(sc, "negbin weights (correct)", r3[, 3], 0.5)
+add(sc, "oracle weights (true probabilities)", r3[, 4], 0.5)
+r3b <- count_reps(function(l) rpois(length(l), exp(0.5 + 0.4 * l)),
+                  function(v, l) dpois(v, exp(0.5 + 0.4 * l)))
+sc <- "3b. Counts, Poisson data"
+add(sc, "unweighted", r3b[, 1], 0.5)
+add(sc, "poisson weights (correct)", r3b[, 2], 0.5)
+add(sc, "negbin weights (also valid: theta large)", r3b[, 3], 0.5)
+add(sc, "oracle weights (true probabilities)", r3b[, 4], 0.5)
+timer("3. counts")
 
 # ---- 4. Curved propensity: smooth terms -------------------------------------
 gen_curve <- function(n) {
