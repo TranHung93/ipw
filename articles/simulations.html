@@ -83,8 +83,8 @@ are biased by 15% to over 200%; the new weights reduce this to 0 to
 <strong>The remaining small biases (3 to 5%) are properties of
 inverse probability weighting, not of the implementation.</strong>
 Weights computed from the true model (<em>oracle</em> weights) have the
-same bias for log-normal doses, and for smooth terms and ordinal
-exposures the bias shrinks as the sample grows.</li>
+same bias for log-normal and gamma doses and for counts, and for smooth
+terms and ordinal exposures the bias shrinks as the sample grows.</li>
 <li>
 <strong><code><a href="../reference/ipwboot.html">ipwboot()</a></code> gives accurate standard errors when
 the weights are well behaved</strong>, where robust standard errors are
@@ -211,18 +211,21 @@ unweighted difference is twice the ATE.</p>
 <h2 id="skewed-continuous-exposures-gaussian-gamma-or-log-normal">2. Skewed continuous exposures: gaussian, gamma or log-normal<a class="anchor" aria-label="anchor" href="#skewed-continuous-exposures-gaussian-gamma-or-log-normal"></a>
 </h2>
 <p>One unit of dose raises the outcome by 1. In 2a the dose is
-log-normal given <code>l</code>, in 2b gamma. In 2a the true densities
-are known, so <em>oracle</em> weights (the true marginal density over
-the true conditional density) show what weighting can achieve without
-any estimation error; they are also computed for a 5 times larger
-sample.</p>
+log-normal given <code>l</code>, in 2b gamma. <em>Oracle</em> weights
+divide the true marginal density by the true conditional density. For
+the log-normal dose the marginal has a closed form; for the gamma dose
+it is the average of the true conditional density over the sample’s
+values of <code>l</code>. In 2a they are also computed for a 5 times
+larger sample.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>l <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">2000</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">d</span><span class="op">$</span><span class="va">dose</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="fl">0.5</span> <span class="op">+</span> <span class="fl">0.5</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">l</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">2000</span>, <span class="fl">0</span>, <span class="fl">0.6</span><span class="op">)</span><span class="op">)</span>   <span class="co"># 2b: rgamma(2000, 3, 3 / exp(0.5 + 0.3 * d$l))</span></span>
 <span><span class="va">d</span><span class="op">$</span><span class="va">y</span> <span class="op">&lt;-</span> <span class="va">d</span><span class="op">$</span><span class="va">dose</span> <span class="op">+</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">l</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">2000</span><span class="op">)</span></span>
 <span><span class="va">w.ln</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwpoint.html">ipwpoint</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">dose</span>, family <span class="op">=</span> <span class="st">"lognormal"</span>, numerator <span class="op">=</span> <span class="op">~</span> <span class="fl">1</span>,</span>
 <span>                 denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">)</span><span class="op">$</span><span class="va">ipw.weights</span></span>
-<span><span class="va">oracle</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Lognormal.html" class="external-link">dlnorm</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">dose</span>, <span class="fl">0.5</span>, <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fl">0.61</span><span class="op">)</span><span class="op">)</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/stats/Lognormal.html" class="external-link">dlnorm</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">dose</span>, <span class="fl">0.5</span> <span class="op">+</span> <span class="fl">0.5</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">l</span>, <span class="fl">0.6</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">oracle</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Lognormal.html" class="external-link">dlnorm</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">dose</span>, <span class="fl">0.5</span>, <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fl">0.61</span><span class="op">)</span><span class="op">)</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/stats/Lognormal.html" class="external-link">dlnorm</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">dose</span>, <span class="fl">0.5</span> <span class="op">+</span> <span class="fl">0.5</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">l</span>, <span class="fl">0.6</span><span class="op">)</span></span>
+<span><span class="co"># 2b: f &lt;- function(x, l) dgamma(x, shape = 3, rate = 3 / exp(0.5 + 0.3 * l))</span></span>
+<span><span class="co">#     oracle &lt;- rowMeans(outer(d$dose, d$l, f)) / f(d$dose, d$l)</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="a--log-normal-dose">2a. Log-normal dose<a class="anchor" aria-label="anchor" href="#a--log-normal-dose"></a>
 </h3>
@@ -406,11 +409,23 @@ spread. Truncation reduces the spread a lot but adds bias.</p>
 <td align="right">0.221</td>
 <td align="right">500</td>
 </tr>
+<tr class="odd">
+<td align="left">oracle weights (true densities)</td>
+<td align="right">1</td>
+<td align="right">1.033</td>
+<td align="right">0.033</td>
+<td align="right">0.006</td>
+<td align="right">0.129</td>
+<td align="right">0.133</td>
+<td align="right">500</td>
+</tr>
 </tbody>
 </table>
 <p>Gamma weights reduce the unweighted bias of 76% to 3.2%; gaussian
-weights leave 14%. Log-normal weights, the wrong skewed family here,
-again have a small bias but twice the spread.</p>
+weights leave 14%. As in 2a, oracle weights have the same bias (3.3%),
+so it comes from weighting with a skewed exposure, not from estimating
+the gamma model. Log-normal weights, the wrong skewed family here, again
+have a small bias but twice the spread.</p>
 </div>
 </div>
 <div class="section level2">
@@ -418,21 +433,24 @@ again have a small bias but twice the spread.</p>
 </h2>
 <p>Each extra unit of a count exposure raises the outcome by 0.5. In 3a
 the counts are overdispersed (negative binomial); in 3b they are
-Poisson.</p>
+Poisson. Oracle weights are computed as for the gamma dose, with the
+true probability of each count.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>l <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">1000</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">d</span><span class="op">$</span><span class="va">v</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/NegBinomial.html" class="external-link">rnbinom</a></span><span class="op">(</span><span class="fl">1000</span>, size <span class="op">=</span> <span class="fl">2</span>, mu <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="fl">0.5</span> <span class="op">+</span> <span class="fl">0.4</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">l</span><span class="op">)</span><span class="op">)</span>   <span class="co"># 3b: rpois(1000, exp(0.5 + 0.4 * d$l))</span></span>
 <span><span class="va">d</span><span class="op">$</span><span class="va">y</span> <span class="op">&lt;-</span> <span class="fl">0.5</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">v</span> <span class="op">+</span> <span class="va">d</span><span class="op">$</span><span class="va">l</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">1000</span><span class="op">)</span></span>
 <span><span class="va">w.nb</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwpoint.html">ipwpoint</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">v</span>, family <span class="op">=</span> <span class="st">"negbin"</span>, numerator <span class="op">=</span> <span class="op">~</span> <span class="fl">1</span>,</span>
-<span>                 denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">)</span><span class="op">$</span><span class="va">ipw.weights</span></span></code></pre></div>
+<span>                 denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">)</span><span class="op">$</span><span class="va">ipw.weights</span></span>
+<span><span class="va">f</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">v</span>, <span class="va">l</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/stats/NegBinomial.html" class="external-link">dnbinom</a></span><span class="op">(</span><span class="va">v</span>, size <span class="op">=</span> <span class="fl">2</span>, mu <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="fl">0.5</span> <span class="op">+</span> <span class="fl">0.4</span> <span class="op">*</span> <span class="va">l</span><span class="op">)</span><span class="op">)</span>   <span class="co"># 3b: dpois(v, exp(0.5 + 0.4 * l))</span></span>
+<span><span class="va">oracle</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/Matrix/man/colSums-methods.html" class="external-link">rowMeans</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/outer.html" class="external-link">outer</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">v</span>, <span class="va">d</span><span class="op">$</span><span class="va">l</span>, <span class="va">f</span><span class="op">)</span><span class="op">)</span> <span class="op">/</span> <span class="fu">f</span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">v</span>, <span class="va">d</span><span class="op">$</span><span class="va">l</span><span class="op">)</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="a--overdispersed-counts">3a. Overdispersed counts<a class="anchor" aria-label="anchor" href="#a--overdispersed-counts"></a>
 </h3>
 <table style="width:100%;" class="table">
 <colgroup>
-<col width="30%">
+<col width="33%">
 <col width="5%">
-<col width="13%">
+<col width="12%">
 <col width="6%">
 <col width="12%">
 <col width="12%">
@@ -480,11 +498,22 @@ Poisson.</p>
 <td align="right">0.035</td>
 <td align="right">500</td>
 </tr>
+<tr class="even">
+<td align="left">oracle weights (true probabilities)</td>
+<td align="right">0.5</td>
+<td align="right">0.508</td>
+<td align="right">0.008</td>
+<td align="right">0.002</td>
+<td align="right">0.041</td>
+<td align="right">0.042</td>
+<td align="right">500</td>
+</tr>
 </tbody>
 </table>
 <p>Negative binomial weights, the correct model, are within 1.5% of the
-truth. Poisson weights over-correct as strongly as the unweighted
-analysis under-corrects.</p>
+truth, and oracle weights have the same small bias (1.6%). Poisson
+weights over-correct as strongly as the unweighted analysis
+under-corrects.</p>
 </div>
 <div class="section level3">
 <h3 id="b--poisson-counts">3b. Poisson counts<a class="anchor" aria-label="anchor" href="#b--poisson-counts"></a>
@@ -541,11 +570,24 @@ analysis under-corrects.</p>
 <td align="right">0.066</td>
 <td align="right">500</td>
 </tr>
+<tr class="even">
+<td align="left">oracle weights (true probabilities)</td>
+<td align="right">0.5</td>
+<td align="right">0.513</td>
+<td align="right">0.013</td>
+<td align="right">0.003</td>
+<td align="right">0.069</td>
+<td align="right">0.070</td>
+<td align="right">500</td>
+</tr>
 </tbody>
 </table>
 <p>Poisson weights, now the correct model, are within 1.5% of the truth.
-The negative binomial model remains usable for Poisson data (bias 3.6%),
-so it is the safer choice when in doubt.</p>
+Oracle weights do no better (bias 2.6%, with a larger spread): weights
+from an estimated model are often more precise than weights from the
+true model (Hirano, Imbens &amp; Ridder 2003), so the estimated weights
+lose nothing. The negative binomial model remains usable for Poisson
+data (bias 3.6%), so it is the safer choice when in doubt.</p>
 </div>
 </div>
 <div class="section level2">
@@ -1362,6 +1404,9 @@ Medicine</em> 35, 5642-5655.</li>
 <li>Graffeo N, Latouche A, Geskus RB, Chevret S (2018). Modeling
 time-varying exposure using inverse probability of treatment weights.
 <em>Biometrical Journal</em> 60, 323-332.</li>
+<li>Hirano K, Imbens GW, Ridder G (2003). Efficient estimation of
+average treatment effects using the estimated propensity score.
+<em>Econometrica</em> 71, 1161-1189.</li>
 <li>Li F, Morgan KL, Zaslavsky AM (2018). Balancing covariates via
 propensity score weighting. <em>Journal of the American Statistical
 Association</em> 113, 390-400.</li>
