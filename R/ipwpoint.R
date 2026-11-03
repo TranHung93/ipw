@@ -22,7 +22,7 @@
 #' usually enough to estimate a standard error. In the package's simulation study
 #' (article "Simulation study" on the package website), the bootstrap standard
 #' error was accurate for a point treatment with good overlap, while robust
-#' standard errors were about 10\% too large. When some weights are extreme
+#' standard errors were about 12\% too large. When some weights are extreme
 #' (poor overlap), no standard error was reliable, the bootstrap included. Check
 #' the weights first with \code{summary()} and \code{\link{ipwplot}}, and consider
 #' truncation (\code{trunc}) or overlap weights (\code{estimand = "ATO"}).
