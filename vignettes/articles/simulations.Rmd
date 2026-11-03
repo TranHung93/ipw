@@ -60,6 +60,12 @@ estimates that bias: a bias within about 2 MCSE of 0 could be simulation
 noise. *Empirical SD* is the spread of the estimates; *RMSE* combines bias
 and spread.
 
+*Oracle* weights are computed from the true model that generated the
+exposure, which is known only in a simulation. They show what weighting
+achieves without any error in estimating that model: if oracle weights have
+the same bias as the estimated weights, the bias comes from weighting itself,
+not from the model.
+
 ```{r bias-plot, echo = FALSE, fig.height = 9}
 d <- res[!grepl("median", res$method), ]
 d <- d[rev(seq_len(nrow(d))), ]
@@ -87,7 +93,9 @@ par(op)
 The effect of a binary exposure varies with the confounder `l`, so the three
 estimands differ. Their true values, from 2 million simulated people, are
 ATE = 1.00, ATT = 1.27 and ATO = 0.86. Each weighting scheme is compared with
-its own target; `ipwprob()` is given the true propensity scores.
+its own target. `ipwprob()` is given the true propensity scores, so its
+weights are oracle weights; scenario 5a uses it for
+time-varying weights.
 
 ```{r eval = FALSE}
 d <- data.frame(l = rnorm(1000))
@@ -122,21 +130,31 @@ w.ln <- ipwpoint(exposure = dose, family = "lognormal", numerator = ~ 1,
 oracle <- dlnorm(d$dose, 0.5, sqrt(0.61)) / dlnorm(d$dose, 0.5 + 0.5 * d$l, 0.6)
 ```
 
+## 2a. Log-normal dose
+
 ```{r echo = FALSE}
 show("2a")
+```
+
+Log-normal weights remove most of the confounding (unweighted bias 54%). The
+5% that remains is **the same for oracle weights** (5.0% vs 4.9% at
+n = 2000, 3.4% vs 3.2% at n = 10000), so it does not come from estimating
+the model: it is the finite-sample bias of weighting with densities of a
+skewed exposure, whose density ratios have a heavy tail, and it shrinks
+slowly as the sample grows. The gaussian model is clearly worse, and in 7 of
+500 replications gave infinite weights, which `ipwpoint()` refuses. Gamma
+weights, the wrong skewed family here, have a small bias but almost twice
+the spread. Truncation reduces the spread a lot but adds bias.
+
+## 2b. Gamma dose
+
+```{r echo = FALSE}
 show("2b")
 ```
 
-The correct family removes most of the confounding (unweighted bias 54% and
-76%). The 3 to 5% that remains is **the same for oracle weights** (5.0% vs
-4.9% at n = 2000, 3.4% vs 3.2% at n = 10000), so it does not come from
-estimating the model: it is the finite-sample bias of weighting with
-densities of a skewed exposure, whose density ratios have a heavy tail, and
-it shrinks slowly as the sample grows. The gaussian model is clearly worse,
-and in 7 of 500 replications gave infinite weights, which `ipwpoint()`
-refuses. A misspecified skewed family (gamma for log-normal data or the
-reverse) has a small bias but up to twice the spread. Truncation reduces the
-spread a lot but adds bias.
+Gamma weights reduce the unweighted bias of 76% to 3.2%; gaussian weights
+leave 14%. Log-normal weights, the wrong skewed family here, again have a
+small bias but twice the spread.
 
 # 3. Count exposures: Poisson or negative binomial
 
@@ -151,14 +169,25 @@ w.nb <- ipwpoint(exposure = v, family = "negbin", numerator = ~ 1,
                  denominator = ~ l, data = d)$ipw.weights
 ```
 
+## 3a. Overdispersed counts
+
 ```{r echo = FALSE}
-show("3")
+show("3a")
 ```
 
-With the correct model, both families are within 1.5% of the truth. The
-Poisson model applied to overdispersed counts over-corrects as strongly as
-the unweighted analysis under-corrects. The negative binomial model remains
-usable for Poisson data (bias 3.6%), so it is the safer choice when in doubt.
+Negative binomial weights, the correct model, are within 1.5% of the truth.
+Poisson weights over-correct as strongly as the unweighted analysis
+under-corrects.
+
+## 3b. Poisson counts
+
+```{r echo = FALSE}
+show("3b")
+```
+
+Poisson weights, now the correct model, are within 1.5% of the truth. The
+negative binomial model remains usable for Poisson data (bias 3.6%), so it
+is the safer choice when in doubt.
 
 # 4. Curved propensity: smooth terms with mgcv
 
@@ -203,6 +232,8 @@ y <- cumulative.dose + 2 * U + rnorm(n)
 w <- ipwtm(exposure = dose, family = "ordinal", link = "logit",
            numerator = ~ dose.lag, denominator = ~ dose.lag + l,
            id = id, timevar = time, type = "all", data = long)
+# oracle: true probability of the observed dose, multiplied over visits
+w.oracle <- ipwprob(den = long$p.obs, id = long$id, timevar = long$time)
 # weight at the last visit, then lm(y ~ cumulative.dose, weights = ...)
 ```
 
@@ -212,7 +243,9 @@ show("5a")
 
 Both naive analyses are biased (+49% and -14%). Ordinal and multinomial
 weights recover the effect; the 2.5% bias of the ordinal weights at 500
-people falls to 1.4% at 2500, and oracle weights are within 1%.
+people falls to 1.4% at 2500. Oracle weights, from `ipwprob()` with the
+true probability of each observed dose, are within 1%, which also checks
+that `ipwprob()` multiplies the ratios correctly over time.
 
 ## 5b. Smooth terms in `ipwtm()`
 

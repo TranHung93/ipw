@@ -33,8 +33,8 @@
 "5a. Time-varying ordinal dose (type all)","ordinal weights (correct), 500 people",1,1.025,0.025,0.008,0.122,0.124,250
 "5a. Time-varying ordinal dose (type all)","ordinal weights (correct), 2500 people",1,1.014,0.014,0.005,0.073,0.074,200
 "5a. Time-varying ordinal dose (type all)","multinomial weights, 500 people",1,1.007,0.007,0.008,0.133,0.133,250
-"5a. Time-varying ordinal dose (type all)","oracle weights (true probabilities, unstabilized), 500 people",1,1.007,0.007,0.01,0.152,0.152,250
-"5a. Time-varying ordinal dose (type all)","oracle weights (true probabilities, unstabilized), 2500 people",1,1.008,0.008,0.006,0.083,0.084,200
+"5a. Time-varying ordinal dose (type all)","oracle weights, ipwprob() with true probabilities, 500 people",1,1.007,0.007,0.01,0.152,0.152,250
+"5a. Time-varying ordinal dose (type all)","oracle weights, ipwprob() with true probabilities, 2500 people",1,1.008,0.008,0.006,0.083,0.084,200
 "5b. Time-varying binary exposure, curved effect of L (ipwtm + mgcv)","unweighted",1,1.651,0.651,0.004,0.061,0.654,250
 "5b. Time-varying binary exposure, curved effect of L (ipwtm + mgcv)","linear logistic weights (misspecified)",1,-0.152,-1.152,0.033,0.526,1.266,250
 "5b. Time-varying binary exposure, curved effect of L (ipwtm + mgcv)","s(l) weights",1,1.055,0.055,0.015,0.243,0.249,250
