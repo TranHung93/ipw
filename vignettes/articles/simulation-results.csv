@@ -16,12 +16,15 @@
 "2b. Skewed exposure, gamma dose","gaussian weights (misspecified)",1,1.142,0.142,0.004,0.079,0.162,500
 "2b. Skewed exposure, gamma dose","gamma weights (correct)",1,1.032,0.032,0.005,0.111,0.115,500
 "2b. Skewed exposure, gamma dose","lognormal weights (misspecified)",1,1.024,0.024,0.01,0.22,0.221,500
+"2b. Skewed exposure, gamma dose","oracle weights (true densities)",1,1.033,0.033,0.006,0.129,0.133,500
 "3a. Counts, overdispersed (negative binomial data)","unweighted",0.5,0.67,0.17,0.001,0.022,0.171,500
 "3a. Counts, overdispersed (negative binomial data)","poisson weights (misspecified)",0.5,0.336,-0.164,0.003,0.068,0.178,500
 "3a. Counts, overdispersed (negative binomial data)","negbin weights (correct)",0.5,0.507,0.007,0.002,0.035,0.035,500
+"3a. Counts, overdispersed (negative binomial data)","oracle weights (true probabilities)",0.5,0.508,0.008,0.002,0.041,0.042,500
 "3b. Counts, Poisson data","unweighted",0.5,0.805,0.305,0.001,0.028,0.307,500
 "3b. Counts, Poisson data","poisson weights (correct)",0.5,0.507,0.007,0.003,0.062,0.063,500
 "3b. Counts, Poisson data","negbin weights (also valid: theta large)",0.5,0.518,0.018,0.003,0.064,0.066,500
+"3b. Counts, Poisson data","oracle weights (true probabilities)",0.5,0.513,0.013,0.003,0.069,0.07,500
 "4. Curved propensity (mgcv)","unweighted",2,4.553,2.553,0.004,0.09,2.554,500
 "4. Curved propensity (mgcv)","linear logistic weights (misspecified)",2,2.662,0.662,0.004,0.079,0.667,500
 "4. Curved propensity (mgcv)","s(l) weights, n = 2000",2,2.072,0.072,0.003,0.062,0.095,500
