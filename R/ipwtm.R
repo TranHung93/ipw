@@ -22,7 +22,7 @@
 #' a standard error. Time-varying weights are products over time, so a few
 #' subjects can get very large weights. In the package's simulation study (500
 #' subjects, 4 visits), bootstrap and robust standard errors were then both too
-#' small, with 95\% confidence intervals covering the truth in only about 80\% of
+#' small, with 95\% confidence intervals covering the truth in only 72 to 80\% of
 #' samples. Check the weights with \code{summary()} and \code{\link{ipwplot}},
 #' consider truncation (\code{trunc}), and interpret standard errors with care
 #' when the weights are extreme.
