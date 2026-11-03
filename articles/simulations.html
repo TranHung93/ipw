@@ -107,6 +107,11 @@ estimate minus the truth. The <em>MCSE</em> (Monte Carlo standard error)
 shows how precisely the simulation estimates that bias: a bias within
 about 2 MCSE of 0 could be simulation noise. <em>Empirical SD</em> is
 the spread of the estimates; <em>RMSE</em> combines bias and spread.</p>
+<p><em>Oracle</em> weights are computed from the true model that
+generated the exposure, which is known only in a simulation. They show
+what weighting achieves without any error in estimating that model: if
+oracle weights have the same bias as the estimated weights, the bias
+comes from weighting itself, not from the model.</p>
 <p><img src="simulations_files/figure-html/bias-plot-1.png" class="r-plt" alt="" width="100%"></p>
 <div class="section level2">
 <h2 id="ate-att-and-overlap-weights-and-ipwprob">1. ATE, ATT and overlap weights, and <code>ipwprob()</code><a class="anchor" aria-label="anchor" href="#ate-att-and-overlap-weights-and-ipwprob"></a>
@@ -114,8 +119,10 @@ the spread of the estimates; <em>RMSE</em> combines bias and spread.</p>
 <p>The effect of a binary exposure varies with the confounder
 <code>l</code>, so the three estimands differ. Their true values, from 2
 million simulated people, are ATE = 1.00, ATT = 1.27 and ATO = 0.86.
-Each weighting scheme is compared with its own target;
-<code><a href="../reference/ipwprob.html">ipwprob()</a></code> is given the true propensity scores.</p>
+Each weighting scheme is compared with its own target.
+<code><a href="../reference/ipwprob.html">ipwprob()</a></code> is given the true propensity scores, so its
+weights are oracle weights; scenario 5a uses it for time-varying
+weights.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>l <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">1000</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">d</span><span class="op">$</span><span class="va">a</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="fl">1000</span>, <span class="fl">1</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Logistic.html" class="external-link">plogis</a></span><span class="op">(</span><span class="fl">0.5</span> <span class="op">+</span> <span class="fl">0.8</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">l</span><span class="op">)</span><span class="op">)</span></span>
@@ -216,6 +223,9 @@ sample.</p>
 <span><span class="va">w.ln</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwpoint.html">ipwpoint</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">dose</span>, family <span class="op">=</span> <span class="st">"lognormal"</span>, numerator <span class="op">=</span> <span class="op">~</span> <span class="fl">1</span>,</span>
 <span>                 denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">)</span><span class="op">$</span><span class="va">ipw.weights</span></span>
 <span><span class="va">oracle</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Lognormal.html" class="external-link">dlnorm</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">dose</span>, <span class="fl">0.5</span>, <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fl">0.61</span><span class="op">)</span><span class="op">)</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/stats/Lognormal.html" class="external-link">dlnorm</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">dose</span>, <span class="fl">0.5</span> <span class="op">+</span> <span class="fl">0.5</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">l</span>, <span class="fl">0.6</span><span class="op">)</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="a--log-normal-dose">2a. Log-normal dose<a class="anchor" aria-label="anchor" href="#a--log-normal-dose"></a>
+</h3>
 <table class="table">
 <colgroup>
 <col width="37%">
@@ -320,6 +330,20 @@ sample.</p>
 </tr>
 </tbody>
 </table>
+<p>Log-normal weights remove most of the confounding (unweighted bias
+54%). The 5% that remains is <strong>the same for oracle
+weights</strong> (5.0% vs 4.9% at n = 2000, 3.4% vs 3.2% at n = 10000),
+so it does not come from estimating the model: it is the finite-sample
+bias of weighting with densities of a skewed exposure, whose density
+ratios have a heavy tail, and it shrinks slowly as the sample grows. The
+gaussian model is clearly worse, and in 7 of 500 replications gave
+infinite weights, which <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> refuses. Gamma weights,
+the wrong skewed family here, have a small bias but almost twice the
+spread. Truncation reduces the spread a lot but adds bias.</p>
+</div>
+<div class="section level3">
+<h3 id="b--gamma-dose">2b. Gamma dose<a class="anchor" aria-label="anchor" href="#b--gamma-dose"></a>
+</h3>
 <table class="table">
 <colgroup>
 <col width="31%">
@@ -384,17 +408,10 @@ sample.</p>
 </tr>
 </tbody>
 </table>
-<p>The correct family removes most of the confounding (unweighted bias
-54% and 76%). The 3 to 5% that remains is <strong>the same for oracle
-weights</strong> (5.0% vs 4.9% at n = 2000, 3.4% vs 3.2% at n = 10000),
-so it does not come from estimating the model: it is the finite-sample
-bias of weighting with densities of a skewed exposure, whose density
-ratios have a heavy tail, and it shrinks slowly as the sample grows. The
-gaussian model is clearly worse, and in 7 of 500 replications gave
-infinite weights, which <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> refuses. A misspecified
-skewed family (gamma for log-normal data or the reverse) has a small
-bias but up to twice the spread. Truncation reduces the spread a lot but
-adds bias.</p>
+<p>Gamma weights reduce the unweighted bias of 76% to 3.2%; gaussian
+weights leave 14%. Log-normal weights, the wrong skewed family here,
+again have a small bias but twice the spread.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="count-exposures-poisson-or-negative-binomial">3. Count exposures: Poisson or negative binomial<a class="anchor" aria-label="anchor" href="#count-exposures-poisson-or-negative-binomial"></a>
@@ -408,16 +425,19 @@ Poisson.</p>
 <span><span class="va">d</span><span class="op">$</span><span class="va">y</span> <span class="op">&lt;-</span> <span class="fl">0.5</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">v</span> <span class="op">+</span> <span class="va">d</span><span class="op">$</span><span class="va">l</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">1000</span><span class="op">)</span></span>
 <span><span class="va">w.nb</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwpoint.html">ipwpoint</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">v</span>, family <span class="op">=</span> <span class="st">"negbin"</span>, numerator <span class="op">=</span> <span class="op">~</span> <span class="fl">1</span>,</span>
 <span>                 denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">)</span><span class="op">$</span><span class="va">ipw.weights</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="a--overdispersed-counts">3a. Overdispersed counts<a class="anchor" aria-label="anchor" href="#a--overdispersed-counts"></a>
+</h3>
 <table style="width:100%;" class="table">
 <colgroup>
-<col width="36%">
+<col width="30%">
+<col width="5%">
+<col width="13%">
+<col width="6%">
+<col width="12%">
+<col width="12%">
 <col width="5%">
 <col width="12%">
-<col width="6%">
-<col width="11%">
-<col width="11%">
-<col width="5%">
-<col width="11%">
 </colgroup>
 <thead><tr class="header">
 <th align="left">Method</th>
@@ -460,7 +480,38 @@ Poisson.</p>
 <td align="right">0.035</td>
 <td align="right">500</td>
 </tr>
-<tr class="even">
+</tbody>
+</table>
+<p>Negative binomial weights, the correct model, are within 1.5% of the
+truth. Poisson weights over-correct as strongly as the unweighted
+analysis under-corrects.</p>
+</div>
+<div class="section level3">
+<h3 id="b--poisson-counts">3b. Poisson counts<a class="anchor" aria-label="anchor" href="#b--poisson-counts"></a>
+</h3>
+<table class="table">
+<colgroup>
+<col width="36%">
+<col width="5%">
+<col width="12%">
+<col width="5%">
+<col width="11%">
+<col width="11%">
+<col width="5%">
+<col width="11%">
+</colgroup>
+<thead><tr class="header">
+<th align="left">Method</th>
+<th align="right">Truth</th>
+<th align="right">Mean estimate</th>
+<th align="right">Bias</th>
+<th align="right">MCSE of bias</th>
+<th align="right">Empirical SD</th>
+<th align="right">RMSE</th>
+<th align="right">Replications</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
 <td align="left">unweighted</td>
 <td align="right">0.5</td>
 <td align="right">0.805</td>
@@ -470,7 +521,7 @@ Poisson.</p>
 <td align="right">0.307</td>
 <td align="right">500</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">poisson weights (correct)</td>
 <td align="right">0.5</td>
 <td align="right">0.507</td>
@@ -480,7 +531,7 @@ Poisson.</p>
 <td align="right">0.063</td>
 <td align="right">500</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">negbin weights (also valid: theta large)</td>
 <td align="right">0.5</td>
 <td align="right">0.518</td>
@@ -492,11 +543,10 @@ Poisson.</p>
 </tr>
 </tbody>
 </table>
-<p>With the correct model, both families are within 1.5% of the truth.
-The Poisson model applied to overdispersed counts over-corrects as
-strongly as the unweighted analysis under-corrects. The negative
-binomial model remains usable for Poisson data (bias 3.6%), so it is the
-safer choice when in doubt.</p>
+<p>Poisson weights, now the correct model, are within 1.5% of the truth.
+The negative binomial model remains usable for Poisson data (bias 3.6%),
+so it is the safer choice when in doubt.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="curved-propensity-smooth-terms-with-mgcv">4. Curved propensity: smooth terms with mgcv<a class="anchor" aria-label="anchor" href="#curved-propensity-smooth-terms-with-mgcv"></a>
@@ -622,6 +672,8 @@ paper where ordinary adjustment fails.</p>
 <span><span class="va">w</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwtm.html">ipwtm</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">dose</span>, family <span class="op">=</span> <span class="st">"ordinal"</span>, link <span class="op">=</span> <span class="st">"logit"</span>,</span>
 <span>           numerator <span class="op">=</span> <span class="op">~</span> <span class="va">dose.lag</span>, denominator <span class="op">=</span> <span class="op">~</span> <span class="va">dose.lag</span> <span class="op">+</span> <span class="va">l</span>,</span>
 <span>           id <span class="op">=</span> <span class="va">id</span>, timevar <span class="op">=</span> <span class="va">time</span>, type <span class="op">=</span> <span class="st">"all"</span>, data <span class="op">=</span> <span class="va">long</span><span class="op">)</span></span>
+<span><span class="co"># oracle: true probability of the observed dose, multiplied over visits</span></span>
+<span><span class="va">w.oracle</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwprob.html">ipwprob</a></span><span class="op">(</span>den <span class="op">=</span> <span class="va">long</span><span class="op">$</span><span class="va">p.obs</span>, id <span class="op">=</span> <span class="va">long</span><span class="op">$</span><span class="va">id</span>, timevar <span class="op">=</span> <span class="va">long</span><span class="op">$</span><span class="va">time</span><span class="op">)</span></span>
 <span><span class="co"># weight at the last visit, then lm(y ~ cumulative.dose, weights = ...)</span></span></code></pre></div>
 <table class="table">
 <colgroup>
@@ -696,7 +748,7 @@ paper where ordinary adjustment fails.</p>
 <td align="right">250</td>
 </tr>
 <tr class="even">
-<td align="left">oracle weights (true probabilities, unstabilized), 500
+<td align="left">oracle weights, ipwprob() with true probabilities, 500
 people</td>
 <td align="right">1</td>
 <td align="right">1.007</td>
@@ -707,7 +759,7 @@ people</td>
 <td align="right">250</td>
 </tr>
 <tr class="odd">
-<td align="left">oracle weights (true probabilities, unstabilized), 2500
+<td align="left">oracle weights, ipwprob() with true probabilities, 2500
 people</td>
 <td align="right">1</td>
 <td align="right">1.008</td>
@@ -721,8 +773,10 @@ people</td>
 </table>
 <p>Both naive analyses are biased (+49% and -14%). Ordinal and
 multinomial weights recover the effect; the 2.5% bias of the ordinal
-weights at 500 people falls to 1.4% at 2500, and oracle weights are
-within 1%.</p>
+weights at 500 people falls to 1.4% at 2500. Oracle weights, from
+<code><a href="../reference/ipwprob.html">ipwprob()</a></code> with the true probability of each observed dose,
+are within 1%, which also checks that <code><a href="../reference/ipwprob.html">ipwprob()</a></code> multiplies
+the ratios correctly over time.</p>
 </div>
 <div class="section level3">
 <h3 id="b--smooth-terms-in-ipwtm">5b. Smooth terms in <code>ipwtm()</code><a class="anchor" aria-label="anchor" href="#b--smooth-terms-in-ipwtm"></a>
