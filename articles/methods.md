@@ -175,7 +175,7 @@ would be the alternative). The log-normal σ uses
 [`sd()`](https://rdrr.io/r/stats/sd.html) of the residuals (divisor *n*
 − 1, not *n* − *p*), to match the existing gaussian family.
 
-**Caveat.** In the simulation study a small bias (3–5%) remained with
+**Caveat.** In the simulation study a small bias (4–6%) remained with
 the correct family. Weights computed from the true densities had the
 same bias, so it is a property of weighting with a skewed exposure in
 finite samples, and it shrinks slowly as the sample grows.
@@ -228,7 +228,7 @@ The exposure must be a non-negative integer.
 - **Which to use:** start with Poisson; if the variance of the exposure
   is clearly larger than its mean, use the negative binomial. In the
   simulation study, the negative binomial also worked for Poisson counts
-  (bias 3.6%), while Poisson weights for overdispersed counts were badly
+  (bias 3.0%), while Poisson weights for overdispersed counts were badly
   biased.
 - **Why the numerator is optional:** for counts, *f* is a true
   probability between 0 and 1, as for a yes/no exposure, so unstabilized
@@ -418,8 +418,8 @@ ifelse(data[[exp_col]] == 1, 1 - exp(-h), exp(-h))
   covers, instead of assuming a shared grid of visits.
 - **Simulation check:** the Cox coefficients were unbiased, the
   estimated weights were within 7–9% of the true weights, and the effect
-  of the number of events was recovered with 3.4% bias, against 22% for
-  regression adjustment and 80% unweighted ([simulation
+  of the number of events was recovered with 0.8% bias, against 21% for
+  regression adjustment and 79% unweighted ([simulation
   study](https://tranhung93.github.io/ipw/articles/simulations.md),
   scenarios 6a–6c).
 
@@ -547,8 +547,8 @@ se <- apply(t_mat, 2, sd, na.rm = TRUE)
   stopping the run. `strata` keeps group sizes fixed, for example by
   exposure group.
 - **Simulation check:** for a point treatment with good overlap, the
-  bootstrap standard error was accurate (ratio 1.01, coverage 94.7%),
-  while robust standard errors were 10% too large. For a weighted Cox
+  bootstrap standard error was accurate (ratio 1.02, coverage 95.5%),
+  while robust standard errors were 12% too large. For a weighted Cox
   model, naive, robust and bootstrap standard errors were all close to
   correct ([simulation
   study](https://tranhung93.github.io/ipw/articles/simulations.md),
@@ -557,7 +557,7 @@ se <- apply(t_mat, 2, sd, na.rm = TRUE)
 **Caveat.** The bootstrap does not repair extreme weights. With poor
 overlap or products of time-varying weights over several visits, all
 standard errors were too small, the bootstrap ones included, with 95%
-intervals covering the truth in only 60–80% of samples (scenarios 7b and
+intervals covering the truth in only 57–80% of samples (scenarios 7b and
 7d). Check the weights first. Each run repeats the whole analysis *B*
 times (about 200 for a standard error, more for percentile intervals),
 so it can be slow for large data.

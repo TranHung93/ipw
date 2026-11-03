@@ -133,12 +133,12 @@ data the same idea applies with subjects as the resampling unit.
 The package's simulation study (article "Simulation study" on the
 package website) shows when the bootstrap helps. For a point treatment
 with good overlap, the bootstrap standard error was accurate and robust
-standard errors were about 10% too large. For a weighted Cox model with
+standard errors were about 12% too large. For a weighted Cox model with
 good overlap, naive, robust and bootstrap standard errors were all close
 to correct. When some weights were extreme, through poor overlap or
 through products of time-varying weights, all standard errors were too
 small, the bootstrap ones included, and 95% confidence intervals covered
-the truth in only 60 to 80% of samples. The bootstrap does not repair
+the truth in only 57 to 80% of samples. The bootstrap does not repair
 unstable weights: check the weights first with
 [`summary()`](https://rdrr.io/r/base/summary.html) and
 [`ipwplot`](https://tranhung93.github.io/ipw/reference/ipwplot.md), and

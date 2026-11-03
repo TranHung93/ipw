@@ -9,16 +9,19 @@ Geskus 2011).
 **Main findings**
 
 - **The new weights remove confounding when their model is correct.**
-  Naive analyses and weights from misspecified models are biased by 15%
-  to over 200%; the new weights reduce this to 0 to 5%.
-- **The remaining small biases (3 to 5%) are properties of inverse
+  Naive analyses and weights from misspecified models are biased by 13%
+  to over 100%; the new weights reduce this to under 6% in every
+  scenario but one (8% for smooth terms in
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md),
+  scenario 5b).
+- **The remaining small biases (1 to 6%) are properties of inverse
   probability weighting, not of the implementation.** Weights computed
   from the true model (*oracle* weights) have the same bias for
   log-normal and gamma doses and for counts, and for smooth terms and
   ordinal exposures the bias shrinks as the sample grows.
 - **[`ipwboot()`](https://tranhung93.github.io/ipw/reference/ipwboot.md)
   gives accurate standard errors when the weights are well behaved**,
-  where robust standard errors are 8 to 10% too large. It does **not**
+  where robust standard errors are 10 to 12% too large. It does **not**
   fix analyses with extreme weights: with poor overlap or long products
   of time-varying weights, no standard error reaches 95% coverage, and
   the bootstrap is then not better than the robust standard error.
@@ -28,11 +31,14 @@ Geskus 2011).
 the code below shows the essential lines of each scenario. It takes
 about 20 minutes on 4 cores, so this page shows saved results. To
 reproduce them, run `Rscript dev/simulation-study.R` in the package
-folder (seed 20261101, L’Ecuyer random numbers, 4 parallel workers), or
-start the `simulations` workflow from the GitHub Actions tab.
-Replications: 500 for scenarios 1 to 4, 250 for 5 and 6, 200 for the
-large-sample and oracle checks, 1000 for 7a and 7b, and 500 for 7c and
-7d, each with 200 bootstrap samples.
+folder (seed 20261101), or start the `simulations` workflow from the
+GitHub Actions tab. Each replication has its own L’Ecuyer random number
+stream, so the results are the same for any number of parallel workers
+and on Windows (where the replications run one after another); only
+different versions of R or of the packages used could change them
+slightly. Replications: 500 for scenarios 1 to 4, 250 for 5 and 6, 200
+for the large-sample and oracle checks, 1000 for 7a and 7b, and 500 for
+7c and 7d, each with 200 bootstrap samples.
 
 **Reading the tables.** *Bias* is the mean estimate minus the truth. The
 *MCSE* (Monte Carlo standard error) shows how precisely the simulation
@@ -70,11 +76,11 @@ coef(lm(y ~ a, data = d, weights = w.att))["a"]
 
 | Method | Truth | Mean estimate | Bias | MCSE of bias | Empirical SD | RMSE | Replications |
 |:---|---:|---:|---:|---:|---:|---:|---:|
-| unweighted (target ATE) | 0.999 | 1.981 | 0.982 | 0.005 | 0.112 | 0.988 | 500 |
-| ATE weights | 0.999 | 1.003 | 0.004 | 0.004 | 0.080 | 0.080 | 500 |
-| ATT weights (target ATT) | 1.275 | 1.283 | 0.008 | 0.004 | 0.099 | 0.099 | 500 |
-| ATO weights (target ATO) | 0.861 | 0.863 | 0.002 | 0.003 | 0.078 | 0.078 | 500 |
-| ipwprob, true probabilities (ATE) | 0.999 | 1.006 | 0.007 | 0.006 | 0.139 | 0.139 | 500 |
+| unweighted (target ATE) | 0.999 | 1.983 | 0.985 | 0.005 | 0.114 | 0.991 | 500 |
+| ATE weights | 0.999 | 1.002 | 0.003 | 0.004 | 0.089 | 0.089 | 500 |
+| ATT weights (target ATT) | 1.275 | 1.281 | 0.006 | 0.005 | 0.106 | 0.106 | 500 |
+| ATO weights (target ATO) | 0.861 | 0.864 | 0.003 | 0.004 | 0.079 | 0.079 | 500 |
+| ipwprob, true probabilities (ATE) | 0.999 | 1.007 | 0.008 | 0.007 | 0.148 | 0.148 | 500 |
 
 All weighted estimates are within 1% of their own estimand; the
 unweighted difference is twice the ATE.
@@ -104,39 +110,39 @@ oracle <- dlnorm(d$dose, 0.5, sqrt(0.61)) / dlnorm(d$dose, 0.5 + 0.5 * d$l, 0.6)
 
 | Method | Truth | Mean estimate | Bias | MCSE of bias | Empirical SD | RMSE | Replications |
 |:---|---:|---:|---:|---:|---:|---:|---:|
-| unweighted | 1 | 1.537 | 0.537 | 0.002 | 0.041 | 0.538 | 500 |
-| gaussian weights (misspecified) | 1 | 1.120 | 0.120 | 0.015 | 0.344 | 0.363 | 493 |
-| gamma weights (misspecified) | 1 | 0.963 | -0.037 | 0.008 | 0.177 | 0.181 | 500 |
-| lognormal weights (correct), n = 2000 | 1 | 1.050 | 0.050 | 0.004 | 0.096 | 0.108 | 500 |
-| lognormal weights (correct), n = 10000 | 1 | 1.034 | 0.034 | 0.005 | 0.065 | 0.073 | 200 |
-| lognormal weights, truncated 1% | 1 | 1.179 | 0.179 | 0.002 | 0.038 | 0.183 | 500 |
-| oracle weights (true densities), n = 2000 | 1 | 1.049 | 0.049 | 0.005 | 0.104 | 0.115 | 500 |
-| oracle weights (true densities), n = 10000 | 1 | 1.032 | 0.032 | 0.005 | 0.067 | 0.074 | 200 |
+| unweighted | 1 | 1.535 | 0.535 | 0.002 | 0.044 | 0.537 | 500 |
+| gaussian weights (misspecified) | 1 | 1.130 | 0.130 | 0.006 | 0.134 | 0.186 | 496 |
+| gamma weights (misspecified) | 1 | 0.981 | -0.019 | 0.007 | 0.154 | 0.155 | 500 |
+| lognormal weights (correct), n = 2000 | 1 | 1.055 | 0.055 | 0.005 | 0.107 | 0.120 | 500 |
+| lognormal weights (correct), n = 10000 | 1 | 1.022 | 0.022 | 0.007 | 0.092 | 0.095 | 200 |
+| lognormal weights, truncated 1% | 1 | 1.181 | 0.181 | 0.002 | 0.038 | 0.185 | 500 |
+| oracle weights (true densities), n = 2000 | 1 | 1.056 | 0.056 | 0.005 | 0.113 | 0.126 | 500 |
+| oracle weights (true densities), n = 10000 | 1 | 1.022 | 0.022 | 0.006 | 0.091 | 0.094 | 200 |
 
 Log-normal weights remove most of the confounding (unweighted bias 54%).
-The 5% that remains is **the same for oracle weights** (5.0% vs 4.9% at
-n = 2000, 3.4% vs 3.2% at n = 10000), so it does not come from
+The 5% that remains is **the same for oracle weights** (5.5% vs 5.6% at
+n = 2000, 2.2% vs 2.2% at n = 10000), so it does not come from
 estimating the model: it is the finite-sample bias of weighting with
 densities of a skewed exposure, whose density ratios have a heavy tail,
 and it shrinks slowly as the sample grows. The gaussian model is clearly
-worse, and in 7 of 500 replications gave infinite weights, which
+worse, and in 4 of 500 replications gave infinite weights, which
 [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
 refuses. Gamma weights, the wrong skewed family here, have a small bias
-but almost twice the spread. Truncation reduces the spread a lot but
+but about 1.5 times the spread. Truncation reduces the spread a lot but
 adds bias.
 
 ### 2b. Gamma dose
 
 | Method | Truth | Mean estimate | Bias | MCSE of bias | Empirical SD | RMSE | Replications |
 |:---|---:|---:|---:|---:|---:|---:|---:|
-| unweighted | 1 | 1.758 | 0.758 | 0.002 | 0.040 | 0.759 | 500 |
-| gaussian weights (misspecified) | 1 | 1.142 | 0.142 | 0.004 | 0.079 | 0.162 | 500 |
-| gamma weights (correct) | 1 | 1.032 | 0.032 | 0.005 | 0.111 | 0.115 | 500 |
-| lognormal weights (misspecified) | 1 | 1.024 | 0.024 | 0.010 | 0.220 | 0.221 | 500 |
-| oracle weights (true densities) | 1 | 1.033 | 0.033 | 0.006 | 0.129 | 0.133 | 500 |
+| unweighted | 1 | 1.758 | 0.758 | 0.002 | 0.038 | 0.759 | 500 |
+| gaussian weights (misspecified) | 1 | 1.148 | 0.148 | 0.003 | 0.075 | 0.166 | 500 |
+| gamma weights (correct) | 1 | 1.043 | 0.043 | 0.004 | 0.098 | 0.107 | 500 |
+| lognormal weights (misspecified) | 1 | 1.025 | 0.025 | 0.009 | 0.204 | 0.205 | 500 |
+| oracle weights (true densities) | 1 | 1.049 | 0.049 | 0.005 | 0.117 | 0.127 | 500 |
 
-Gamma weights reduce the unweighted bias of 76% to 3.2%; gaussian
-weights leave 14%. As in 2a, oracle weights have the same bias (3.3%),
+Gamma weights reduce the unweighted bias of 76% to 4.3%; gaussian
+weights leave 15%. As in 2a, oracle weights have a similar bias (4.9%),
 so it comes from weighting with a skewed exposure, not from estimating
 the gamma model. Log-normal weights, the wrong skewed family here, again
 have a small bias but twice the spread.
@@ -164,12 +170,12 @@ oracle <- rowMeans(outer(d$v, d$l, f)) / f(d$v, d$l)
 | Method | Truth | Mean estimate | Bias | MCSE of bias | Empirical SD | RMSE | Replications |
 |:---|---:|---:|---:|---:|---:|---:|---:|
 | unweighted | 0.5 | 0.670 | 0.170 | 0.001 | 0.022 | 0.171 | 500 |
-| poisson weights (misspecified) | 0.5 | 0.336 | -0.164 | 0.003 | 0.068 | 0.178 | 500 |
-| negbin weights (correct) | 0.5 | 0.507 | 0.007 | 0.002 | 0.035 | 0.035 | 500 |
-| oracle weights (true probabilities) | 0.5 | 0.508 | 0.008 | 0.002 | 0.041 | 0.042 | 500 |
+| poisson weights (misspecified) | 0.5 | 0.328 | -0.172 | 0.003 | 0.077 | 0.189 | 500 |
+| negbin weights (correct) | 0.5 | 0.506 | 0.006 | 0.002 | 0.035 | 0.036 | 500 |
+| oracle weights (true probabilities) | 0.5 | 0.508 | 0.008 | 0.002 | 0.038 | 0.039 | 500 |
 
 Negative binomial weights, the correct model, are within 1.5% of the
-truth, and oracle weights have the same small bias (1.6%). Poisson
+truth, and oracle weights have a similar small bias (1.6%). Poisson
 weights over-correct as strongly as the unweighted analysis
 under-corrects.
 
@@ -177,17 +183,17 @@ under-corrects.
 
 | Method | Truth | Mean estimate | Bias | MCSE of bias | Empirical SD | RMSE | Replications |
 |:---|---:|---:|---:|---:|---:|---:|---:|
-| unweighted | 0.5 | 0.805 | 0.305 | 0.001 | 0.028 | 0.307 | 500 |
-| poisson weights (correct) | 0.5 | 0.507 | 0.007 | 0.003 | 0.062 | 0.063 | 500 |
-| negbin weights (also valid: theta large) | 0.5 | 0.518 | 0.018 | 0.003 | 0.064 | 0.066 | 500 |
-| oracle weights (true probabilities) | 0.5 | 0.513 | 0.013 | 0.003 | 0.069 | 0.070 | 500 |
+| unweighted | 0.5 | 0.806 | 0.306 | 0.001 | 0.028 | 0.307 | 500 |
+| poisson weights (correct) | 0.5 | 0.505 | 0.005 | 0.003 | 0.062 | 0.062 | 500 |
+| negbin weights (also valid: theta large) | 0.5 | 0.515 | 0.015 | 0.003 | 0.063 | 0.065 | 500 |
+| oracle weights (true probabilities) | 0.5 | 0.511 | 0.011 | 0.003 | 0.070 | 0.071 | 500 |
 
 Poisson weights, now the correct model, are within 1.5% of the truth.
-Oracle weights do no better (bias 2.6%, with a larger spread): weights
+Oracle weights do no better (bias 2.2%, with a larger spread): weights
 from an estimated model are often more precise than weights from the
 true model (Hirano, Imbens & Ridder 2003), so the estimated weights lose
 nothing. The negative binomial model remains usable for Poisson data
-(bias 3.6%), so it is the safer choice when in doubt.
+(bias 3.0%), so it is the safer choice when in doubt.
 
 ## 4. Curved propensity: smooth terms with mgcv
 
@@ -207,15 +213,15 @@ oracle <- ifelse(d$a == 1, mean(d$a) / e, (1 - mean(d$a)) / (1 - e))   # stabili
 
 | Method | Truth | Mean estimate | Bias | MCSE of bias | Empirical SD | RMSE | Replications |
 |:---|---:|---:|---:|---:|---:|---:|---:|
-| unweighted | 2 | 4.553 | 2.553 | 0.004 | 0.090 | 2.554 | 500 |
-| linear logistic weights (misspecified) | 2 | 2.662 | 0.662 | 0.004 | 0.079 | 0.667 | 500 |
-| s(l) weights, n = 2000 | 2 | 2.072 | 0.072 | 0.003 | 0.062 | 0.095 | 500 |
-| s(l) weights, n = 10000 | 2 | 2.031 | 0.031 | 0.002 | 0.026 | 0.040 | 200 |
-| oracle weights (true propensity), n = 2000 | 2 | 2.014 | 0.014 | 0.007 | 0.148 | 0.149 | 500 |
-| oracle weights (true propensity), n = 10000 | 2 | 1.993 | -0.007 | 0.005 | 0.065 | 0.066 | 200 |
+| unweighted | 2 | 4.542 | 2.542 | 0.004 | 0.086 | 2.543 | 500 |
+| linear logistic weights (misspecified) | 2 | 2.657 | 0.657 | 0.004 | 0.083 | 0.662 | 500 |
+| s(l) weights, n = 2000 | 2 | 2.066 | 0.066 | 0.003 | 0.063 | 0.091 | 500 |
+| s(l) weights, n = 10000 | 2 | 2.032 | 0.032 | 0.002 | 0.027 | 0.042 | 200 |
+| oracle weights (true propensity), n = 2000 | 2 | 2.001 | 0.001 | 0.007 | 0.148 | 0.148 | 500 |
+| oracle weights (true propensity), n = 10000 | 2 | 1.997 | -0.003 | 0.004 | 0.061 | 0.061 | 200 |
 
 A straight-line logistic model leaves a quarter of the confounding bias.
-With `s(l)` the bias is 3.6% at n = 2000 and 1.5% at n = 10000: it
+With `s(l)` the bias is 3.3% at n = 2000 and 1.6% at n = 10000: it
 halves as the sample grows five-fold, as expected for a smoothing
 estimate that approaches the true curve. Oracle weights are unbiased,
 which confirms that the remaining bias comes from estimating the curve.
@@ -248,19 +254,19 @@ w.oracle <- ipwprob(den = long$p.obs, id = long$id, timevar = long$time)
 
 | Method | Truth | Mean estimate | Bias | MCSE of bias | Empirical SD | RMSE | Replications |
 |:---|---:|---:|---:|---:|---:|---:|---:|
-| unweighted | 1 | 1.490 | 0.490 | 0.002 | 0.034 | 0.491 | 250 |
-| regression adjustment for L | 1 | 0.856 | -0.144 | 0.002 | 0.029 | 0.147 | 250 |
-| ordinal weights (correct), 500 people | 1 | 1.025 | 0.025 | 0.008 | 0.122 | 0.124 | 250 |
-| ordinal weights (correct), 2500 people | 1 | 1.014 | 0.014 | 0.005 | 0.073 | 0.074 | 200 |
-| multinomial weights, 500 people | 1 | 1.007 | 0.007 | 0.008 | 0.133 | 0.133 | 250 |
-| oracle weights, ipwprob() with true probabilities, 500 people | 1 | 1.007 | 0.007 | 0.010 | 0.152 | 0.152 | 250 |
-| oracle weights, ipwprob() with true probabilities, 2500 people | 1 | 1.008 | 0.008 | 0.006 | 0.083 | 0.084 | 200 |
+| unweighted | 1 | 1.491 | 0.491 | 0.002 | 0.035 | 0.493 | 250 |
+| regression adjustment for L | 1 | 0.856 | -0.144 | 0.002 | 0.030 | 0.147 | 250 |
+| ordinal weights (correct), 500 people | 1 | 1.031 | 0.031 | 0.007 | 0.110 | 0.114 | 250 |
+| ordinal weights (correct), 2500 people | 1 | 1.010 | 0.010 | 0.005 | 0.076 | 0.077 | 200 |
+| multinomial weights, 500 people | 1 | 1.015 | 0.015 | 0.008 | 0.121 | 0.122 | 250 |
+| oracle weights, ipwprob() with true probabilities, 500 people | 1 | 1.013 | 0.013 | 0.010 | 0.156 | 0.157 | 250 |
+| oracle weights, ipwprob() with true probabilities, 2500 people | 1 | 1.007 | 0.007 | 0.006 | 0.089 | 0.090 | 200 |
 
 Both naive analyses are biased (+49% and -14%). Ordinal and multinomial
-weights recover the effect; the 2.5% bias of the ordinal weights at 500
-people falls to 1.4% at 2500. Oracle weights, from
+weights recover the effect; the 3.1% bias of the ordinal weights at 500
+people falls to 1.0% at 2500. Oracle weights, from
 [`ipwprob()`](https://tranhung93.github.io/ipw/reference/ipwprob.md)
-with the true probability of each observed dose, are within 1%, which
+with the true probability of each observed dose, are within 1.5%, which
 also checks that
 [`ipwprob()`](https://tranhung93.github.io/ipw/reference/ipwprob.md)
 multiplies the ratios correctly over time.
@@ -279,13 +285,15 @@ w <- ipwtm(exposure = a, family = "binomial", link = "logit", numerator = ~ a.la
 
 | Method | Truth | Mean estimate | Bias | MCSE of bias | Empirical SD | RMSE | Replications |
 |:---|---:|---:|---:|---:|---:|---:|---:|
-| unweighted | 1 | 1.651 | 0.651 | 0.004 | 0.061 | 0.654 | 250 |
-| linear logistic weights (misspecified) | 1 | -0.152 | -1.152 | 0.033 | 0.526 | 1.266 | 250 |
-| s(l) weights | 1 | 1.055 | 0.055 | 0.015 | 0.243 | 0.249 | 250 |
+| unweighted | 1 | 1.662 | 0.662 | 0.004 | 0.061 | 0.665 | 250 |
+| linear logistic weights (misspecified) | 1 | -0.111 | -1.111 | 0.031 | 0.489 | 1.213 | 250 |
+| s(l) weights | 1 | 1.083 | 0.083 | 0.015 | 0.243 | 0.256 | 250 |
 
 Here a straight-line model is worse than no weighting at all: its
 weights turn the effect of +1 into a negative estimate. With `s(l)` the
-bias is 5.5%.
+bias is 8.3%, the largest of any correctly specified model in this
+study; with a binary exposure at 4 visits and 500 people, part of the
+curve rests on few observations.
 
 ## 6. Recurrent exposure events, `family = "survival"`, `type = "all"`
 
@@ -310,15 +318,15 @@ median(abs(log(w$ipw.weights / true.weights)))
 
 | Method | Truth | Mean estimate | Bias | MCSE of bias | Empirical SD | RMSE | Replications |
 |:---|---:|---:|---:|---:|---:|---:|---:|
-| Cox coefficient of x | 0.5 | 0.500 | 0.000 | 0.006 | 0.088 | 0.088 | 250 |
-| Cox coefficient of xt | -1.0 | -1.007 | -0.007 | 0.007 | 0.118 | 0.118 | 250 |
-| median \|log(estimated / true weight)\| | 0.0 | 0.074 | 0.074 | 0.001 | 0.022 | 0.077 | 250 |
+| Cox coefficient of x | 0.5 | 0.499 | -0.001 | 0.005 | 0.084 | 0.084 | 250 |
+| Cox coefficient of xt | -1.0 | -1.010 | -0.010 | 0.007 | 0.117 | 0.118 | 250 |
+| median \|log(estimated / true weight)\| | 0.0 | 0.072 | 0.072 | 0.001 | 0.022 | 0.075 | 250 |
 
 | Method | Truth | Mean estimate | Bias | MCSE of bias | Empirical SD | RMSE | Replications |
 |:---|---:|---:|---:|---:|---:|---:|---:|
-| Cox coefficient of x | 0.5 | 0.506 | 0.006 | 0.005 | 0.084 | 0.084 | 250 |
-| Cox coefficient of xt | -1.0 | -0.990 | 0.010 | 0.007 | 0.104 | 0.104 | 250 |
-| median \|log(estimated / true weight)\| | 0.0 | 0.090 | 0.090 | 0.001 | 0.022 | 0.092 | 250 |
+| Cox coefficient of x | 0.5 | 0.494 | -0.006 | 0.006 | 0.087 | 0.087 | 250 |
+| Cox coefficient of xt | -1.0 | -0.998 | 0.002 | 0.007 | 0.104 | 0.103 | 250 |
+| median \|log(estimated / true weight)\| | 0.0 | 0.090 | 0.090 | 0.001 | 0.021 | 0.093 | 250 |
 
 The Cox coefficients are unbiased in both designs, and the estimated
 weights are typically within 7 to 9% of the true weights, which is the
@@ -340,12 +348,12 @@ w <- ipwtm(exposure = expo, family = "survival", numerator = ~ 1, denominator = 
 
 | Method | Truth | Mean estimate | Bias | MCSE of bias | Empirical SD | RMSE | Replications |
 |:---|---:|---:|---:|---:|---:|---:|---:|
-| unweighted | 1 | 1.799 | 0.799 | 0.004 | 0.060 | 0.801 | 250 |
-| regression adjustment for L | 1 | 1.220 | 0.220 | 0.003 | 0.047 | 0.224 | 250 |
-| survival type all weights | 1 | 1.034 | 0.034 | 0.012 | 0.193 | 0.196 | 250 |
+| unweighted | 1 | 1.794 | 0.794 | 0.004 | 0.062 | 0.796 | 250 |
+| regression adjustment for L | 1 | 1.214 | 0.214 | 0.003 | 0.045 | 0.219 | 250 |
+| survival type all weights | 1 | 1.008 | 0.008 | 0.014 | 0.224 | 0.224 | 250 |
 
-The weights reduce the bias from 80% (unweighted) and 22% (adjustment
-for `L`) to 3.4%. The method of Graffeo et al. uses, for an interval
+The weights reduce the bias from 79% (unweighted) and 21% (adjustment
+for `L`) to 0.8%. The method of Graffeo et al. uses, for an interval
 ending in an event, the probability of an event during that interval;
 this simulation shows that the approximation works for estimating a
 causal effect.
@@ -375,43 +383,44 @@ ipwboot(d, msm.effect, R = 200)
 
 | Method | Mean estimate | Mean SE | Empirical SD | SE / empirical SD | Coverage of 95% CI | MCSE of coverage | Replications |
 |:---|---:|---:|---:|---:|---:|---:|---:|
-| ipwboot, percentile CI | 9.981 | 0.492 | 0.487 | 1.011 | 0.936 | 0.008 | 1000 |
-| ipwboot SE, Wald CI | 9.981 | 0.492 | 0.487 | 1.011 | 0.947 | 0.007 | 1000 |
-| robust SE (svyglm), Wald CI | 9.981 | 0.536 | 0.487 | 1.101 | 0.967 | 0.006 | 1000 |
+| ipwboot, percentile CI | 10.031 | 0.492 | 0.481 | 1.023 | 0.945 | 0.007 | 1000 |
+| ipwboot SE, Wald CI | 10.031 | 0.492 | 0.481 | 1.023 | 0.955 | 0.007 | 1000 |
+| robust SE (svyglm), Wald CI | 10.031 | 0.537 | 0.481 | 1.115 | 0.972 | 0.005 | 1000 |
 
 | Method | Mean estimate | Mean SE | Empirical SD | SE / empirical SD | Coverage of 95% CI | MCSE of coverage | Replications |
 |:---|---:|---:|---:|---:|---:|---:|---:|
-| ipwboot, percentile CI | 11.019 | 1.110 | 1.787 | 0.621 | 0.560 | 0.016 | 1000 |
-| ipwboot SE, Wald CI | 11.019 | 1.110 | 1.787 | 0.621 | 0.585 | 0.016 | 1000 |
-| robust SE (svyglm), Wald CI | 11.019 | 1.113 | 1.787 | 0.623 | 0.591 | 0.016 | 1000 |
+| ipwboot, percentile CI | 11.055 | 1.135 | 1.848 | 0.614 | 0.575 | 0.016 | 1000 |
+| ipwboot SE, Wald CI | 11.055 | 1.135 | 1.848 | 0.614 | 0.596 | 0.016 | 1000 |
+| robust SE (svyglm), Wald CI | 11.055 | 1.144 | 1.848 | 0.619 | 0.600 | 0.015 | 1000 |
 
-With good overlap the bootstrap standard error is accurate (ratio 1.01,
-Wald coverage 94.7%), while the robust standard error is 10% too large
-(coverage 96.7%), in line with Austin (2016); percentile intervals cover
+With good overlap the bootstrap standard error is accurate (ratio 1.02,
+Wald coverage 95.5%), while the robust standard error is 12% too large
+(coverage 97.2%), in line with Austin (2016); percentile intervals cover
 slightly less than 95%. In the JSS example the estimate itself is biased
-(11.0 instead of 10) and all standard errors are 38% too small, so
-coverage is below 60% whatever method is used.
+(11.1 instead of 10) and all standard errors are 38% too small, so
+coverage is 60% or less whatever method is used.
 
 ### 7c. Weighted Cox MSM
 
 Austin (2016) studied weighted Cox models. Here event times are
 exponential with hazard 0.1 exp(-0.7 a + 0.8 l), censored at 5; n =
-1000. The true marginal log hazard ratio, -0.624, is computed from both
+1000. The true marginal log hazard ratio, -0.619, is computed from both
 potential outcomes of 200,000 people (it differs from -0.7 because
 hazard ratios are not collapsible).
 
 | Method | Mean estimate | Mean SE | Empirical SD | SE / empirical SD | Coverage of 95% CI | MCSE of coverage | Replications |
 |:---|---:|---:|---:|---:|---:|---:|---:|
-| naive SE (coxph), Wald CI | -0.61 | 0.117 | 0.113 | 1.037 | 0.952 | 0.010 | 500 |
-| robust SE (coxph), Wald CI | -0.61 | 0.122 | 0.113 | 1.078 | 0.960 | 0.009 | 500 |
-| ipwboot SE, Wald CI | -0.61 | 0.110 | 0.113 | 0.974 | 0.936 | 0.011 | 500 |
-| ipwboot, percentile CI | -0.61 | 0.110 | 0.113 | 0.974 | 0.934 | 0.011 | 500 |
+| naive SE (coxph), Wald CI | -0.617 | 0.117 | 0.11 | 1.065 | 0.958 | 0.009 | 500 |
+| robust SE (coxph), Wald CI | -0.617 | 0.121 | 0.11 | 1.104 | 0.968 | 0.008 | 500 |
+| ipwboot SE, Wald CI | -0.617 | 0.110 | 0.11 | 0.998 | 0.940 | 0.011 | 500 |
+| ipwboot, percentile CI | -0.617 | 0.110 | 0.11 | 0.998 | 0.928 | 0.012 | 500 |
 
-All three standard errors are close to the truth here. The robust
-standard error is again too large (+8%); the naive one (+4%) and the
-bootstrap (-3%) are within simulation noise of 1. With stabilized
-weights and good overlap, the bootstrap therefore brings no clear gain
-over the naive standard error in this setting.
+All three standard errors are close to the truth here. The bootstrap
+standard error is accurate (ratio 1.00); the robust one is again too
+large (+10%) and the naive one somewhat too large (+7%), as Austin
+(2016) found. All Wald intervals cover the truth in 94 to 97% of
+samples, so with stabilized weights and good overlap the choice matters
+little in this setting.
 
 ### 7d. Time-varying exposure, bootstrap by person
 
@@ -425,12 +434,12 @@ ipwboot(long, tv.effect, id = id, R = 200)
 
 | Method | Mean estimate | Mean SE | Empirical SD | SE / empirical SD | Coverage of 95% CI | MCSE of coverage | Replications |
 |:---|---:|---:|---:|---:|---:|---:|---:|
-| ipwboot (id), percentile CI | 1.033 | 0.146 | 0.222 | 0.658 | 0.778 | 0.019 | 500 |
-| ipwboot (id) SE, Wald CI | 1.033 | 0.146 | 0.222 | 0.658 | 0.792 | 0.018 | 500 |
-| robust SE (svyglm), Wald CI | 1.033 | 0.163 | 0.222 | 0.737 | 0.838 | 0.016 | 500 |
+| ipwboot (id), percentile CI | 1.047 | 0.139 | 0.226 | 0.616 | 0.722 | 0.020 | 500 |
+| ipwboot (id) SE, Wald CI | 1.047 | 0.139 | 0.226 | 0.616 | 0.744 | 0.020 | 500 |
+| robust SE (svyglm), Wald CI | 1.047 | 0.158 | 0.226 | 0.698 | 0.798 | 0.018 | 500 |
 
-Neither method is adequate here: the bootstrap standard error is 34% too
-small and the robust one 26% too small, with coverage of 79% and 84%.
+Neither method is adequate here: the bootstrap standard error is 38% too
+small and the robust one 30% too small, with coverage of 74% and 80%.
 The weights are products over 4 visits, so a few people get very large
 weights and the estimate has a heavy-tailed distribution that 500 people
 do not represent well, the same problem as in 7b. Truncation, a larger

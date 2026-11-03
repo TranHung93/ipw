@@ -622,14 +622,14 @@ study](https://tranhung93.github.io/ipw/articles/simulations.html) gives
 a mixed answer:
 
 - For a point treatment with **good overlap**, the bootstrap standard
-  error was accurate, while robust standard errors were about 10% too
+  error was accurate, while robust standard errors were about 12% too
   large.
 - For a **weighted Cox model** with good overlap, naive, robust and
   bootstrap standard errors were all close to correct.
 - When some **weights are extreme**, through poor overlap (the `simdat`
   example above) or through products of time-varying weights over
   several visits, all standard errors were too small, the bootstrap ones
-  included, and 95% confidence intervals covered the truth in only 60 to
+  included, and 95% confidence intervals covered the truth in only 57 to
   80% of samples.
 
 So the bootstrap does not repair unstable weights. Check the weights
