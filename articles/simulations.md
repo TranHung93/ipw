@@ -181,10 +181,12 @@ true effect is 2. Oracle weights use the true propensity.
 ``` r
 
 d <- data.frame(l = runif(2000, -2, 2))
-d$a <- rbinom(2000, 1, plogis(2 * sin(1.5 * d$l)))
+e <- plogis(2 * sin(1.5 * d$l))                        # true propensity
+d$a <- rbinom(2000, 1, e)
 d$y <- 2 * d$a + 3 * sin(1.5 * d$l) + rnorm(2000)
 w.gam <- ipwpoint(exposure = a, family = "binomial", link = "logit",
                   numerator = ~ 1, denominator = ~ s(l), data = d)$ipw.weights
+oracle <- ifelse(d$a == 1, mean(d$a) / e, (1 - mean(d$a)) / (1 - e))   # stabilized
 ```
 
 | Method | Truth | Mean estimate | Bias | MCSE of bias | Empirical SD | RMSE | Replications |
