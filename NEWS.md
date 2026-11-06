@@ -8,9 +8,11 @@
   Graffeo, Latouche, Geskus & Chevret (2018, *Biometrical Journal*): exposure
   events may recur, an Andersen-Gill Cox model is fitted on all rows, and each
   row's probability uses the cumulative baseline hazard over its own interval.
-* New `ipwprob()`: inverse probability weights from probabilities you
-  estimated yourself (for example with machine learning or SuperLearner), for
-  point treatments or cumulated over time within subjects.
+* New `ipwprobtm()`: time-varying inverse probability weights from
+  probabilities you estimated yourself (for example with machine learning or
+  SuperLearner): the ratios are multiplied over time within each subject, in
+  time order. For a point treatment no function is needed: the weights are
+  `num / den`.
 * `ipwpoint()`: new families for count exposures (`"poisson"`, `"negbin"`) and
   skewed continuous exposures (`"gamma"`, `"lognormal"`).
 * Smooth terms (`s()`, `te()`, `ti()`, `t2()`) in model formulas are fitted as
@@ -22,20 +24,13 @@
   fitted with `glm()`, and `estimand` defaults to `"ATE"`. A covariate named
   `s`, `te`, `ti` or `t2` is treated as an ordinary variable.
 
-* New `ipwboot()`: bootstrap standard errors and percentile confidence
-  intervals for a whole weighted analysis, re-estimating the weights in each
-  bootstrap sample (Austin 2016). With `id`, whole subjects are resampled and
-  each sampled copy gets a new identifier; optional `strata`; failed samples
-  are recorded instead of stopping. `print()` and `confint()` methods.
-  The help pages and vignette describe, from the package's simulation study,
-  when the bootstrap helps (well-behaved weights) and when no standard error
-  is reliable (extreme weights).
-
 ## Documentation
 
 * New vignette, "Inverse probability weighting with ipw"
-  (`vignette("ipw")`), covering every function, with the new models and
-  `ipwboot()` highlighted.
+  (`vignette("ipw")`), covering every function, with the new models
+  highlighted. Its standard-errors section describes, from the package's
+  simulation study, when the bootstrap helps (well-behaved weights) and when
+  no standard error is reliable (extreme weights).
 * Bootstrap standard errors. The help pages of `ipwpoint()` and
   `ipwtm()` have a new "Standard errors" paragraph in Details and new examples:
   a bootstrap that re-estimates the weights and the marginal structural model

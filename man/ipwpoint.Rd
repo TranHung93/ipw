@@ -80,9 +80,8 @@ package as in Van der Wal and Geskus (2011), treat the weights as known and tend
 be conservative (too large). Austin (2016) compared naive, robust and bootstrap
 standard errors in simulations and recommends the bootstrap, in which the weights
 are re-estimated in each bootstrap sample. This takes the uncertainty in the
-estimated weights into account; see the bootstrap example below, or use
-\code{\link{ipwboot}}, which does this for you. About 200 bootstrap samples are
-usually enough to estimate a standard error. In the package's simulation study
+estimated weights into account; see the bootstrap example below. About 200
+bootstrap samples are usually enough to estimate a standard error. In the package's simulation study
 (article "Simulation study" on the package website), the bootstrap standard
 error was accurate for a point treatment with good overlap, while robust
 standard errors were about 12\% too large. When some weights are extreme

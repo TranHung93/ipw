@@ -48,49 +48,56 @@ test_that("ipwtm type = 'all' works for an ordinal exposure", {
                tolerance = 1e-5)
 })
 
-# ---- ipwprob(): user-supplied probabilities ----------------------------------
+# ---- ipwprobtm(): user-supplied probabilities ---------------------------------
 
-test_that("ipwprob reproduces ipwpoint weights from the same probabilities", {
+test_that("ipwprobtm reproduces ipwtm type 'all' weights from the same probabilities", {
   set.seed(5)
-  d <- data.frame(l = rnorm(200))
-  d$a <- rbinom(200, 1, plogis(d$l))
-  ref <- ipwpoint(exposure = a, family = "binomial", link = "logit",
-                  numerator = ~ 1, denominator = ~ l, data = d)
-  pd <- fitted(ref$den.mod)
-  pn <- fitted(ref$num.mod)
-  res <- ipwprob(den = ifelse(d$a == 1, pd, 1 - pd), num = ifelse(d$a == 1, pn, 1 - pn))
+  n <- 150
+  long <- data.frame(id = rep(1:n, each = 3), time = rep(1:3, n))
+  long$l <- rnorm(3 * n)
+  long$a <- rbinom(3 * n, 1, plogis(-0.3 + 0.8 * long$l))
+  ref <- ipwtm(exposure = a, family = "binomial", link = "logit", numerator = ~ 1,
+               denominator = ~ l, id = id, timevar = time, type = "all", data = long)
+  pd <- fitted(glm(a ~ l, family = binomial, data = long))
+  pn <- fitted(glm(a ~ 1, family = binomial, data = long))
+  res <- ipwprobtm(den = ifelse(long$a == 1, pd, 1 - pd), num = ifelse(long$a == 1, pn, 1 - pn),
+                   id = long$id, timevar = long$time)
 
-  expect_s3_class(res, "ipwprob")
+  expect_s3_class(res, "ipwprobtm")
   expect_equal(unname(res$ipw.weights), unname(ref$ipw.weights))
-  expect_equal(ipwprob(den = c(0.5, 0.25))$ipw.weights, c(2, 4))
 })
 
-test_that("ipwprob cumulates within subjects over time, in input order", {
+test_that("ipwprobtm cumulates within subjects over time, in input order", {
   long <- data.frame(id = c(1, 1, 1, 2, 2), time = c(1, 2, 3, 1, 2),
                      den = c(0.5, 0.8, 0.4, 0.9, 0.6), num = c(0.6, 0.6, 0.5, 0.7, 0.7))
   expected <- c(0.6 / 0.5, 0.6 / 0.5 * 0.6 / 0.8, 0.6 / 0.5 * 0.6 / 0.8 * 0.5 / 0.4,
                 0.7 / 0.9, 0.7 / 0.9 * 0.7 / 0.6)
-  res <- ipwprob(den = long$den, num = long$num, id = long$id, timevar = long$time)
+  res <- ipwprobtm(den = long$den, num = long$num, id = long$id, timevar = long$time)
   expect_equal(res$ipw.weights, expected)
 
   shuffled <- c(5, 2, 4, 1, 3)
-  res_s <- ipwprob(den = long$den[shuffled], num = long$num[shuffled],
-                   id = long$id[shuffled], timevar = long$time[shuffled])
+  res_s <- ipwprobtm(den = long$den[shuffled], num = long$num[shuffled],
+                     id = long$id[shuffled], timevar = long$time[shuffled])
   expect_equal(res_s$ipw.weights, expected[shuffled])
+
+  expect_equal(ipwprobtm(den = c(0.5, 0.25), id = c(1, 1), timevar = c(1, 2))$ipw.weights,
+               c(2, 8))
 })
 
-test_that("ipwprob truncates and rejects invalid input", {
-  w <- ipwprob(den = c(0.1, 0.2, 0.5, 0.9, 0.95), trunc = 0.2)$weights.trunc
-  raw <- 1 / c(0.1, 0.2, 0.5, 0.9, 0.95)
+test_that("ipwprobtm truncates and rejects invalid input", {
+  den <- c(0.1, 0.2, 0.5, 0.9, 0.95)
+  w <- ipwprobtm(den = den, id = 1:5, timevar = rep(1, 5), trunc = 0.2)$weights.trunc
+  raw <- 1 / den
   q <- unname(quantile(raw, c(0.2, 0.8)))
   expect_equal(w, pmin(pmax(raw, q[1]), q[2]))
 
-  expect_error(ipwprob(den = c(0.5, 0)), "positive")
-  expect_error(ipwprob(den = c(0.5, NA)), "positive")
-  expect_error(ipwprob(den = c(0.5, 0.4), num = 0.5), "same length")
-  expect_error(ipwprob(den = c(0.5, 0.4), id = c(1, 1)), "timevar")
-  expect_error(ipwprob(den = c(0.5, 0.4), timevar = c(1, 2)), "'id' is required")
-  expect_error(ipwprob(den = c(0.5, 0.4), id = c(1, 1), timevar = c(1, 1)), "only once")
+  expect_error(ipwprobtm(den = c(0.5, 0), id = 1:2, timevar = c(1, 1)), "positive")
+  expect_error(ipwprobtm(den = c(0.5, NA), id = 1:2, timevar = c(1, 1)), "positive")
+  expect_error(ipwprobtm(den = c(0.5, 0.4), num = 0.5, id = 1:2, timevar = c(1, 1)),
+               "same length")
+  expect_error(ipwprobtm(den = c(0.5, 0.4)), "'id' is required")
+  expect_error(ipwprobtm(den = c(0.5, 0.4), id = c(1, 1)), "'timevar' is required")
+  expect_error(ipwprobtm(den = c(0.5, 0.4), id = c(1, 1), timevar = c(1, 1)), "only once")
 })
 
 # ---- ipwpoint(): count exposures ---------------------------------------------

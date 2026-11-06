@@ -3,7 +3,7 @@
 "1. Binary exposure, effect varies","ATE weights",0.999,1.002,0.003,0.004,0.089,0.089,500
 "1. Binary exposure, effect varies","ATT weights (target ATT)",1.275,1.281,0.006,0.005,0.106,0.106,500
 "1. Binary exposure, effect varies","ATO weights (target ATO)",0.861,0.864,0.003,0.004,0.079,0.079,500
-"1. Binary exposure, effect varies","ipwprob, true probabilities (ATE)",0.999,1.007,0.008,0.007,0.148,0.148,500
+"1. Binary exposure, effect varies","true probabilities, 1 / den (ATE)",0.999,1.007,0.008,0.007,0.148,0.148,500
 "2a. Skewed exposure, log-normal dose","unweighted",1,1.535,0.535,0.002,0.044,0.537,500
 "2a. Skewed exposure, log-normal dose","gaussian weights (misspecified)",1,1.13,0.13,0.006,0.134,0.186,496
 "2a. Skewed exposure, log-normal dose","gamma weights (misspecified)",1,0.981,-0.019,0.007,0.154,0.155,500
@@ -36,8 +36,8 @@
 "5a. Time-varying ordinal dose (type all)","ordinal weights (correct), 500 people",1,1.031,0.031,0.007,0.11,0.114,250
 "5a. Time-varying ordinal dose (type all)","ordinal weights (correct), 2500 people",1,1.01,0.01,0.005,0.076,0.077,200
 "5a. Time-varying ordinal dose (type all)","multinomial weights, 500 people",1,1.015,0.015,0.008,0.121,0.122,250
-"5a. Time-varying ordinal dose (type all)","oracle weights, ipwprob() with true probabilities, 500 people",1,1.013,0.013,0.01,0.156,0.157,250
-"5a. Time-varying ordinal dose (type all)","oracle weights, ipwprob() with true probabilities, 2500 people",1,1.007,0.007,0.006,0.089,0.09,200
+"5a. Time-varying ordinal dose (type all)","oracle weights, ipwprobtm() with true probabilities, 500 people",1,1.013,0.013,0.01,0.156,0.157,250
+"5a. Time-varying ordinal dose (type all)","oracle weights, ipwprobtm() with true probabilities, 2500 people",1,1.007,0.007,0.006,0.089,0.09,200
 "5b. Time-varying binary exposure, curved effect of L (ipwtm + mgcv)","unweighted",1,1.662,0.662,0.004,0.061,0.665,250
 "5b. Time-varying binary exposure, curved effect of L (ipwtm + mgcv)","linear logistic weights (misspecified)",1,-0.111,-1.111,0.031,0.489,1.213,250
 "5b. Time-varying binary exposure, curved effect of L (ipwtm + mgcv)","s(l) weights",1,1.083,0.083,0.015,0.243,0.256,250

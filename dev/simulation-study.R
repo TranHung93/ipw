@@ -1,5 +1,5 @@
 # Simulation study: do the weights of the new ipw features recover known
-# causal effects, and are the bootstrap standard errors right?
+# causal effects, and are bootstrap standard errors right?
 #
 # In the spirit of the simulated example in van der Wal & Geskus (2011, JSS),
 # each scenario generates data in which the true marginal causal effect is
@@ -109,7 +109,7 @@ wlm <- function(formula, data, w = NULL) {
   coef(lm(formula, data = data, weights = .w))[2]
 }
 
-# ---- 1. ATE, ATT and overlap (ATO) weights; ipwprob() ------------------------
+# ---- 1. ATE, ATT and overlap (ATO) weights; true probabilities ---------------
 e_fun <- function(l) plogis(0.5 + 0.8 * l)
 truth1 <- local({
   l <- rnorm(2e6); e <- e_fun(l); tau <- 1 + l
@@ -126,15 +126,15 @@ r1 <- reps(S, function() {
     wlm(y ~ a, d, ipwpoint(exposure = a, family = "binomial", link = "logit",
                            numerator = ~ 1, denominator = ~ l, data = d)$ipw.weights),
     wlm(y ~ a, d, fit("ATT")), wlm(y ~ a, d, fit("ATO")),
-    wlm(y ~ a, d, ipwprob(den = ifelse(d$a == 1, e_true, 1 - e_true))$ipw.weights))
+    wlm(y ~ a, d, 1 / ifelse(d$a == 1, e_true, 1 - e_true)))
 })
 sc <- "1. Binary exposure, effect varies"
 add(sc, "unweighted (target ATE)", r1[, 1], truth1["ATE"])
 add(sc, "ATE weights", r1[, 2], truth1["ATE"])
 add(sc, "ATT weights (target ATT)", r1[, 3], truth1["ATT"])
 add(sc, "ATO weights (target ATO)", r1[, 4], truth1["ATO"])
-add(sc, "ipwprob, true probabilities (ATE)", r1[, 5], truth1["ATE"])
-timer("1. ATE / ATT / ATO / ipwprob")
+add(sc, "true probabilities, 1 / den (ATE)", r1[, 5], truth1["ATE"])
+timer("1. ATE / ATT / ATO / true probabilities")
 
 # Oracle weights for exposures whose marginal distribution has no closed form:
 # denominator = true conditional density (or probability) f(x_i | l_i),
@@ -299,9 +299,9 @@ ord_fit <- function(n) {
                  denominator = ~ a.lag + l, id = id, timevar = time, type = "all", data = long)
   w_mult <- ipwtm(exposure = a, family = "multinomial", numerator = ~ a.lag,
                   denominator = ~ a.lag + l, id = id, timevar = time, type = "all", data = long)
-  # oracle: ipwprob() with the true probabilities, multiplied over time within
+  # oracle: ipwprobtm() with the true probabilities, multiplied over time within
   # each person (unstabilized)
-  w_orc <- ipwprob(den = long$p.obs, id = long$id, timevar = long$time)$ipw.weights
+  w_orc <- ipwprobtm(den = long$p.obs, id = long$id, timevar = long$time)$ipw.weights
   c(wlm(y ~ cum, wide), wlm(y ~ cum + l.1 + l.2 + l.3 + l.4, wide),
     wlm(y ~ cum, wide, w_ord$ipw.weights[last]), wlm(y ~ cum, wide, w_mult$ipw.weights[last]),
     wlm(y ~ cum, wide, w_orc[last]))
@@ -314,8 +314,8 @@ add(sc, "regression adjustment for L", r5[, 2], 1)
 add(sc, "ordinal weights (correct), 500 people", r5[, 3], 1)
 add(sc, "ordinal weights (correct), 2500 people", r5big[, 1], 1)
 add(sc, "multinomial weights, 500 people", r5[, 4], 1)
-add(sc, "oracle weights, ipwprob() with true probabilities, 500 people", r5[, 5], 1)
-add(sc, "oracle weights, ipwprob() with true probabilities, 2500 people", r5big[, 2], 1)
+add(sc, "oracle weights, ipwprobtm() with true probabilities, 500 people", r5[, 5], 1)
+add(sc, "oracle weights, ipwprobtm() with true probabilities, 2500 people", r5big[, 2], 1)
 timer("5a. time-varying ordinal")
 
 # 5b: smooth terms in ipwtm(): binary exposure over time, curved effect of L
@@ -442,6 +442,37 @@ robust_lm_se <- function(d, w) {
   m <- survey::svyglm(y ~ a, design = survey::svydesign(~ 1, weights = ~ .w, data = d))
   sqrt(vcov(m)["a", "a"])
 }
+# Bootstrap that re-estimates the weights in each sample: rows are resampled,
+# or with `id` whole subjects with all their rows, each sampled copy getting a
+# new identifier. Returns the estimate, the bootstrap SE and the percentile CI.
+boot_sim <- function(data, statistic, id = NULL, R = 200, conf = 0.95) {
+  if (is.null(id)) {
+    n_units <- nrow(data)
+  } else {
+    unit_ids <- unique(data[[id]])
+    unit_rows <- split(seq_len(nrow(data)), factor(data[[id]], levels = unit_ids))
+    names(unit_rows) <- NULL
+    n_units <- length(unit_rows)
+  }
+  t0 <- statistic(data)
+  t <- vapply(seq_len(R), function(b) {
+    pick <- sample.int(n_units, n_units, replace = TRUE)
+    if (is.null(id)) {
+      d <- data[pick, , drop = FALSE]
+    } else {
+      rows <- unit_rows[pick]
+      d <- data[unlist(rows, use.names = FALSE), , drop = FALSE]
+      d[[id]] <- rep(seq_along(pick), lengths(rows))
+    }
+    rownames(d) <- NULL
+    val <- tryCatch(statistic(d), error = function(e) NA_real_)
+    if (length(val) != 1) NA_real_ else as.numeric(val)
+  }, numeric(1))
+  a <- (1 - conf) / 2
+  list(t0 = t0, se = stats::sd(t, na.rm = TRUE),
+       ci = matrix(stats::quantile(t, c(a, 1 - a), na.rm = TRUE, names = FALSE), nrow = 1))
+}
+
 point_stat <- function(dd) {
   w <- ipwpoint(exposure = a, family = "binomial", link = "logit", numerator = ~ 1,
                 denominator = ~ l, data = dd)$ipw.weights
@@ -465,14 +496,14 @@ for (sc in c("7a. Linear MSM, good overlap", "7b. Linear MSM, JSS example (poor 
   gen <- if (startsWith(sc, "7a")) gen_overlap else gen_jss
   r7 <- reps(S_SE, function() {
     d <- gen()
-    b <- suppressWarnings(ipwboot(d, point_stat, R = 200))
+    b <- boot_sim(d, point_stat, R = 200)
     w <- ipwpoint(exposure = a, family = "binomial", link = "logit", numerator = ~ 1,
                   denominator = ~ l, data = d)$ipw.weights
     c(unname(b$t0), unname(b$se), b$ci[1, 1], b$ci[1, 2],
       if (has_survey) robust_lm_se(d, w) else NA)
   })
-  add_cov(sc, "ipwboot, percentile CI", r7[, 1], r7[, 2], 10, r7[, 3], r7[, 4])
-  add_cov(sc, "ipwboot SE, Wald CI", r7[, 1], r7[, 2], 10)
+  add_cov(sc, "bootstrap, percentile CI", r7[, 1], r7[, 2], 10, r7[, 3], r7[, 4])
+  add_cov(sc, "bootstrap SE, Wald CI", r7[, 1], r7[, 2], 10)
   if (has_survey) add_cov(sc, "robust SE (svyglm), Wald CI", r7[, 1], r7[, 5], 10)
   timer(sc)
 }
@@ -503,15 +534,15 @@ r7c <- reps(S_SE2, function() {
   d$.w <- ipwpoint(exposure = a, family = "binomial", link = "logit", numerator = ~ 1,
                    denominator = ~ l, data = d)$ipw.weights
   fit <- coxph(Surv(t, ev) ~ a, data = d, weights = .w, robust = TRUE)
-  b <- suppressWarnings(ipwboot(d[, c("l", "a", "t", "ev")], cox_stat, R = 200))
+  b <- boot_sim(d[, c("l", "a", "t", "ev")], cox_stat, R = 200)
   c(unname(coef(fit)), sqrt(fit$naive.var[1, 1]), sqrt(fit$var[1, 1]),
     unname(b$se), b$ci[1, 1], b$ci[1, 2])
 })
 sc <- "7c. Weighted Cox MSM (log hazard ratio)"
 add_cov(sc, "naive SE (coxph), Wald CI", r7c[, 1], r7c[, 2], cox_truth)
 add_cov(sc, "robust SE (coxph), Wald CI", r7c[, 1], r7c[, 3], cox_truth)
-add_cov(sc, "ipwboot SE, Wald CI", r7c[, 1], r7c[, 4], cox_truth)
-add_cov(sc, "ipwboot, percentile CI", r7c[, 1], r7c[, 4], cox_truth, r7c[, 5], r7c[, 6])
+add_cov(sc, "bootstrap SE, Wald CI", r7c[, 1], r7c[, 4], cox_truth)
+add_cov(sc, "bootstrap, percentile CI", r7c[, 1], r7c[, 4], cox_truth, r7c[, 5], r7c[, 6])
 timer("7c. Cox MSM")
 
 # 7d: time-varying binary exposure (scenario 5 design), bootstrap resampling
@@ -527,7 +558,7 @@ tv_stat <- function(long) {
 }
 r7d <- reps(S_SE2, function() {
   long <- sim_tv(500, binary = TRUE)
-  b <- suppressWarnings(ipwboot(long, tv_stat, id = id, R = 200))
+  b <- boot_sim(long, tv_stat, id = "id", R = 200)
   rob <- NA
   if (has_survey) {
     last <- last_rows(long)
@@ -541,8 +572,8 @@ r7d <- reps(S_SE2, function() {
   c(unname(b$t0), unname(b$se), b$ci[1, 1], b$ci[1, 2], rob)
 })
 sc <- "7d. Time-varying exposure, bootstrap by person"
-add_cov(sc, "ipwboot (id), percentile CI", r7d[, 1], r7d[, 2], 1, r7d[, 3], r7d[, 4])
-add_cov(sc, "ipwboot (id) SE, Wald CI", r7d[, 1], r7d[, 2], 1)
+add_cov(sc, "bootstrap by person, percentile CI", r7d[, 1], r7d[, 2], 1, r7d[, 3], r7d[, 4])
+add_cov(sc, "bootstrap by person SE, Wald CI", r7d[, 1], r7d[, 2], 1)
 if (has_survey) add_cov(sc, "robust SE (svyglm), Wald CI", r7d[, 1], r7d[, 5], 1)
 timer("7d. time-varying bootstrap")
 
