@@ -170,9 +170,8 @@ baseline confounders; for longitudinal data in long format the bootstrap must
 resample subjects, not rows: keep all rows of a sampled subject, give each sampled
 copy a new id, re-run <code>ipwtm</code> (for treatment and, if used, censoring weights)
 on the bootstrap sample and refit the marginal structural model. See the cluster
-bootstrap in Example 1 below; <code><a href="ipwboot.html">ipwboot</a></code> does this resampling for you
-(argument <code>id</code>). About 200 bootstrap samples are usually enough to estimate
-a standard error. Time-varying weights are products over time, so a few
+bootstrap in Example 1 below. About 200 bootstrap samples are usually enough to
+estimate a standard error. Time-varying weights are products over time, so a few
 subjects can get very large weights. In the package's simulation study (500
 subjects, 4 visits), bootstrap and robust standard errors were then both too
 small, with 95% confidence intervals covering the truth in only 72 to 80% of

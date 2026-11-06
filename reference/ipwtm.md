@@ -136,15 +136,14 @@ confounders; for longitudinal data in long format the bootstrap must
 resample subjects, not rows: keep all rows of a sampled subject, give
 each sampled copy a new id, re-run `ipwtm` (for treatment and, if used,
 censoring weights) on the bootstrap sample and refit the marginal
-structural model. See the cluster bootstrap in Example 1 below;
-[`ipwboot`](https://tranhung93.github.io/ipw/reference/ipwboot.md) does
-this resampling for you (argument `id`). About 200 bootstrap samples are
-usually enough to estimate a standard error. Time-varying weights are
-products over time, so a few subjects can get very large weights. In the
-package's simulation study (500 subjects, 4 visits), bootstrap and
-robust standard errors were then both too small, with 95% confidence
-intervals covering the truth in only 72 to 80% of samples. Check the
-weights with [`summary()`](https://rdrr.io/r/base/summary.html) and
+structural model. See the cluster bootstrap in Example 1 below. About
+200 bootstrap samples are usually enough to estimate a standard error.
+Time-varying weights are products over time, so a few subjects can get
+very large weights. In the package's simulation study (500 subjects, 4
+visits), bootstrap and robust standard errors were then both too small,
+with 95% confidence intervals covering the truth in only 72 to 80% of
+samples. Check the weights with
+[`summary()`](https://rdrr.io/r/base/summary.html) and
 [`ipwplot`](https://tranhung93.github.io/ipw/reference/ipwplot.md),
 consider truncation (`trunc`), and interpret standard errors with care
 when the weights are extreme.

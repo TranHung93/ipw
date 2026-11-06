@@ -5,10 +5,10 @@ the same step: estimate the probability, or density, of the exposure
 each person actually received, then take a ratio. This article gives,
 for each new feature, the formula, the code in the package and why that
 approach was chosen. Section 6 covers recurrent exposure events (Graffeo
-et al. 2018), and section 8 the bootstrap helper
-[`ipwboot()`](https://tranhung93.github.io/ipw/reference/ipwboot.md),
-which estimates standard errors instead of weights. How to use the
-features is shown in the [main
+et al. 2018), and section 7
+[`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md),
+which turns probabilities you estimated yourself into time-varying
+weights. How to use the features is shown in the [main
 vignette](https://tranhung93.github.io/ipw/articles/ipw.md); whether
 they recover known effects is checked in the [simulation
 study](https://tranhung93.github.io/ipw/articles/simulations.md).
@@ -429,19 +429,22 @@ approximation (Graffeo et al. 2018). The model assumes events are
 independent given the covariates, so the number of earlier events should
 be in the formula when it affects the hazard.
 
-## 7. `ipwprob()`: user-supplied probabilities
+## 7. `ipwprobtm()`: time-varying weights from user-supplied probabilities
 
-[`ipwprob()`](https://tranhung93.github.io/ipw/reference/ipwprob.md)
+[`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md)
 separates the weight arithmetic from the modelling: the user brings *f*
-from any model, and ipw forms, cumulates and truncates the weights.
+from any model, and ipw multiplies the ratios over time within each
+subject and truncates the weights. It is the last step of
+[`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) without
+the model fitting.
 
-**Formula.** With `den` = *f*(*A* \| *L*) and `num` = *f*(*A* \| *V*)
-per row (`num` = 1 when not given), the point weight is their ratio;
-with `id` and `timevar` it is the cumulative product within each
-subject, ordered by time, as in the notation section.
+**Formula.** With `den` = *f*(*A_(ik)* \| ·) and `num` = *f*(*A_(ik)* \|
+·) from the numerator model, per row (`num` = 1 when not given), the
+weight is the cumulative product within each subject, ordered by time,
+as in the notation section:
 
 ``` math
-W_i = \frac{num_i}{den_i}, \qquad W_i(t) = \prod_{k \le t} \frac{num_{ik}}{den_{ik}}
+W_i(t) = \prod_{k \le t} \frac{num_{ik}}{den_{ik}}
 ```
 
 **Code.**
@@ -456,7 +459,8 @@ weights[ord] <- cum        # back to the user's row order
 ```
 
 It checks that `den` and `num` are positive and finite, that lengths
-match, and that each id–time pair occurs once.
+match, and that each id–time pair occurs once; `id` and `timevar` are
+required.
 
 **Why this approach.**
 
@@ -472,6 +476,11 @@ match, and that each id–time pair occurs once.
   dependencies and break whenever those packages change. Accepting
   probabilities works with any method, now and in future, and keeps ipw
   small.
+- **Why time-varying only:** for a point treatment the weight is simply
+  `num / den`, one line of R, so a function adds nothing. For
+  time-varying data the ratios must be multiplied within each person, in
+  time order, and returned in the original row order; that is where
+  mistakes happen.
 - **Why it asks for `timevar`:** time-varying weights must be multiplied
   in time order. Asking for the time, instead of trusting the row order,
   avoids wrong weights when the data are not sorted.
@@ -484,89 +493,8 @@ is responsible for setting probabilities to 1 after the first switch for
 `type = "first"` or `"cens"`. Standard errors that ignore the estimation
 of the probabilities are only approximate.
 
-## 8. `ipwboot()`: bootstrap standard errors
-
-[`ipwboot()`](https://tranhung93.github.io/ipw/reference/ipwboot.md)
-estimates standard errors and confidence intervals for a whole weighted
-analysis, re-estimating the weights in every bootstrap sample. Unlike
-sections 1–7, it does not compute weights: it repeats the user’s own
-analysis.
-
-**Formula.** For *b* = 1, …, *B*, draw a bootstrap sample *D*^(\*)_(b)
-(rows, or whole subjects with all their rows), re-estimate the weights
-and the MSM on it, and keep the estimate θ^(\*)_(b):
-
-``` math
-\widehat{SE}_{\text{boot}} = \sqrt{\frac{1}{B-1}\sum_{b=1}^{B}\big(\hat\theta^*_b - \bar\theta^*\big)^2}, \qquad \text{CI}_{\text{pct}} = \big[\hat\theta^*_{(\alpha/2)},\ \hat\theta^*_{(1-\alpha/2)}\big]
-```
-
-A Wald interval θ̂ ± 1.96 × SE can be formed from the standard error;
-[`confint()`](https://rdrr.io/r/stats/confint.html) gives the percentile
-interval.
-
-**Code.** The user writes a function `statistic(d)` that computes the
-weights and returns the estimate.
-[`ipwboot()`](https://tranhung93.github.io/ipw/reference/ipwboot.md)
-resamples and calls it *B* times:
-
-``` r
-
-make_sample <- function(pick) {
-  rows <- unit_rows[pick]                        # whole subjects, all their rows
-  d <- data[unlist(rows), , drop = FALSE]
-  d[[id_name]] <- rep(seq_along(pick), lengths(rows))   # new id per sampled copy
-  d
-}
-for (b in seq_len(R)) {
-  val <- tryCatch(statistic(make_sample(draw_units()), ...), error = function(e) e)
-  ...                                            # failures recorded, not fatal
-}
-se <- apply(t_mat, 2, sd, na.rm = TRUE)
-```
-
-**Why this approach.**
-
-- **The problem:** robust (sandwich) standard errors treat the estimated
-  weights as known. Austin (2016) found them too large for weighted Cox
-  models, and naive standard errors too small; the bootstrap that
-  re-estimates the weights performed well.
-- **Why a user function:** the analysis can use any outcome model
-  ([`lm()`](https://rdrr.io/r/stats/lm.html),
-  [`glm()`](https://rdrr.io/r/stats/glm.html),
-  [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html),
-  [`svyglm()`](https://rdrr.io/pkg/survey/man/svyglm.html)) and any
-  combination of weights (exposure and censoring). A function lets the
-  bootstrap repeat exactly that analysis.
-- **Why resample subjects:** rows of one person are correlated, so with
-  `id` whole people are drawn with all their rows. Each sampled copy
-  gets a new id, so a person drawn twice counts as two people and
-  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) does
-  not merge their rows.
-- **Robustness:** a sample in which the analysis fails (for example a
-  model that does not converge) is recorded and left out instead of
-  stopping the run. `strata` keeps group sizes fixed, for example by
-  exposure group.
-- **Simulation check:** for a point treatment with good overlap, the
-  bootstrap standard error was accurate (ratio 1.02, coverage 95.5%),
-  while robust standard errors were 12% too large. For a weighted Cox
-  model, naive, robust and bootstrap standard errors were all close to
-  correct ([simulation
-  study](https://tranhung93.github.io/ipw/articles/simulations.md),
-  scenarios 7a and 7c).
-
-**Caveat.** The bootstrap does not repair extreme weights. With poor
-overlap or products of time-varying weights over several visits, all
-standard errors were too small, the bootstrap ones included, with 95%
-intervals covering the truth in only 57–80% of samples (scenarios 7b and
-7d). Check the weights first. Each run repeats the whole analysis *B*
-times (about 200 for a standard error, more for percentile intervals),
-so it can be slow for large data.
-
 ## References
 
-- Austin PC (2016). Variance estimation when using inverse probability
-  of treatment weighting (IPTW) with survival analysis. *Statistics in
-  Medicine* 35, 5642–5655.
 - Cole SR, Hernán MA (2008). Constructing inverse probability weights
   for marginal structural models. *American Journal of Epidemiology*
   168, 656–664.

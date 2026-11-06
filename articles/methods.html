@@ -72,10 +72,10 @@ to the same step: estimate the probability, or density, of the exposure
 each person actually received, then take a ratio. This article gives,
 for each new feature, the formula, the code in the package and why that
 approach was chosen. Section 6 covers recurrent exposure events (Graffeo
-et al. 2018), and section 8 the bootstrap helper <code><a href="../reference/ipwboot.html">ipwboot()</a></code>,
-which estimates standard errors instead of weights. How to use the
-features is shown in the <a href="ipw.html">main vignette</a>; whether
-they recover known effects is checked in the <a href="simulations.html">simulation study</a>.</p>
+et al. 2018), and section 7 <code><a href="../reference/ipwprobtm.html">ipwprobtm()</a></code>, which turns
+probabilities you estimated yourself into time-varying weights. How to
+use the features is shown in the <a href="ipw.html">main vignette</a>;
+whether they recover known effects is checked in the <a href="simulations.html">simulation study</a>.</p>
 <div class="section level2">
 <h2 id="notation-and-the-shared-formula">Notation and the shared formula<a class="anchor" aria-label="anchor" href="#notation-and-the-shared-formula"></a>
 </h2>
@@ -490,19 +490,21 @@ assumes events are independent given the covariates, so the number of
 earlier events should be in the formula when it affects the hazard.</p>
 </div>
 <div class="section level2">
-<h2 id="ipwprob-user-supplied-probabilities">7. <code>ipwprob()</code>: user-supplied probabilities<a class="anchor" aria-label="anchor" href="#ipwprob-user-supplied-probabilities"></a>
+<h2 id="ipwprobtm-time-varying-weights-from-user-supplied-probabilities">7. <code>ipwprobtm()</code>: time-varying weights from user-supplied
+probabilities<a class="anchor" aria-label="anchor" href="#ipwprobtm-time-varying-weights-from-user-supplied-probabilities"></a>
 </h2>
-<p><code><a href="../reference/ipwprob.html">ipwprob()</a></code> separates the weight arithmetic from the
-modelling: the user brings <em>f</em> from any model, and ipw forms,
-cumulates and truncates the weights.</p>
+<p><code><a href="../reference/ipwprobtm.html">ipwprobtm()</a></code> separates the weight arithmetic from the
+modelling: the user brings <em>f</em> from any model, and ipw multiplies
+the ratios over time within each subject and truncates the weights. It
+is the last step of <code><a href="../reference/ipwtm.html">ipwtm()</a></code> without the model fitting.</p>
 <p><strong>Formula.</strong> With <code>den</code> =
-<em>f</em>(<em>A</em> | <em>L</em>) and <code>num</code> =
-<em>f</em>(<em>A</em> | <em>V</em>) per row (<code>num</code> = 1 when
-not given), the point weight is their ratio; with <code>id</code> and
-<code>timevar</code> it is the cumulative product within each subject,
-ordered by time, as in the notation section.</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mi>i</mi></msub><mo>=</mo><mfrac><mrow><mi>n</mi><mi>u</mi><msub><mi>m</mi><mi>i</mi></msub></mrow><mrow><mi>d</mi><mi>e</mi><msub><mi>n</mi><mi>i</mi></msub></mrow></mfrac><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>W</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><munder><mo>∏</mo><mrow><mi>k</mi><mo>≤</mo><mi>t</mi></mrow></munder><mfrac><mrow><mi>n</mi><mi>u</mi><msub><mi>m</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub></mrow><mrow><mi>d</mi><mi>e</mi><msub><mi>n</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub></mrow></mfrac></mrow><annotation encoding="application/x-tex">
-W_i = \frac{num_i}{den_i}, \qquad W_i(t) = \prod_{k \le t} \frac{num_{ik}}{den_{ik}}
+<em>f</em>(<em>A<sub>ik</sub></em> | ·) and <code>num</code> =
+<em>f</em>(<em>A<sub>ik</sub></em> | ·) from the numerator model, per
+row (<code>num</code> = 1 when not given), the weight is the cumulative
+product within each subject, ordered by time, as in the notation
+section:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><munder><mo>∏</mo><mrow><mi>k</mi><mo>≤</mo><mi>t</mi></mrow></munder><mfrac><mrow><mi>n</mi><mi>u</mi><msub><mi>m</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub></mrow><mrow><mi>d</mi><mi>e</mi><msub><mi>n</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub></mrow></mfrac></mrow><annotation encoding="application/x-tex">
+W_i(t) = \prod_{k \le t} \frac{num_{ik}}{den_{ik}}
 </annotation></semantics></math></p>
 <p><strong>Code.</strong></p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
@@ -512,7 +514,8 @@ W_i = \frac{num_i}{den_i}, \qquad W_i(t) = \prod_{k \le t} \frac{num_{ik}}{den_{
 <span><span class="va">weights</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">numeric</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span></span>
 <span><span class="va">weights</span><span class="op">[</span><span class="va">ord</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">cum</span>        <span class="co"># back to the user's row order</span></span></code></pre></div>
 <p>It checks that <code>den</code> and <code>num</code> are positive and
-finite, that lengths match, and that each id–time pair occurs once.</p>
+finite, that lengths match, and that each id–time pair occurs once;
+<code>id</code> and <code>timevar</code> are required.</p>
 <p><strong>Why this approach.</strong></p>
 <ul>
 <li>
@@ -532,6 +535,12 @@ add many dependencies and break whenever those packages change.
 Accepting probabilities works with any method, now and in future, and
 keeps ipw small.</li>
 <li>
+<strong>Why time-varying only:</strong> for a point treatment the
+weight is simply <code>num / den</code>, one line of R, so a function
+adds nothing. For time-varying data the ratios must be multiplied within
+each person, in time order, and returned in the original row order; that
+is where mistakes happen.</li>
+<li>
 <strong>Why it asks for <code>timevar</code>:</strong> time-varying
 weights must be multiplied in time order. Asking for the time, instead
 of trusting the row order, avoids wrong weights when the data are not
@@ -548,84 +557,9 @@ cross-fitting help. The user is responsible for setting probabilities to
 probabilities are only approximate.</p>
 </div>
 <div class="section level2">
-<h2 id="ipwboot-bootstrap-standard-errors">8. <code>ipwboot()</code>: bootstrap standard errors<a class="anchor" aria-label="anchor" href="#ipwboot-bootstrap-standard-errors"></a>
-</h2>
-<p><code><a href="../reference/ipwboot.html">ipwboot()</a></code> estimates standard errors and confidence
-intervals for a whole weighted analysis, re-estimating the weights in
-every bootstrap sample. Unlike sections 1–7, it does not compute
-weights: it repeats the user’s own analysis.</p>
-<p><strong>Formula.</strong> For <em>b</em> = 1, …, <em>B</em>, draw a
-bootstrap sample <em>D</em><sup>*</sup><sub>b</sub> (rows, or whole
-subjects with all their rows), re-estimate the weights and the MSM on
-it, and keep the estimate θ<sup>*</sup><sub>b</sub>:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mrow><mi>S</mi><mi>E</mi></mrow><mo accent="true">̂</mo></mover><mtext mathvariant="normal">boot</mtext></msub><mo>=</mo><msqrt><mrow><mfrac><mn>1</mn><mrow><mi>B</mi><mo>−</mo><mn>1</mn></mrow></mfrac><munderover><mo>∑</mo><mrow><mi>b</mi><mo>=</mo><mn>1</mn></mrow><mi>B</mi></munderover><mo minsize="120%" maxsize="120%" stretchy="true" form="prefix">(</mo><msubsup><mover><mi>θ</mi><mo accent="true">̂</mo></mover><mi>b</mi><mo>*</mo></msubsup><mo>−</mo><msup><mover><mi>θ</mi><mo accent="true">‾</mo></mover><mo>*</mo></msup><msup><mo minsize="120%" maxsize="120%" stretchy="true" form="postfix">)</mo><mn>2</mn></msup></mrow></msqrt><mo>,</mo><mspace width="2.0em"></mspace><msub><mtext mathvariant="normal">CI</mtext><mtext mathvariant="normal">pct</mtext></msub><mo>=</mo><mo minsize="120%" maxsize="120%" stretchy="true" form="prefix">[</mo><msubsup><mover><mi>θ</mi><mo accent="true">̂</mo></mover><mrow><mo stretchy="false" form="prefix">(</mo><mi>α</mi><mi>/</mi><mn>2</mn><mo stretchy="false" form="postfix">)</mo></mrow><mo>*</mo></msubsup><mo>,</mo><mspace width="0.222em"></mspace><msubsup><mover><mi>θ</mi><mo accent="true">̂</mo></mover><mrow><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>α</mi><mi>/</mi><mn>2</mn><mo stretchy="false" form="postfix">)</mo></mrow><mo>*</mo></msubsup><mo minsize="120%" maxsize="120%" stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">
-\widehat{SE}_{\text{boot}} = \sqrt{\frac{1}{B-1}\sum_{b=1}^{B}\big(\hat\theta^*_b - \bar\theta^*\big)^2}, \qquad \text{CI}_{\text{pct}} = \big[\hat\theta^*_{(\alpha/2)},\ \hat\theta^*_{(1-\alpha/2)}\big]
-</annotation></semantics></math></p>
-<p>A Wald interval θ̂ ± 1.96 × SE can be formed from the standard error;
-<code><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint()</a></code> gives the percentile interval.</p>
-<p><strong>Code.</strong> The user writes a function
-<code>statistic(d)</code> that computes the weights and returns the
-estimate. <code><a href="../reference/ipwboot.html">ipwboot()</a></code> resamples and calls it <em>B</em>
-times:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">make_sample</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">pick</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">rows</span> <span class="op">&lt;-</span> <span class="va">unit_rows</span><span class="op">[</span><span class="va">pick</span><span class="op">]</span>                        <span class="co"># whole subjects, all their rows</span></span>
-<span>  <span class="va">d</span> <span class="op">&lt;-</span> <span class="va">data</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">rows</span><span class="op">)</span>, , drop <span class="op">=</span> <span class="cn">FALSE</span><span class="op">]</span></span>
-<span>  <span class="va">d</span><span class="op">[[</span><span class="va">id_name</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">pick</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/lengths.html" class="external-link">lengths</a></span><span class="op">(</span><span class="va">rows</span><span class="op">)</span><span class="op">)</span>   <span class="co"># new id per sampled copy</span></span>
-<span>  <span class="va">d</span></span>
-<span><span class="op">}</span></span>
-<span><span class="kw">for</span> <span class="op">(</span><span class="va">b</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">R</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">val</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="fu">statistic</span><span class="op">(</span><span class="fu">make_sample</span><span class="op">(</span><span class="fu">draw_units</span><span class="op">(</span><span class="op">)</span><span class="op">)</span>, <span class="va">...</span><span class="op">)</span>, error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="va">e</span><span class="op">)</span></span>
-<span>  <span class="va">...</span>                                            <span class="co"># failures recorded, not fatal</span></span>
-<span><span class="op">}</span></span>
-<span><span class="va">se</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="va">t_mat</span>, <span class="fl">2</span>, <span class="va">sd</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
-<p><strong>Why this approach.</strong></p>
-<ul>
-<li>
-<strong>The problem:</strong> robust (sandwich) standard errors
-treat the estimated weights as known. Austin (2016) found them too large
-for weighted Cox models, and naive standard errors too small; the
-bootstrap that re-estimates the weights performed well.</li>
-<li>
-<strong>Why a user function:</strong> the analysis can use any
-outcome model (<code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code>, <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>,
-<code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code>, <code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">svyglm()</a></code>) and any combination of
-weights (exposure and censoring). A function lets the bootstrap repeat
-exactly that analysis.</li>
-<li>
-<strong>Why resample subjects:</strong> rows of one person are
-correlated, so with <code>id</code> whole people are drawn with all
-their rows. Each sampled copy gets a new id, so a person drawn twice
-counts as two people and <code><a href="../reference/ipwtm.html">ipwtm()</a></code> does not merge their
-rows.</li>
-<li>
-<strong>Robustness:</strong> a sample in which the analysis fails
-(for example a model that does not converge) is recorded and left out
-instead of stopping the run. <code>strata</code> keeps group sizes
-fixed, for example by exposure group.</li>
-<li>
-<strong>Simulation check:</strong> for a point treatment with good
-overlap, the bootstrap standard error was accurate (ratio 1.02, coverage
-95.5%), while robust standard errors were 12% too large. For a weighted
-Cox model, naive, robust and bootstrap standard errors were all close to
-correct (<a href="simulations.html">simulation study</a>, scenarios 7a
-and 7c).</li>
-</ul>
-<p><strong>Caveat.</strong> The bootstrap does not repair extreme
-weights. With poor overlap or products of time-varying weights over
-several visits, all standard errors were too small, the bootstrap ones
-included, with 95% intervals covering the truth in only 57–80% of
-samples (scenarios 7b and 7d). Check the weights first. Each run repeats
-the whole analysis <em>B</em> times (about 200 for a standard error,
-more for percentile intervals), so it can be slow for large data.</p>
-</div>
-<div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
 <ul>
-<li>Austin PC (2016). Variance estimation when using inverse probability
-of treatment weighting (IPTW) with survival analysis. <em>Statistics in
-Medicine</em> 35, 5642–5655.</li>
 <li>Cole SR, Hernán MA (2008). Constructing inverse probability weights
 for marginal structural models. <em>American Journal of
 Epidemiology</em> 168, 656–664.</li>

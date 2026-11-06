@@ -22,21 +22,19 @@ An analysis has three steps:
     [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
     (exposure that changes over time), or from your own probabilities
     with
-    [`ipwprob()`](https://tranhung93.github.io/ipw/reference/ipwprob.md).
+    [`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md).
 2.  **Check the weights** with
     [`summary()`](https://rdrr.io/r/base/summary.html) and
     [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md).
 3.  **Fit the MSM** with the weights, and get **standard errors**, for
-    example with
-    [`ipwboot()`](https://tranhung93.github.io/ipw/reference/ipwboot.md)
-    when the weights are well behaved (section 5).
+    example with a bootstrap that re-estimates the weights when they are
+    well behaved (section 5).
 
 | Function | Purpose |
 |----|----|
 | [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md) | Weights for an exposure measured once (point treatment) |
 | [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) | Weights for an exposure that changes over time, and censoring weights |
-| [`ipwprob()`](https://tranhung93.github.io/ipw/reference/ipwprob.md) | Weights from probabilities you estimated yourself **(new)** |
-| [`ipwboot()`](https://tranhung93.github.io/ipw/reference/ipwboot.md) | Bootstrap standard errors that re-estimate the weights **(new)** |
+| [`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md) | Time-varying weights from probabilities you estimated yourself **(new)** |
 | [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md) | Plot the distribution of the weights |
 | [`tstartfun()`](https://tranhung93.github.io/ipw/reference/tstartfun.md) | Interval start times for counting-process (Cox) data |
 
@@ -44,10 +42,8 @@ An analysis has three steps:
 > features added after ipw 1.3.2: count, gamma and log-normal exposures,
 > smooth terms with mgcv, ATT and overlap weights, `type = "all"` for
 > categorical and survival exposures in
-> [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md),
-> [`ipwprob()`](https://tranhung93.github.io/ipw/reference/ipwprob.md)
-> and
-> [`ipwboot()`](https://tranhung93.github.io/ipw/reference/ipwboot.md).
+> [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md), and
+> [`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md).
 > Existing calls give the same results as before. The formulas, code and
 > rationale behind each new feature are in the [methods
 > article](https://tranhung93.github.io/ipw/articles/methods.html).
@@ -517,48 +513,57 @@ treatment).
 
 ## 4. New: weights from your own probabilities
 
-[`ipwprob()`](https://tranhung93.github.io/ipw/reference/ipwprob.md)
-turns probabilities you estimated yourself, for example with a
-machine-learning model or SuperLearner, into weights. Give the
-probability (or density) of the exposure each person actually received;
-with `id` and `timevar`, the ratios are multiplied over time within each
-person. Below, a cubic logistic model stands in for a flexible learner.
+If you estimated the exposure probabilities yourself, for example with a
+machine-learning model or SuperLearner, the weights are easy to form.
+For a point treatment no function is needed: the stabilized weight is
+the numerator probability divided by the probability of the exposure
+each person actually received. Below, a cubic logistic model stands in
+for a flexible learner.
 
 ``` r
 
 p.flex <- fitted(glm(a ~ poly(l, 3), family = binomial, data = simdat))
 #> Warning: glm.fit: fitted probabilities numerically 0 or 1 occurred
-w.own <- ipwprob(den = ifelse(simdat$a == 1, p.flex, 1 - p.flex),
-                 num = ifelse(simdat$a == 1, mean(simdat$a), 1 - mean(simdat$a)))
-summary(w.own$ipw.weights)
+den.own <- ifelse(simdat$a == 1, p.flex, 1 - p.flex)
+num.own <- ifelse(simdat$a == 1, mean(simdat$a), 1 - mean(simdat$a))
+w.own <- num.own / den.own
+summary(w.own)
 #>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
 #>  0.4810  0.5095  0.5301  0.8856  0.6332 58.5053
-coef(lm(y ~ a, data = simdat, weights = w.own$ipw.weights))["a"]
+coef(lm(y ~ a, data = simdat, weights = w.own))["a"]
 #>        a 
 #> 10.92033
+```
 
-# time-varying: ratios multiplied within each person, in time order
+For time-varying data,
+[`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md)
+does the part that is easy to get wrong: it multiplies the ratios within
+each person in time order (the data need not be sorted), returns the
+weights in the order of the input and can truncate them.
+
+``` r
+
 toy <- data.frame(id = c(1, 1, 2, 2), time = c(1, 2, 1, 2), p = c(0.5, 0.8, 0.4, 0.9))
-ipwprob(den = toy$p, id = toy$id, timevar = toy$time)$ipw.weights
+ipwprobtm(den = toy$p, id = toy$id, timevar = toy$time)$ipw.weights
 #> [1] 2.000000 2.500000 2.500000 2.777778
 ```
 
-The warning from [`glm()`](https://rdrr.io/r/stats/glm.html) is a
-reminder of the main risk: flexible models can produce probabilities
-close to 0 or 1 and therefore extreme weights. Check the weights and
-consider `trunc`.
+For weights of `type = "first"` or `"cens"`, set the probabilities to 1
+for the rows after the first switch. The warning from
+[`glm()`](https://rdrr.io/r/stats/glm.html) above is a reminder of the
+main risk: flexible models can produce probabilities close to 0 or 1 and
+therefore extreme weights. Check the weights and consider `trunc`.
 
-## 5. New: bootstrap standard errors with `ipwboot()`
+## 5. Standard errors: robust and bootstrap
 
 Robust (sandwich) standard errors treat the weights as known. In
 simulations of weighted Cox models, Austin (2016) found naive standard
-errors too small and robust standard errors too large; only the
-bootstrap that **re-estimates the weights in each bootstrap sample**
-gave correct standard errors and confidence intervals.
+errors too small and robust standard errors too large; the bootstrap
+that **re-estimates the weights in each bootstrap sample** gave correct
+standard errors and confidence intervals.
 
-[`ipwboot()`](https://tranhung93.github.io/ipw/reference/ipwboot.md)
-does the resampling. You write a function that takes a data set and
-returns the estimate, computing the weights itself:
+A bootstrap takes a few lines: draw a sample with replacement,
+re-estimate the weights and the MSM on it, and repeat.
 
 ``` r
 
@@ -568,23 +573,20 @@ msm.effect <- function(d) {
   coef(lm(y ~ a, data = d, weights = wt))["a"]
 }
 set.seed(1)
-boot.point <- ipwboot(simdat, msm.effect, R = 200)
-boot.point
-#> Bootstrap of an inverse probability weighted analysis
-#> 200 bootstrap samples, resampling rows
-#> 
-#>   estimate    se 2.5 % 97.5 %
-#> a    10.65 1.114 8.867  12.85
-confint(boot.point, level = 0.90)
-#>        5 %     95 %
-#> a 9.122687 12.63303
+boot.est <- replicate(200, msm.effect(simdat[sample(nrow(simdat), replace = TRUE), ]))
+c(estimate = unname(msm.effect(simdat)), bootstrap.se = sd(boot.est))
+#>     estimate bootstrap.se 
+#>    10.646610     1.113812
+quantile(boot.est, c(0.025, 0.975))   # percentile 95% confidence interval
+#>      2.5%     97.5% 
+#>  8.867114 12.850280
 ```
 
-For data with several rows per person, give `id`: whole people are
-resampled with all their rows, and each sampled copy gets a new
-identifier, so someone drawn twice counts as two people. Here both sets
-of weights for the HAART example are re-estimated in each sample (use
-about 200 samples in practice; 20 keep this vignette quick):
+For data with several rows per person, resample **people**, not rows:
+keep all rows of a sampled person and give each sampled copy a new
+identifier, so that someone drawn twice counts as two people. Here both
+sets of weights for the HAART example are re-estimated in each sample
+(use about 200 samples in practice; 20 keep this vignette quick):
 
 ``` r
 
@@ -598,24 +600,20 @@ haart.effect <- function(d) {
   coef(coxph(Surv(tstart, fuptime, event) ~ haartind, data = d,
              weights = w1$ipw.weights * w2$ipw.weights))
 }
+rows.by.patient <- split(seq_len(nrow(haartdat)), haartdat$patient)
+cluster.sample <- function() {
+  pick <- sample(length(rows.by.patient), replace = TRUE)
+  rows <- rows.by.patient[pick]
+  d <- haartdat[unlist(rows), ]
+  d$patient <- rep(seq_along(pick), lengths(rows))   # new id per sampled copy
+  d
+}
 set.seed(2)
-boot.haart <- ipwboot(haartdat, haart.effect, id = patient, R = 20)
-boot.haart
-#> Bootstrap of an inverse probability weighted analysis
-#> 20 bootstrap samples, resampling subjects ('patient')
-#> 
-#>          estimate    se  2.5 %  97.5 %
-#> haartind  -0.9363 0.362 -1.495 -0.2691
-c(robust.se = unname(sqrt(diag(vcov(msm.haart)))), bootstrap.se = unname(boot.haart$se))
+boot.haart <- replicate(20, haart.effect(cluster.sample()))
+c(robust.se = unname(sqrt(diag(vcov(msm.haart)))), bootstrap.se = sd(boot.haart))
 #>    robust.se bootstrap.se 
 #>    0.4526924    0.3620001
 ```
-
-[`ipwboot()`](https://tranhung93.github.io/ipw/reference/ipwboot.md)
-also supports `strata` (resampling within groups) and records samples in
-which the analysis fails instead of stopping. Set a seed with
-[`set.seed()`](https://rdrr.io/r/base/Random.html) for reproducible
-results.
 
 **When does the bootstrap help?** The [simulation
 study](https://tranhung93.github.io/ipw/articles/simulations.html) gives

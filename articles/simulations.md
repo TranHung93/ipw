@@ -19,12 +19,12 @@ Geskus 2011).
   from the true model (*oracle* weights) have the same bias for
   log-normal and gamma doses and for counts, and for smooth terms and
   ordinal exposures the bias shrinks as the sample grows.
-- **[`ipwboot()`](https://tranhung93.github.io/ipw/reference/ipwboot.md)
-  gives accurate standard errors when the weights are well behaved**,
-  where robust standard errors are 10 to 12% too large. It does **not**
-  fix analyses with extreme weights: with poor overlap or long products
-  of time-varying weights, no standard error reaches 95% coverage, and
-  the bootstrap is then not better than the robust standard error.
+- **A bootstrap that re-estimates the weights gives accurate standard
+  errors when the weights are well behaved**, where robust standard
+  errors are 10 to 12% too large. It does **not** fix analyses with
+  extreme weights: with poor overlap or long products of time-varying
+  weights, no standard error reaches 95% coverage, and the bootstrap is
+  then not better than the robust standard error.
 
 **How the results were produced.** The study is in
 [`dev/simulation-study.R`](https://github.com/TranHung93/ipw/blob/main/dev/simulation-study.R);
@@ -54,15 +54,13 @@ weighting itself, not from the model.
 
 ![](simulations_files/figure-html/bias-plot-1.png)
 
-## 1. ATE, ATT and overlap weights, and `ipwprob()`
+## 1. ATE, ATT and overlap weights
 
 The effect of a binary exposure varies with the confounder `l`, so the
 three estimands differ. Their true values, from 2 million simulated
 people, are ATE = 1.00, ATT = 1.27 and ATO = 0.86. Each weighting scheme
-is compared with its own target.
-[`ipwprob()`](https://tranhung93.github.io/ipw/reference/ipwprob.md) is
-given the true propensity scores, so its weights are oracle weights;
-scenario 5a uses it for time-varying weights.
+is compared with its own target. Weights from the true propensity scores
+(1 / probability of the observed exposure) are oracle weights.
 
 ``` r
 
@@ -80,7 +78,7 @@ coef(lm(y ~ a, data = d, weights = w.att))["a"]
 | ATE weights | 0.999 | 1.002 | 0.003 | 0.004 | 0.089 | 0.089 | 500 |
 | ATT weights (target ATT) | 1.275 | 1.281 | 0.006 | 0.005 | 0.106 | 0.106 | 500 |
 | ATO weights (target ATO) | 0.861 | 0.864 | 0.003 | 0.004 | 0.079 | 0.079 | 500 |
-| ipwprob, true probabilities (ATE) | 0.999 | 1.007 | 0.008 | 0.007 | 0.148 | 0.148 | 500 |
+| true probabilities, 1 / den (ATE) | 0.999 | 1.007 | 0.008 | 0.007 | 0.148 | 0.148 | 500 |
 
 All weighted estimates are within 1% of their own estimand; the
 unweighted difference is twice the ATE.
@@ -248,7 +246,7 @@ w <- ipwtm(exposure = dose, family = "ordinal", link = "logit",
            numerator = ~ dose.lag, denominator = ~ dose.lag + l,
            id = id, timevar = time, type = "all", data = long)
 # oracle: true probability of the observed dose, multiplied over visits
-w.oracle <- ipwprob(den = long$p.obs, id = long$id, timevar = long$time)
+w.oracle <- ipwprobtm(den = long$p.obs, id = long$id, timevar = long$time)
 # weight at the last visit, then lm(y ~ cumulative.dose, weights = ...)
 ```
 
@@ -259,16 +257,16 @@ w.oracle <- ipwprob(den = long$p.obs, id = long$id, timevar = long$time)
 | ordinal weights (correct), 500 people | 1 | 1.031 | 0.031 | 0.007 | 0.110 | 0.114 | 250 |
 | ordinal weights (correct), 2500 people | 1 | 1.010 | 0.010 | 0.005 | 0.076 | 0.077 | 200 |
 | multinomial weights, 500 people | 1 | 1.015 | 0.015 | 0.008 | 0.121 | 0.122 | 250 |
-| oracle weights, ipwprob() with true probabilities, 500 people | 1 | 1.013 | 0.013 | 0.010 | 0.156 | 0.157 | 250 |
-| oracle weights, ipwprob() with true probabilities, 2500 people | 1 | 1.007 | 0.007 | 0.006 | 0.089 | 0.090 | 200 |
+| oracle weights, ipwprobtm() with true probabilities, 500 people | 1 | 1.013 | 0.013 | 0.010 | 0.156 | 0.157 | 250 |
+| oracle weights, ipwprobtm() with true probabilities, 2500 people | 1 | 1.007 | 0.007 | 0.006 | 0.089 | 0.090 | 200 |
 
 Both naive analyses are biased (+49% and -14%). Ordinal and multinomial
 weights recover the effect; the 3.1% bias of the ordinal weights at 500
 people falls to 1.0% at 2500. Oracle weights, from
-[`ipwprob()`](https://tranhung93.github.io/ipw/reference/ipwprob.md)
+[`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md)
 with the true probability of each observed dose, are within 1.5%, which
 also checks that
-[`ipwprob()`](https://tranhung93.github.io/ipw/reference/ipwprob.md)
+[`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md)
 multiplies the ratios correctly over time.
 
 ### 5b. Smooth terms in `ipwtm()`
@@ -358,11 +356,12 @@ ending in an event, the probability of an event during that interval;
 this simulation shows that the approximation works for estimating a
 causal effect.
 
-## 7. Standard errors: `ipwboot()`, robust and naive
+## 7. Standard errors: bootstrap, robust and naive
 
 Each table shows the mean estimated standard error divided by the actual
 spread of the estimates (1 is ideal) and the coverage of 95% confidence
-intervals.
+intervals. The bootstrap re-estimates the weights and the MSM in each of
+200 bootstrap samples (function `boot_sim()` in the script).
 
 ### 7a and 7b. Linear MSM for a binary exposure
 
@@ -378,19 +377,21 @@ msm.effect <- function(dd) {
                 denominator = ~ l, data = dd)$ipw.weights
   coef(lm(y ~ a, data = dd, weights = w))["a"]
 }
-ipwboot(d, msm.effect, R = 200)
+boot.est <- replicate(200, msm.effect(d[sample(nrow(d), replace = TRUE), ]))
+sd(boot.est)                          # bootstrap standard error
+quantile(boot.est, c(0.025, 0.975))   # percentile interval
 ```
 
 | Method | Mean estimate | Mean SE | Empirical SD | SE / empirical SD | Coverage of 95% CI | MCSE of coverage | Replications |
 |:---|---:|---:|---:|---:|---:|---:|---:|
-| ipwboot, percentile CI | 10.031 | 0.492 | 0.481 | 1.023 | 0.945 | 0.007 | 1000 |
-| ipwboot SE, Wald CI | 10.031 | 0.492 | 0.481 | 1.023 | 0.955 | 0.007 | 1000 |
+| bootstrap, percentile CI | 10.031 | 0.492 | 0.481 | 1.023 | 0.945 | 0.007 | 1000 |
+| bootstrap SE, Wald CI | 10.031 | 0.492 | 0.481 | 1.023 | 0.955 | 0.007 | 1000 |
 | robust SE (svyglm), Wald CI | 10.031 | 0.537 | 0.481 | 1.115 | 0.972 | 0.005 | 1000 |
 
 | Method | Mean estimate | Mean SE | Empirical SD | SE / empirical SD | Coverage of 95% CI | MCSE of coverage | Replications |
 |:---|---:|---:|---:|---:|---:|---:|---:|
-| ipwboot, percentile CI | 11.055 | 1.135 | 1.848 | 0.614 | 0.575 | 0.016 | 1000 |
-| ipwboot SE, Wald CI | 11.055 | 1.135 | 1.848 | 0.614 | 0.596 | 0.016 | 1000 |
+| bootstrap, percentile CI | 11.055 | 1.135 | 1.848 | 0.614 | 0.575 | 0.016 | 1000 |
+| bootstrap SE, Wald CI | 11.055 | 1.135 | 1.848 | 0.614 | 0.596 | 0.016 | 1000 |
 | robust SE (svyglm), Wald CI | 11.055 | 1.144 | 1.848 | 0.619 | 0.600 | 0.015 | 1000 |
 
 With good overlap the bootstrap standard error is accurate (ratio 1.02,
@@ -412,8 +413,8 @@ hazard ratios are not collapsible).
 |:---|---:|---:|---:|---:|---:|---:|---:|
 | naive SE (coxph), Wald CI | -0.617 | 0.117 | 0.11 | 1.065 | 0.958 | 0.009 | 500 |
 | robust SE (coxph), Wald CI | -0.617 | 0.121 | 0.11 | 1.104 | 0.968 | 0.008 | 500 |
-| ipwboot SE, Wald CI | -0.617 | 0.110 | 0.11 | 0.998 | 0.940 | 0.011 | 500 |
-| ipwboot, percentile CI | -0.617 | 0.110 | 0.11 | 0.998 | 0.928 | 0.012 | 500 |
+| bootstrap SE, Wald CI | -0.617 | 0.110 | 0.11 | 0.998 | 0.940 | 0.011 | 500 |
+| bootstrap, percentile CI | -0.617 | 0.110 | 0.11 | 0.998 | 0.928 | 0.012 | 500 |
 
 All three standard errors are close to the truth here. The bootstrap
 standard error is accurate (ratio 1.00); the robust one is again too
@@ -424,18 +425,18 @@ little in this setting.
 
 ### 7d. Time-varying exposure, bootstrap by person
 
-The design of scenario 5 with a binary exposure; `ipwboot(id = id)`
-resamples people with all their visits.
+The design of scenario 5 with a binary exposure; the bootstrap resamples
+people with all their visits, and each sampled copy gets a new id.
 
 ``` r
 
-ipwboot(long, tv.effect, id = id, R = 200)
+boot_sim(long, tv.effect, id = "id", R = 200)
 ```
 
 | Method | Mean estimate | Mean SE | Empirical SD | SE / empirical SD | Coverage of 95% CI | MCSE of coverage | Replications |
 |:---|---:|---:|---:|---:|---:|---:|---:|
-| ipwboot (id), percentile CI | 1.047 | 0.139 | 0.226 | 0.616 | 0.722 | 0.020 | 500 |
-| ipwboot (id) SE, Wald CI | 1.047 | 0.139 | 0.226 | 0.616 | 0.744 | 0.020 | 500 |
+| bootstrap by person, percentile CI | 1.047 | 0.139 | 0.226 | 0.616 | 0.722 | 0.020 | 500 |
+| bootstrap by person SE, Wald CI | 1.047 | 0.139 | 0.226 | 0.616 | 0.744 | 0.020 | 500 |
 | robust SE (svyglm), Wald CI | 1.047 | 0.158 | 0.226 | 0.698 | 0.798 | 0.018 | 500 |
 
 Neither method is adequate here: the bootstrap standard error is 38% too
@@ -451,8 +452,7 @@ not repair it.
 The simulations support the new models: with the correct model, each of
 them removes nearly all confounding, and the small biases that remain
 are either shared by weights from the true model or shrink with the
-sample size. They support
-[`ipwboot()`](https://tranhung93.github.io/ipw/reference/ipwboot.md) for
+sample size. They support a bootstrap that re-estimates the weights for
 analyses with well-behaved weights, where it gives accurate standard
 errors and robust standard errors are conservative. They also show its
 limit: when weights are extreme (poor overlap, long products of
