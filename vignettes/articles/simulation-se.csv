@@ -1,14 +1,14 @@
 "scenario","method","truth","mean.est","mean.se","emp.sd","se.ratio","coverage","mcse.cov","reps"
-"7a. Linear MSM, good overlap","ipwboot, percentile CI",10,10.031,0.492,0.481,1.023,0.945,0.007,1000
-"7a. Linear MSM, good overlap","ipwboot SE, Wald CI",10,10.031,0.492,0.481,1.023,0.955,0.007,1000
+"7a. Linear MSM, good overlap","bootstrap, percentile CI",10,10.031,0.492,0.481,1.023,0.945,0.007,1000
+"7a. Linear MSM, good overlap","bootstrap SE, Wald CI",10,10.031,0.492,0.481,1.023,0.955,0.007,1000
 "7a. Linear MSM, good overlap","robust SE (svyglm), Wald CI",10,10.031,0.537,0.481,1.115,0.972,0.005,1000
-"7b. Linear MSM, JSS example (poor overlap)","ipwboot, percentile CI",10,11.055,1.135,1.848,0.614,0.575,0.016,1000
-"7b. Linear MSM, JSS example (poor overlap)","ipwboot SE, Wald CI",10,11.055,1.135,1.848,0.614,0.596,0.016,1000
+"7b. Linear MSM, JSS example (poor overlap)","bootstrap, percentile CI",10,11.055,1.135,1.848,0.614,0.575,0.016,1000
+"7b. Linear MSM, JSS example (poor overlap)","bootstrap SE, Wald CI",10,11.055,1.135,1.848,0.614,0.596,0.016,1000
 "7b. Linear MSM, JSS example (poor overlap)","robust SE (svyglm), Wald CI",10,11.055,1.144,1.848,0.619,0.6,0.015,1000
 "7c. Weighted Cox MSM (log hazard ratio)","naive SE (coxph), Wald CI",-0.619,-0.617,0.117,0.11,1.065,0.958,0.009,500
 "7c. Weighted Cox MSM (log hazard ratio)","robust SE (coxph), Wald CI",-0.619,-0.617,0.121,0.11,1.104,0.968,0.008,500
-"7c. Weighted Cox MSM (log hazard ratio)","ipwboot SE, Wald CI",-0.619,-0.617,0.11,0.11,0.998,0.94,0.011,500
-"7c. Weighted Cox MSM (log hazard ratio)","ipwboot, percentile CI",-0.619,-0.617,0.11,0.11,0.998,0.928,0.012,500
-"7d. Time-varying exposure, bootstrap by person","ipwboot (id), percentile CI",1,1.047,0.139,0.226,0.616,0.722,0.02,500
-"7d. Time-varying exposure, bootstrap by person","ipwboot (id) SE, Wald CI",1,1.047,0.139,0.226,0.616,0.744,0.02,500
+"7c. Weighted Cox MSM (log hazard ratio)","bootstrap SE, Wald CI",-0.619,-0.617,0.11,0.11,0.998,0.94,0.011,500
+"7c. Weighted Cox MSM (log hazard ratio)","bootstrap, percentile CI",-0.619,-0.617,0.11,0.11,0.998,0.928,0.012,500
+"7d. Time-varying exposure, bootstrap by person","bootstrap by person, percentile CI",1,1.047,0.139,0.226,0.616,0.722,0.02,500
+"7d. Time-varying exposure, bootstrap by person","bootstrap by person SE, Wald CI",1,1.047,0.139,0.226,0.616,0.744,0.02,500
 "7d. Time-varying exposure, bootstrap by person","robust SE (svyglm), Wald CI",1,1.047,0.158,0.226,0.698,0.798,0.018,500
