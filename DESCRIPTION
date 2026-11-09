@@ -26,7 +26,7 @@ Description: Functions to estimate the probability to receive the observed treat
     treatment situations and longitudinal studies can be analysed. The same functions can be used to
     correct for informative censoring.
 Encoding: UTF-8
-License: MIT + file LICENSE
+License: GPL (>= 2)
 NeedsCompilation: no
 LazyData: true
 Config/testthat/edition: 3
