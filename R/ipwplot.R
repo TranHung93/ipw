@@ -14,6 +14,7 @@
 #' @param ref Logical; if \code{TRUE}, adds a reference line at 1 (or log(1) = 0).
 #' @param ... Additional graphical parameters passed to \code{boxplot} or \code{plot}.
 #' @author Willem M. van der Wal \email{willem@vanderwalresearch.com}, Ronald B. Geskus \email{rgeskus@oucru.org}
+#' @return \code{NULL}, invisibly. Called for its side effect (a plot).
 #' @export
 #'
 #' @examples
@@ -39,6 +40,12 @@ ipwplot <- function(
 {
   if (missing(weights) || !is.numeric(weights) || length(weights) == 0) {
     stop("'weights' must be a non-empty numeric vector.")
+  }
+  if (anyNA(weights)) {
+    stop("'weights' must not contain missing values.")
+  }
+  if (!is.null(binwidth) && length(binwidth) != 1) {
+    stop("'binwidth' must be a single positive number.")
   }
   if (logscale && any(weights <= 0, na.rm = TRUE)) {
     stop("'weights' must be positive when logscale = TRUE.")

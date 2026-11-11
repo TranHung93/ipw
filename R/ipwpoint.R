@@ -13,8 +13,11 @@
 #' Standard errors: \code{ipwpoint} only estimates the weights. Standard errors
 #' for the marginal structural model have to be obtained when that model is fitted.
 #' Robust (sandwich) standard errors, for example from \code{svyglm()} in the survey
-#' package as in Van der Wal and Geskus (2011), treat the weights as known and tend to
-#' be conservative (too large). Austin (2016) compared naive, robust and bootstrap
+#' package as in Van der Wal and Geskus (2011), treat the weights as known. For a
+#' binary point treatment with good overlap they were conservative (too large) in
+#' simulations, but they
+#' can be too small for a continuous exposure (\code{family = "gaussian"}) and for
+#' time-varying weights; use the bootstrap there. Austin (2016) compared naive, robust and bootstrap
 #' standard errors in simulations and recommends the bootstrap, in which the weights
 #' are re-estimated in each bootstrap sample. This takes the uncertainty in the
 #' estimated weights into account; see the bootstrap example below. About 200
@@ -120,7 +123,8 @@
 #'
 #' # Bootstrap standard error and percentile confidence interval for the MSM.
 #' # The robust standard error from svyglm() treats the weights as known and
-#' # tends to be conservative. Austin (2016) recommends the bootstrap, with the
+#' # can be too large or too small (simulation study, scenarios 7a and 7b).
+#' # Austin (2016) recommends the bootstrap, with the
 #' # weights re-estimated in each bootstrap sample: each bootstrap sample below
 #' # re-fits ipwpoint() and the MSM. (A weighted lm() gives the same point
 #' # estimate as svyglm() and is faster.)
@@ -207,8 +211,8 @@ ipwpoint <- function(
   exp_vec <- data[[exp_name]]
 
   # 3. Variables present and complete ---------------------------------------
-  model_vars <- unique(c(exp_name, all.vars(denominator),
-                         if (!is.null(numerator)) all.vars(numerator)))
+  model_vars <- setdiff(unique(c(exp_name, all.vars(denominator),
+                                 if (!is.null(numerator)) all.vars(numerator))), ".")
   missing_vars <- setdiff(model_vars, names(data))
   if (length(missing_vars) > 0) {
     stop("Variables not found in data: ", paste(missing_vars, collapse = ", "), call. = FALSE)
@@ -235,6 +239,9 @@ ipwpoint <- function(
       (!is.numeric(exp_vec) || any(exp_vec < 0) || any(exp_vec != round(exp_vec)))) {
     stop("Count exposure must contain non-negative integers for family = '", family, "'.",
          call. = FALSE)
+  }
+  if (family == "gaussian" && !is.numeric(exp_vec)) {
+    stop("Exposure must be numeric for family = 'gaussian'.", call. = FALSE)
   }
   if (family %in% c("gamma", "lognormal") && (!is.numeric(exp_vec) || any(exp_vec <= 0))) {
     stop("Exposure must be positive for family = '", family, "'.", call. = FALSE)

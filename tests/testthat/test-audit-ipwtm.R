@@ -25,16 +25,23 @@ make_surv_irregular <- function(n = 300, seed = 3) {
   d$a <- stats::rbinom(nrow(d), 1, 1 - exp(-0.02 * (d$time - d$tstart) * exp(0.7 * d$l)))
   d[stats::ave(d$a, d$id, FUN = function(x) cumsum(cumsum(x)) <= 1) == 1, ]
 }
-# Correct weights: P(row) uses the baseline hazard over the row's own (tstart, time]
+# Correct weights: P(row) uses the baseline hazard over the row's own (tstart, time].
+# The Efron baseline hazard is computed by hand from the risk sets and the Cox
+# coefficient, without basehaz() or survfit(), so the reference does not share
+# code with ipwtm(). At an event time t with d tied events D and risk set R(t),
+# the increment is sum_{k = 0}^{d - 1} 1 / (sum_R r - k / d * sum_D r).
 surv_first_reference <- function(d) {
-  fit <- survival::coxph(survival::Surv(tstart, time, a) ~ l, data = d, method = "efron")
-  bh <- survival::basehaz(fit, centered = TRUE)
-  H <- function(t) {
-    v <- stats::approx(bh$time, bh$hazard, t, method = "constant", rule = 2)$y
-    v[t < min(bh$time)] <- 0
-    v
-  }
-  h <- (H(d$time) - H(d$tstart)) * stats::predict(fit, type = "risk")
+  fit <- survival::coxph(survival::Surv(tstart, time, a) ~ l, data = d, ties = "efron")
+  r <- exp(d$l * stats::coef(fit))
+  event_times <- sort(unique(d$time[d$a == 1]))
+  increments <- vapply(event_times, function(t) {
+    at_risk <- d$tstart < t & d$time >= t
+    tied <- d$time == t & d$a == 1
+    n_tied <- sum(tied)
+    sum(1 / (sum(r[at_risk]) - (seq_len(n_tied) - 1) / n_tied * sum(r[tied])))
+  }, numeric(1))
+  H <- function(t) vapply(t, function(s) sum(increments[event_times <= s]), numeric(1))
+  h <- (H(d$time) - H(d$tstart)) * r
   p <- ifelse(d$a == 1, 1 - exp(-h), exp(-h))
   stats::ave(1 / p, d$id, FUN = cumprod)
 }
@@ -55,7 +62,7 @@ test_that("survival type = 'first' uses the hazard over each row's own interval"
   d <- make_surv_irregular()
   w <- ipwtm(a, "survival", denominator = ~ l, id = id, tstart = tstart, timevar = time,
              type = "first", data = d)
-  expect_equal(w$ipw.weights, unname(surv_first_reference(d)), tolerance = 1e-6)
+  expect_equal(w$ipw.weights, unname(surv_first_reference(d)), tolerance = 1e-8)
 })
 
 test_that("survival: type = 'first' and type = 'all' agree when every row is at risk once", {
@@ -133,7 +140,7 @@ test_that("survival type = 'all' uses the hazard over each row's own interval", 
   d <- make_surv_irregular()
   w <- ipwtm(a, "survival", denominator = ~ l, id = id, tstart = tstart, timevar = time,
              type = "all", data = d)
-  expect_equal(w$ipw.weights, unname(surv_first_reference(d)), tolerance = 1e-6)
+  expect_equal(w$ipw.weights, unname(surv_first_reference(d)), tolerance = 1e-8)
 })
 
 test_that("a subject with a single row is handled", {

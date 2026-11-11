@@ -35,6 +35,9 @@ ipwplot(
 
 \item{...}{Additional graphical parameters passed to \code{boxplot} or \code{plot}.}
 }
+\value{
+\code{NULL}, invisibly. Called for its side effect (a plot).
+}
 \description{
 Plots the distribution of inverse probability weights. Displays a density plot
 for point treatment weights or boxplots across follow-up intervals for time-varying weights.

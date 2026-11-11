@@ -58,6 +58,12 @@
          "(it would be sorted alphabetically). Use an ordered factor or numeric codes.",
          call. = FALSE)
   }
+  if (is.factor(x) && !is.ordered(x) &&
+      anyNA(suppressWarnings(as.numeric(levels(x))))) {
+    warning("Ordinal exposure is an unordered factor; its levels are used in the order ",
+            paste(levels(x), collapse = " < "), ". Use an ordered factor to make the ",
+            "order explicit.", call. = FALSE)
+  }
   invisible(TRUE)
 }
 
@@ -66,18 +72,12 @@
   if (is.symbol(expr) || is.character(expr)) as.character(expr) else deparse(expr, width.cutoff = 500)
 }
 
-# Build "lhs ~ rhs" from a one-sided formula, keeping its environment
+# Build "lhs ~ rhs" from a one-sided formula, keeping its environment. The
+# right-hand side is used as written, so offset(), "- 1" and "." are kept.
 .build_model_formula <- function(lhs_str, rhs_formula) {
-  tt <- stats::terms(rhs_formula)
-  rhs_terms <- attr(tt, "term.labels")
-  intercept <- attr(tt, "intercept") == 1
-  rhs_str <- if (length(rhs_terms) == 0) {
-    if (intercept) "1" else "0"
-  } else {
-    paste(rhs_terms, collapse = " + ")
-  }
-  if (length(rhs_terms) > 0 && !intercept) rhs_str <- paste(rhs_str, "- 1")
-  stats::as.formula(paste(lhs_str, "~", rhs_str), env = environment(rhs_formula))
+  rhs <- rhs_formula[[length(rhs_formula)]]
+  lhs <- parse(text = lhs_str, keep.source = FALSE)[[1]]
+  stats::as.formula(call("~", lhs, rhs), env = environment(rhs_formula))
 }
 
 # Truncate weights at the trunc and 1 - trunc quantiles
