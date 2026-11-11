@@ -40,6 +40,10 @@
   weights as known and tend to be conservative; Austin (2016,
   doi:10.1002/sim.7084) recommends the bootstrap.
 
+## License
+
+* License changed back to GPL (>= 2), the license of ipw before version 1.3.0.
+
 # ipw 1.3.2
 
 ## Bug fixes
