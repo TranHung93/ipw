@@ -41,6 +41,16 @@
   invisible(TRUE)
 }
 
+# A 0/1 exposure stored as a factor or character is converted by its labels,
+# so the order of factor levels cannot swap the two exposure values.
+.as_binary01 <- function(x) {
+  if ((is.factor(x) || is.character(x)) && all(as.character(x) %in% c("0", "1"))) {
+    as.numeric(as.character(x))
+  } else {
+    x
+  }
+}
+
 # A character exposure has no defined order: as.factor() would sort it alphabetically
 .check_ordinal_exposure <- function(x) {
   if (is.character(x)) {

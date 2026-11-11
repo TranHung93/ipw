@@ -218,10 +218,14 @@ ipwpoint <- function(
          call. = FALSE)
   }
   .check_infinite(data, model_vars)
+  if (family == "binomial" && (is.factor(exp_vec) || is.character(exp_vec))) {
+    exp_vec <- .as_binary01(exp_vec)
+    data <- as.data.frame(data)
+    data[[exp_name]] <- exp_vec
+  }
   if (family == "binomial" &&
       (!(is.numeric(exp_vec) || is.logical(exp_vec)) || !all(exp_vec %in% c(0, 1)))) {
-    stop("Binomial exposure must be numeric (or logical) and coded as 0 or 1, not ",
-         class(exp_vec)[1], ".", call. = FALSE)
+    stop("Binomial exposure must be coded as 0 or 1.", call. = FALSE)
   }
   if (family %in% c("binomial", "multinomial", "ordinal") && length(unique(exp_vec)) < 2) {
     stop("The exposure takes only one value; weights cannot be estimated.", call. = FALSE)

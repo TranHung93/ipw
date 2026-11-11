@@ -9,9 +9,9 @@
   right when all subjects share one time grid (as in `haartdat`). **Weights
   change for data in which subjects have their own follow-up times**; for data
   with a common time grid they are unchanged. `type = "all"` was not affected.
-* `ipwpoint()` and `ipwtm()`: a binomial (or survival) exposure must now be
-  numeric or logical 0/1. A factor exposure was accepted, and with levels in
-  the order `c("1", "0")` the probabilities of the two exposure values were
+* `ipwpoint()` and `ipwtm()`: a binomial (or survival) 0/1 exposure stored as
+  a factor or character is now used by its labels. With factor levels in the
+  order `c("1", "0")` the probabilities of the two exposure values were
   swapped, giving wrong weights.
 * `ipwpoint()` and `ipwtm()`, `family = "ordinal"`: a character exposure is
   now an error. It was ordered alphabetically (e.g. "high" < "low" < "mid").

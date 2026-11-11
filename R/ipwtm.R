@@ -287,6 +287,15 @@ ipwtm <- function(
     trunc       = trunc
   )
 
+  # A 0/1 exposure stored as a factor or character is used by its labels
+  if (family %in% c("binomial", "survival")) {
+    exp_raw <- data[[var_names$exposure]]
+    if (is.factor(exp_raw) || is.character(exp_raw)) {
+      data <- as.data.frame(data)
+      data[[var_names$exposure]] <- .as_binary01(exp_raw)
+    }
+  }
+
   # 3. Sorting & Preserving Original Order ----------------------------------
   ord <- order(data[[var_names$id]], data[[var_names$timevar]])
   order_orig <- seq_len(nrow(data))[ord]
@@ -427,10 +436,10 @@ ipwtm <- function(
   }
 
   exp_vec <- data[[var_names$exposure]]
+  if (family %in% c("binomial", "survival")) exp_vec <- .as_binary01(exp_vec)
   if (family %in% c("binomial", "survival") &&
       (!(is.numeric(exp_vec) || is.logical(exp_vec)) || !all(exp_vec %in% c(0, 1)))) {
-    stop("Exposure must be numeric (or logical) and coded as 0 or 1 for family = \"", family,
-         "\", not ", class(exp_vec)[1], ".", call. = FALSE)
+    stop("Exposure must be coded as 0 or 1 for family = \"", family, "\".", call. = FALSE)
   }
   if (family == "ordinal") .check_ordinal_exposure(exp_vec)
 
