@@ -41,6 +41,31 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="ipw-development-version">ipw (development version)<a class="anchor" aria-label="anchor" href="#ipw-development-version"></a></h2>
 <div class="section level3">
+<h3 id="bug-fixes-development-version">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-development-version"></a></h3>
+<ul><li>
+<code><a href="../reference/ipwtm.html">ipwtm()</a></code>, <code>family = "survival"</code>, <code>type = "first"</code> or <code>"cens"</code>: the probability of each row now uses the baseline hazard over the row’s own interval <code>(tstart, timevar]</code>. Before, it used the increase in the baseline hazard since the previous time point in the whole data set, which is only right when all subjects share one time grid (as in <code>haartdat</code>). <strong>Weights change for data in which subjects have their own follow-up times</strong>; for data with a common time grid they are unchanged. <code>type = "all"</code> was not affected.</li>
+<li>
+<code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> and <code><a href="../reference/ipwtm.html">ipwtm()</a></code>: a binomial (or survival) 0/1 exposure stored as a factor or character is now used by its labels. With factor levels in the order <code>c("1", "0")</code> the probabilities of the two exposure values were swapped, giving wrong weights.</li>
+<li>
+<code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> and <code><a href="../reference/ipwtm.html">ipwtm()</a></code>, <code>family = "ordinal"</code>: a character exposure is now an error. It was ordered alphabetically (e.g. “high” &lt; “low” &lt; “mid”). Use an ordered factor or numeric codes.</li>
+<li>
+<code><a href="../reference/ipwtm.html">ipwtm()</a></code>: a covariate called <code>selvar</code> was replaced by the internal selection indicator; it is now used as the user’s covariate.</li>
+<li>
+<code><a href="../reference/ipwtm.html">ipwtm()</a></code>: duplicated combinations of <code>id</code> and <code>timevar</code> are now an error (as in <code><a href="../reference/ipwprobtm.html">ipwprobtm()</a></code>).</li>
+<li>
+<code><a href="../reference/ipwpoint.html">ipwpoint()</a></code>: an exposure that takes only one value is now an error instead of returning meaningless weights.</li>
+<li>
+<code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> and <code><a href="../reference/ipwtm.html">ipwtm()</a></code>: infinite values in model variables now give an error that names the variables.</li>
+<li>
+<code><a href="../reference/ipwprobtm.html">ipwprobtm()</a></code>: <code>den</code> and <code>num</code> larger than 1 are now an error.</li>
+<li>
+<code><a href="../reference/tstartfun.html">tstartfun()</a></code>: warns when follow-up times are &lt;= -1, because the starting time of -1 given to the first record is then not before the follow-up time.</li>
+<li>
+<code><a href="../reference/ipwplot.html">ipwplot()</a></code>: zero or negative weights with <code>logscale = TRUE</code> are now an error; they were silently left out of the plot.</li>
+<li>
+<code><a href="../reference/ipwtm.html">ipwtm()</a></code> examples: the cluster bootstrap moved to <code><a href="../articles/ipw.html">vignette("ipw")</a></code> (section 5), and the part of Example 2 that needs nlme (in Suggests) only runs when nlme is installed.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="new-features-development-version">New features<a class="anchor" aria-label="anchor" href="#new-features-development-version"></a></h3>
 <ul><li>
 <code><a href="../reference/ipwtm.html">ipwtm()</a></code>: <code>type = "all"</code> now works for <code>family = "multinomial"</code> and <code>"ordinal"</code> (time-varying categorical exposures that switch back and forth).</li>

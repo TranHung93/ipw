@@ -136,13 +136,14 @@ confounders; for longitudinal data in long format the bootstrap must
 resample subjects, not rows: keep all rows of a sampled subject, give
 each sampled copy a new id, re-run `ipwtm` (for treatment and, if used,
 censoring weights) on the bootstrap sample and refit the marginal
-structural model. See the cluster bootstrap in Example 1 below. About
-200 bootstrap samples are usually enough to estimate a standard error.
-Time-varying weights are products over time, so a few subjects can get
-very large weights. In the package's simulation study (500 subjects, 4
-visits), bootstrap and robust standard errors were then both too small,
-with 95% confidence intervals covering the truth in only 72 to 80% of
-samples. Check the weights with
+structural model. See the cluster bootstrap in section 5 of
+[`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md).
+About 200 bootstrap samples are usually enough to estimate a standard
+error. Time-varying weights are products over time, so a few subjects
+can get very large weights. In the package's simulation study (500
+subjects, 4 visits), bootstrap and robust standard errors were then both
+too small, with 95% confidence intervals covering the truth in only 72
+to 80% of samples. Check the weights with
 [`summary()`](https://rdrr.io/r/base/summary.html) and
 [`ipwplot`](https://tranhung93.github.io/ipw/reference/ipwplot.md),
 consider truncation (`trunc`), and interpret standard errors with care
@@ -260,47 +261,9 @@ summary(coxph(Surv(tstart, fuptime, event) ~ haartind, data = haartdat))
 #> Score (logrank) test = 1.85  on 1 df,   p=0.2
 #> 
 
-#Bootstrap standard error for the MSM above (cluster bootstrap by patient).
-#cluster() gives a robust standard error that treats the weights as known and
-#tends to be conservative. Austin (2016) recommends the bootstrap, with the
-#weights re-estimated in each bootstrap sample.
-#With longitudinal data, resample patients, not rows: keep all rows of a
-#sampled patient, give each sampled copy a new id, re-run both ipwtm() calls
-#and refit the MSM.
-#B = 20 keeps the example short; use about 200 in practice.
-# \donttest{
-msm.fun <- function(d) {
-  tw <- ipwtm(exposure = haartind, family = "survival",
-              numerator = ~ sex + age, denominator = ~ sex + age + cd4.sqrt,
-              id = patient, tstart = tstart, timevar = fuptime,
-              type = "first", data = d)
-  cw <- ipwtm(exposure = dropout, family = "survival",
-              numerator = ~ sex + age, denominator = ~ sex + age + cd4.sqrt,
-              id = patient, tstart = tstart, timevar = fuptime,
-              type = "cens", data = d)
-  d$w <- tw$ipw.weights * cw$ipw.weights
-  coef(coxph(Surv(tstart, fuptime, event) ~ haartind, data = d,
-             weights = w))["haartind"]
-}
-rows.pat <- split(seq_len(nrow(haartdat)), haartdat$patient)
-set.seed(123)
-B <- 20
-est.boot <- numeric(B)
-for (b in seq_len(B)) {
-  pick <- sample(length(rows.pat), replace = TRUE)
-  d.boot <- haartdat[unlist(rows.pat[pick]), ]
-  d.boot$patient <- rep(seq_along(pick), lengths(rows.pat[pick]))
-  est.boot[b] <- msm.fun(d.boot)
-}
-#log hazard ratio with bootstrap standard error
-c(estimate = unname(msm.fun(haartdat)), boot.se = sd(est.boot))
-#>   estimate    boot.se 
-#> -0.9363330  0.5091285 
-#percentile interval (crude with B = 20)
-quantile(est.boot, c(0.025, 0.975))
-#>       2.5%      97.5% 
-#> -2.0041188 -0.3006563 
-# }
+#For a bootstrap standard error that re-estimates the weights in each
+#bootstrap sample (resampling patients, not rows), see section 5 of
+#vignette("ipw").
 
 ########################################################################
 #EXAMPLE 2
@@ -323,11 +286,11 @@ timedat$cd4.sqrt <- sqrt(timedat$cd4count)
 timedat <- merge(timedat, basdat[,c("id", "Ttb")], by = "id", all.x = TRUE)
 #compute TB status
 timedat$tb.lag <- ifelse(with(timedat, !is.na(Ttb) & fuptime > Ttb), 1, 0)
-#longitudinal CD4-model
-require(nlme)
-#> Loading required package: nlme
-cd4.lme <- lme(cd4.sqrt ~ fuptime + tb.lag, random = ~ fuptime | id,
-               data = timedat)
+#longitudinal CD4-model (needs the nlme package)
+if (requireNamespace("nlme", quietly = TRUE)) {
+library(survival)
+cd4.lme <- nlme::lme(cd4.sqrt ~ fuptime + tb.lag, random = ~ fuptime | id,
+                     data = timedat)
 
 #build new dataset:
 #rows corresponding to TB-status switches, and individual end times
@@ -363,16 +326,20 @@ temp <- ipwtm(
   timevar = fuptime,
   type = "first",
   data = startstop)
-summary(temp$ipw.weights)
-#>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#>  0.2117  0.9409  0.9908  1.0373  1.0125 13.6539 
+print(summary(temp$ipw.weights))
 ipwplot(weights = temp$ipw.weights, timevar = startstop$fuptime, binwidth = 100)
 
 #models
 #IPW-fitted MSM, using cluster() to obtain robust standard error estimate
-require(survival)
-summary(coxph(Surv(tstart, fuptime, event) ~ tb + cluster(id),
-              data = startstop, weights = temp$ipw.weights))
+print(summary(coxph(Surv(tstart, fuptime, event) ~ tb + cluster(id),
+                    data = startstop, weights = temp$ipw.weights)))
+#unadjusted
+print(summary(coxph(Surv(tstart, fuptime, event) ~ tb, data = startstop)))
+#adjusted using conditioning: part of the effect of TB is adjusted away
+print(summary(coxph(Surv(tstart, fuptime, event) ~ tb + cd4.sqrt, data = startstop)))
+}
+#>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#>  0.2117  0.9409  0.9908  1.0373  1.0125 13.6539 
 #> Call:
 #> coxph(formula = Surv(tstart, fuptime, event) ~ tb, data = startstop, 
 #>     weights = temp$ipw.weights, cluster = id)
@@ -394,8 +361,6 @@ summary(coxph(Surv(tstart, fuptime, event) ~ tb + cluster(id),
 #> 
 #>   (Note: the likelihood ratio and score tests assume independence of
 #>      observations within a cluster, the Wald and robust score tests do not).
-#unadjusted
-summary(coxph(Surv(tstart, fuptime, event) ~ tb, data = startstop))
 #> Call:
 #> coxph(formula = Surv(tstart, fuptime, event) ~ tb, data = startstop)
 #> 
@@ -414,8 +379,6 @@ summary(coxph(Surv(tstart, fuptime, event) ~ tb, data = startstop))
 #> Wald test            = 68.17  on 1 df,   p=<2e-16
 #> Score (logrank) test = 79.8  on 1 df,   p=<2e-16
 #> 
-#adjusted using conditioning: part of the effect of TB is adjusted away
-summary(coxph(Surv(tstart, fuptime, event) ~ tb + cd4.sqrt, data = startstop))
 #> Call:
 #> coxph(formula = Surv(tstart, fuptime, event) ~ tb + cd4.sqrt, 
 #>     data = startstop)

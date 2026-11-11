@@ -501,7 +501,7 @@ c(rows.used.first = sum(w.first$selvar), rows.used.all = sum(w.all$selvar))
 #>             832            1376
 rbind(first = summary(w.first$ipw.weights), all = summary(w.all$ipw.weights))
 #>            Min.   1st Qu.    Median      Mean  3rd Qu.     Max.
-#> first 0.7480747 0.8333341 1.0000000 0.9908948 1.000000 1.435220
+#> first 0.6670722 0.8388009 0.9308970 0.9804538 1.066893 1.571507
 #> all   0.3741005 0.8114862 0.9444067 0.9815656 1.087444 2.394201
 ```
 
