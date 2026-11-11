@@ -257,6 +257,12 @@ regression_extract <- function(res) {
 }
 
 # Tolerance used for each element: weights 1e-8, model coefficients 1e-6
-regression_tolerance <- function(element) {
-  if (element %in% c("num.coef", "den.coef")) 1e-6 else 1e-8
+regression_tolerance <- function(element, case = "") {
+  if (element %in% c("num.coef", "den.coef")) return(1e-6)
+  # Ordinal models are fitted by MASS::polr(), an iterative optimiser whose end
+  # point differs in about the 8th digit between platforms (macOS arm64 vs the
+  # Windows machine that made the fixture). A real regression shows up as a
+  # difference of order 1, so 1e-6 still catches it.
+  if (grepl("ordinal", case) && element %in% c("ipw.weights", "weights.trunc")) return(1e-6)
+  1e-8
 }

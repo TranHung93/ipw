@@ -2,7 +2,8 @@
 # before the 1.3.x rewrite). The reference file is created once with
 # data-raw/make-regression-fixtures.R; the test is skipped until it exists.
 # Weights, truncated weights, selvar and tstart are compared at 1e-8, model
-# coefficients at 1e-6 (see regression_tolerance()).
+# coefficients and the weights of ordinal (polr) cases at 1e-6 (see
+# regression_tolerance()).
 
 fixture <- test_path("fixtures", "ipw-1.2.1.1.rds")
 
@@ -23,7 +24,7 @@ test_that("results match ipw 1.2.1.1", {
     old <- ref[[nm]]
     expect_setequal(names(new), names(old))
     for (el in intersect(names(old), names(new))) {
-      expect_equal(new[[el]], old[[el]], tolerance = regression_tolerance(el),
+      expect_equal(new[[el]], old[[el]], tolerance = regression_tolerance(el, nm),
                    label = paste0(nm, "$", el, " (current)"),
                    expected.label = paste0(nm, "$", el, " (1.2.1.1)"))
     }
