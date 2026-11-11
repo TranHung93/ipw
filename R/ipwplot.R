@@ -40,6 +40,9 @@ ipwplot <- function(
   if (missing(weights) || !is.numeric(weights) || length(weights) == 0) {
     stop("'weights' must be a non-empty numeric vector.")
   }
+  if (logscale && any(weights <= 0, na.rm = TRUE)) {
+    stop("'weights' must be positive when logscale = TRUE.")
+  }
 
   # Derive default axis labels if not provided
   weights_expr <- tryCatch(deparse(substitute(weights)), error = function(e) "weights")
