@@ -10,3 +10,6 @@
   rationale](https://tranhung93.github.io/ipw/articles/methods.md):
 - [Simulation study: do the weights recover known
   effects?](https://tranhung93.github.io/ipw/articles/simulations.md):
+- [Survival weights with individual visit times: a bug in every version
+  up to
+  1.3.2](https://tranhung93.github.io/ipw/articles/survival-weights-bug.md):

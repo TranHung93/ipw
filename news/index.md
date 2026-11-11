@@ -91,6 +91,11 @@
 - New article “Bugs fixed after ipw 1.3.2” on the package website: for
   each bug above, an example run in ipw 1.2.1.1, ipw 1.3.2 and this
   version, with the weights compared with weights computed by hand.
+- New article “Survival weights with individual visit times”: the
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
+  survival bug in detail, with a worked example, a check of whether your
+  data are affected, the results of every ipw version on CRAN (1.0 to
+  1.3.2, all affected), the old and the new code, and the tests.
 
 ### New features
 
