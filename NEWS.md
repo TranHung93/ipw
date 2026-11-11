@@ -54,6 +54,12 @@
   (section 5), and the part of Example 2 that needs nlme (in Suggests) only
   runs when nlme is installed.
 
+## Documentation
+
+* New article "Bugs fixed after ipw 1.3.2" on the package website: for each
+  bug above, an example run in ipw 1.2.1.1, ipw 1.3.2 and this version, with
+  the weights compared with weights computed by hand.
+
 ## New features
 
 * `ipwtm()`: `type = "all"` now works for `family = "multinomial"` and
