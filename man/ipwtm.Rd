@@ -76,8 +76,11 @@ Supports binomial, survival, multinomial, ordinal, and gaussian families.
 Standard errors: \code{ipwtm} only estimates the weights. Standard errors
 for the marginal structural model have to be obtained when that model is fitted.
 Robust standard errors, for example from \code{coxph()} with \code{cluster(id)}
-as in Van der Wal and Geskus (2011), treat the weights as known and tend to be
-conservative (too large). Austin (2016) compared naive, robust and bootstrap
+as in Van der Wal and Geskus (2011), treat the weights as known. They are often
+conservative (too large) for a binary point treatment with good overlap, but
+they can be too small
+for time-varying weights (see the simulation results below) and for a continuous
+exposure; use the bootstrap there. Austin (2016) compared naive, robust and bootstrap
 standard errors in simulations and recommends the bootstrap, in which the weights
 are re-estimated in each bootstrap sample. Austin studied a point treatment with
 baseline confounders; for longitudinal data in long format the bootstrap must
@@ -115,7 +118,6 @@ temp <- ipwtm(
   data = haartdat)
 
 #plot inverse probability weights
-graphics.off()
 ipwplot(weights = temp$ipw.weights, timevar = haartdat$fuptime,
         binwidth = 100, ylim = c(-1.5, 1.5), main = "Stabilized inverse probability weights")
 
@@ -134,7 +136,6 @@ temp2 <- ipwtm(
   data = haartdat)
 
 #plot inverse probability of censoring weights
-graphics.off()
 ipwplot(weights = temp2$ipw.weights, timevar = haartdat$fuptime,
         binwidth = 100, ylim = c(-1.5, 1.5),
         main = "Stabilized inverse probability of censoring weights")

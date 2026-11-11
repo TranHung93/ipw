@@ -40,7 +40,7 @@ ref <- callr::r(function(lib, helper) {
   source(helper, local = TRUE)
   cases <- regression_cases()
   out <- lapply(names(cases), function(nm) {
-    res <- tryCatch(cases[[nm]](ipw::ipwpoint, ipw::ipwtm), error = function(e) {
+    res <- tryCatch(cases[[nm]](ipw::ipwpoint, ipw::ipwtm, ipw::tstartfun), error = function(e) {
       message("Case '", nm, "' failed in ipw 1.2.1.1: ", conditionMessage(e))
       NULL
     })
@@ -52,5 +52,6 @@ ref <- callr::r(function(lib, helper) {
 
 # 3. Save
 dir.create(file.path("tests", "testthat", "fixtures"), showWarnings = FALSE, recursive = TRUE)
-saveRDS(ref, file.path("tests", "testthat", "fixtures", "ipw-1.2.1.1.rds"), version = 2)
+saveRDS(ref, file.path("tests", "testthat", "fixtures", "ipw-1.2.1.1.rds"),
+        version = 2, compress = "xz")
 message("Saved reference weights for: ", paste(names(ref), collapse = ", "))

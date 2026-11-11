@@ -9,8 +9,11 @@
 #' Standard errors: \code{ipwtm} only estimates the weights. Standard errors
 #' for the marginal structural model have to be obtained when that model is fitted.
 #' Robust standard errors, for example from \code{coxph()} with \code{cluster(id)}
-#' as in Van der Wal and Geskus (2011), treat the weights as known and tend to be
-#' conservative (too large). Austin (2016) compared naive, robust and bootstrap
+#' as in Van der Wal and Geskus (2011), treat the weights as known. They are often
+#' conservative (too large) for a binary point treatment with good overlap, but
+#' they can be too small
+#' for time-varying weights (see the simulation results below) and for a continuous
+#' exposure; use the bootstrap there. Austin (2016) compared naive, robust and bootstrap
 #' standard errors in simulations and recommends the bootstrap, in which the weights
 #' are re-estimated in each bootstrap sample. Austin studied a point treatment with
 #' baseline confounders; for longitudinal data in long format the bootstrap must
@@ -94,7 +97,6 @@
 #'   data = haartdat)
 #'
 #' #plot inverse probability weights
-#' graphics.off()
 #' ipwplot(weights = temp$ipw.weights, timevar = haartdat$fuptime,
 #'         binwidth = 100, ylim = c(-1.5, 1.5), main = "Stabilized inverse probability weights")
 #'
@@ -113,7 +115,6 @@
 #'   data = haartdat)
 #'
 #' #plot inverse probability of censoring weights
-#' graphics.off()
 #' ipwplot(weights = temp2$ipw.weights, timevar = haartdat$fuptime,
 #'         binwidth = 100, ylim = c(-1.5, 1.5),
 #'         main = "Stabilized inverse probability of censoring weights")
@@ -416,6 +417,10 @@ ipwtm <- function(
   # All model variables present and complete
   id_vars <- unlist(var_names[c("exposure", "id", "timevar",
                                  if (family == "survival") "tstart")])
+  if ("." %in% c(all.vars(denominator), if (!is.null(numerator)) all.vars(numerator))) {
+    stop("'.' is not supported in ipwtm() formulas (it would include id, time and ",
+         "the exposure); list the covariates.", call. = FALSE)
+  }
   model_vars <- unique(c(id_vars, all.vars(denominator),
                          if (!is.null(numerator)) all.vars(numerator)))
   missing_vars <- setdiff(model_vars, names(data))
@@ -444,6 +449,9 @@ ipwtm <- function(
   if (family == "ordinal") .check_ordinal_exposure(exp_vec)
 
   if (family == "survival") {
+    if (any(data[[var_names$tstart]] >= data[[var_names$timevar]])) {
+      stop("'tstart' must be smaller than 'timevar' in every row.", call. = FALSE)
+    }
     for (f in list(numerator, denominator)) {
       if (!is.null(f) &&
           !is.null(attr(stats::terms(f, specials = "strata"), "specials")$strata)) {
@@ -558,6 +566,12 @@ ipwtm <- function(
   time_col  <- var_names$timevar
   start_col <- var_names$tstart
   surv_lhs  <- sprintf("survival::Surv(%s, %s, %s)", start_col, time_col, exp_col)
+  # Ties method: Efron unless the user passes ties (or its alias method) through ...
+  if (!is.null(dots$method)) {
+    dots$ties <- dots$method
+    dots$method <- NULL
+  }
+  if (is.null(dots$ties)) dots$ties <- "efron"
 
   # type = "all" (Graffeo et al. 2018): Andersen-Gill model for recurrent
   # exposure events, fitted on all rows. For each row (tstart, timevar], the
@@ -611,7 +625,6 @@ ipwtm <- function(
     data      = data,
     subset    = if (type != "all") quote(.ipw_selvar == 1) else NULL,
     na.action = stats::na.fail,
-    method    = "efron",
     model     = TRUE
   ), dots))
   p_den <- .compute_surv_p(mod_den)
@@ -628,7 +641,6 @@ ipwtm <- function(
       data      = data,
       subset    = if (type != "all") quote(.ipw_selvar == 1) else NULL,
       na.action = stats::na.fail,
-      method    = "efron",
       model     = TRUE
     ), dots))
     p_num <- .compute_surv_p(mod_num)

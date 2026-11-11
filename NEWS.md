@@ -2,6 +2,27 @@
 
 ## Bug fixes
 
+* `ipwpoint()` and `ipwtm()`: `offset()` terms in the `numerator` and
+  `denominator` formulas were silently dropped, so the models were fitted
+  without the offset and **the weights were wrong**. This affected ipw 1.3.1
+  and 1.3.2 on CRAN; ipw 1.2.1.1 was fine. Formulas are now used as written.
+* `ipwpoint()`: `denominator = ~ .` (all other columns of `data`) failed with
+  "Variables not found in data: ." and works again, as in ipw 1.2.1.1. In
+  `ipwtm()` a `.` is now a clear error, because it would include the id, time
+  and exposure columns; list the covariates instead.
+* `ipwpoint()` and `ipwtm()`, `family = "ordinal"`: an unordered factor
+  exposure whose levels are not numbers now gives a warning, because its
+  levels are used in alphabetical order unless set otherwise (e.g. "high" <
+  "low" < "mid"). Use an ordered factor to make the order explicit.
+* `ipwtm()`, `family = "survival"`: a `ties` argument passed through `...` to
+  `coxph()` was silently ignored (Efron was always used), and `method` gave
+  the error "formal argument matched by multiple actual arguments". Both are
+  now passed on; the default is still `ties = "efron"`.
+* `ipwtm()`, `family = "survival"`: rows with `tstart >= timevar` now give a
+  clear error instead of "missing values in object" or no error at all.
+* Clearer errors: `ipwpoint()` with `family = "gaussian"` and a non-numeric
+  exposure (was "NA/NaN/Inf in 'y'"); `ipwplot()` with missing weights (was
+  "'x' contains missing values") or a `binwidth` of length > 1.
 * `ipwtm()`, `family = "survival"`, `type = "first"` or `"cens"`: the
   probability of each row now uses the baseline hazard over the row's own
   interval `(tstart, timevar]`. Before, it used the increase in the baseline
@@ -65,13 +86,19 @@
   simulation study, when the bootstrap helps (well-behaved weights) and when
   no standard error is reliable (extreme weights).
 * Bootstrap standard errors. The help pages of `ipwpoint()` and
-  `ipwtm()` have a new "Standard errors" paragraph in Details and new examples:
-  a bootstrap that re-estimates the weights and the marginal structural model
-  in each bootstrap sample (`ipwpoint()`), and a cluster bootstrap that
-  resamples patients and re-runs both `ipwtm()` calls for the HAART example
-  (`ipwtm()`). Robust standard errors (`svyglm()`, `cluster()`) treat the
-  weights as known and tend to be conservative; Austin (2016,
-  doi:10.1002/sim.7084) recommends the bootstrap.
+  `ipwtm()` have a new "Standard errors" paragraph in Details. `?ipwpoint`
+  has a bootstrap example that re-estimates the weights and the marginal
+  structural model in each bootstrap sample; the cluster bootstrap that
+  resamples patients and re-runs both `ipwtm()` calls for the HAART example is
+  in section 5 of `vignette("ipw")`. Robust standard errors (`svyglm()`,
+  `cluster()`) treat the weights as known. They were conservative for a binary
+  point treatment with good overlap, but can be too small for a continuous
+  exposure and for time-varying weights; Austin (2016, doi:10.1002/sim.7084)
+  recommends the bootstrap.
+* `ipwplot()`: the help page now documents the return value (`NULL`,
+  invisibly).
+* The `ipwtm()` examples no longer call `graphics.off()`, which closed all of
+  the user's open graphics devices.
 
 ## License
 
