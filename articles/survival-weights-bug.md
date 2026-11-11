@@ -23,7 +23,57 @@ whole data set*, instead of since the start of the row.
 - The development version fixes it: each row uses the baseline hazard
   over its own interval `(tstart, timevar]`.
 
-## 1. What the weights should be
+## 1. Hazards in plain words
+
+**Hazard.** The hazard is the risk that the event happens *right now*,
+for someone to whom it has not happened yet. Here the event is the start
+of treatment (or drop-out, for censoring weights). It is a rate, like a
+speed: a hazard of 0.01 per day means roughly a 1% chance of starting on
+the next day, for someone who has not started yet.
+
+**Cumulative hazard.** The cumulative hazard $`H(t)`$ is the hazard
+added up over time, as distance is speed added up over time. The risk
+built up over a stretch of time, for example from day 10 to day 20, is
+$`H(20) - H(10)`$, and
+
+``` math
+P(\text{no event from day 10 to day 20}) = \exp\{-[H(20) - H(10)]\},
+```
+
+so the probability of the event is one minus this. A small amount of
+hazard gives a probability close to 0, a large amount a probability
+close to 1.
+
+**Cox model.** A Cox model splits the hazard of a person into two parts:
+
+``` math
+\text{hazard of a person} = \underbrace{h_0(t)}_{\text{baseline: the same for everyone, changes over time}} \times \underbrace{r = e^{\beta^\top x}}_{\text{relative risk: personal, from the covariates}}
+```
+
+**How the baseline hazard is estimated.** The cumulative baseline hazard
+$`H_0(t)`$ only goes up at the times when someone has the event. At such
+a time it goes up by
+
+``` math
+\frac{\text{number of events at that time}}{\text{sum of } r \text{ over everyone still at risk at that time}}
+```
+
+where “at risk” means followed at that time and not yet exposed. (With
+several events at the same time, Efron’s method, which
+[`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) uses, adjusts
+the denominator slightly.) One event among people with a high total risk
+is not surprising, so the step is small; one event among people with a
+low total risk is surprising, so the step is large.
+
+**From hazard to weight.** For one row of a patient covering
+`(tstart, timevar]`: take the baseline hazard over the row,
+$`H_0(t) - H_0(t_\text{start})`$; multiply by the patient’s $`r`$ to get
+the patient’s hazard over the row; turn it into the probability of what
+actually happened (exposure or no exposure); the weight is the inverse
+of that probability, multiplied over the rows of the patient so far.
+Section 4 does this step by step for three patients.
+
+## 2. What the weights should be
 
 For `type = "first"`, each row of a subject covers an interval
 `(tstart, timevar]` until the first exposure (for example the start of a
@@ -42,7 +92,7 @@ far (and the numerator model’s probabilities, for stabilised weights).
 Censoring weights (`type = "cens"`) use the probability of remaining
 uncensored the same way.
 
-## 2. What older versions computed
+## 3. What older versions computed
 
 Older versions computed the hazard of a row as
 
@@ -59,7 +109,7 @@ the hazard during the row is left out: the probability of no exposure is
 too high and the probability of exposure too low. Weights of exposed
 rows come out too large, and weights of unexposed rows too small.
 
-## 3. A worked example with three patients
+## 4. A worked example with three patients
 
 ``` r
 
@@ -108,6 +158,56 @@ H0 <- H_efron(d$tstart, d$time, d$a, r)
 H0(c(5, 10, 15, 20))
 #> [1] 0.0000000 0.0000000 0.4903081 2.8137422
 ```
+
+### Step by step
+
+**Relative risks.** The Cox model gives $`\beta = -1.59`$ for `l`
+(higher `l`, lower risk; with three patients this is just how the data
+fell), so each row has relative risk $`r = e^{-1.59 \times l}`$:
+
+| patient | row       |    l |     r |
+|--------:|:----------|-----:|------:|
+|       1 | (0, 10\]  |  0.5 | 0.453 |
+|       1 | (10, 20\] |  1.2 | 0.149 |
+|       2 | (0, 15\]  | -0.3 | 1.609 |
+|       3 | (0, 5\]   |  0.1 | 0.853 |
+|       3 | (5, 20\]  |  0.8 | 0.281 |
+
+**The baseline hazard.** It goes up only on day 15 (patient 2 is
+exposed) and day 20 (patient 1 is exposed):
+
+- Day 15: at risk are the rows (10, 20\], (0, 15\], (5, 20\] of patients
+  1, 2, 3. Step = 1 / (0.149 + 1.609 + 0.281) = **0.490**.
+- Day 20: patient 2 is no longer at risk; at risk are the rows (10,
+  20\], (5, 20\] of patients 1 and 3. Step = 1 / (0.149 + 0.281) =
+  **2.323**.
+
+So $`H_0`$ is 0 up to day 15, 0.490 from day 15 and 2.814 from day 20,
+as computed above.
+
+**One row: patient 1 from day 10 to day 20, exposed at day 20.**
+
+1.  Baseline hazard over the row: $`H_0(20) - H_0(10)`$ = 2.814 − 0.000
+    = 2.814.
+2.  Hazard of patient 1 over the row: × $`r`$ = 2.814 × 0.149 =
+    **0.420**.
+3.  Probability of exposure in the row: $`1 - e^{-0.420}`$ = 0.343.
+4.  Weight: the first row (day 0 to 10) has no hazard, so its
+    probability of no exposure is 1; the weight is 1 / 0.343 =
+    **2.918**.
+
+**What the old versions did with the same row.** In step 1 they did not
+use $`H_0(20) - H_0(10)`$. The time just before day 20 among all times
+in the data is day 15 (the end of patient 2’s row), so they used
+$`H_0(20) - H_0(15)`$ = 2.814 − 0.490 = 2.323: the step of 0.490 on day
+15 was left out, although patient 1 was followed on that day. Then the
+hazard is 0.347 instead of 0.420, the probability of exposure 0.293
+instead of 0.343, and the weight 3.414 instead of 2.918. A hazard that
+is too small makes the probability of an exposure too small, so the
+weight of an exposed row too large; for an unexposed row it makes the
+probability of *no* exposure too large, so the weight too small.
+
+### All rows
 
 For each row, the correct hazard uses `tstart`; the old one used the
 previous time in the data:
@@ -171,7 +271,7 @@ max(abs(w_dev - w_correct))
 #> [1] 1.332268e-15
 ```
 
-## 4. Is my data affected?
+## 5. Is my data affected?
 
 Only rows that enter the exposure (or censoring) model matter, and only
 if their `tstart` is not the time point just before their `timevar`
@@ -199,7 +299,7 @@ nrow(cases$own_first$data)
 In the data with individual visit times nearly every row is affected. If
 the count is 0 for your data, the old versions gave the correct weights.
 
-## 5. All versions from 1.0 to 1.3.2
+## 6. All versions from 1.0 to 1.3.2
 
 The same cases were run in every version of ipw on CRAN (in separate R
 sessions, with the script `data-raw/make-survival-bug-article-data.R`)
@@ -262,14 +362,14 @@ c(largest_weight_old = max(old_w), largest_weight_correct = max(refs$own_first))
 #>               245.2007               117.2714
 ```
 
-## 6. If you used an older version
+## 7. If you used an older version
 
 1.  Check your data with `rows_affected()` above. If it returns 0, your
     weights were correct.
 2.  Otherwise, recompute the weights with the fixed version. With an
     older version you can get correct weights by first splitting every
     row at all times that occur in the data, so that all subjects share
-    one time grid; the last column of the table in section 5 shows that
+    one time grid; the last column of the table in section 6 shows that
     this gives the correct weights in every version. For example:
 
 ``` r
@@ -288,7 +388,7 @@ split_common_grid <- function(d) {
 The weight at the end of an original row is the weight on its last
 piece.
 
-## 7. The code: before and after
+## 8. The code: before and after
 
 The code below is taken from the source packages on CRAN (stored with
 this article by `data-raw/make-survival-bug-article-data.R`); line
@@ -400,7 +500,7 @@ of ipw 1.2.1.1 for `haartdat` and other data.
 ### Tests
 
 The package tests compare the weights with a baseline hazard computed by
-hand from the risk sets, as in section 3, for `type = "first"` and
+hand from the risk sets, as in section 4, for `type = "first"` and
 `type = "cens"`, on data with individual visit times, with tied times
 and with follow-up starting below 0, with the rows in random order. This
 is the test (from `tests/testthat/test-audit2-ipwtm.R`; the helper
@@ -431,7 +531,7 @@ the top of that file):
       }
     })
 
-The same comparison fails for every version up to 1.3.2, as section 5
+The same comparison fails for every version up to 1.3.2, as section 6
 shows. Another test checks that `type = "first"` and `type = "all"`
 agree when every subject is exposed at most once
 (`tests/testthat/test-audit-ipwtm.R`). The tests run on Linux, macOS and

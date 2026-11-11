@@ -95,7 +95,59 @@ over its own interval <code>(tstart, timevar]</code>.</li>
 </ul>
 </div>
 <div class="section level2">
-<h2 id="what-the-weights-should-be">1. What the weights should be<a class="anchor" aria-label="anchor" href="#what-the-weights-should-be"></a>
+<h2 id="hazards-in-plain-words">1. Hazards in plain words<a class="anchor" aria-label="anchor" href="#hazards-in-plain-words"></a>
+</h2>
+<p><strong>Hazard.</strong> The hazard is the risk that the event
+happens <em>right now</em>, for someone to whom it has not happened yet.
+Here the event is the start of treatment (or drop-out, for censoring
+weights). It is a rate, like a speed: a hazard of 0.01 per day means
+roughly a 1% chance of starting on the next day, for someone who has not
+started yet.</p>
+<p><strong>Cumulative hazard.</strong> The cumulative hazard
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">H(t)</annotation></semantics></math>
+is the hazard added up over time, as distance is speed added up over
+time. The risk built up over a stretch of time, for example from day 10
+to day 20, is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi><mo stretchy="false" form="prefix">(</mo><mn>20</mn><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mi>H</mi><mo stretchy="false" form="prefix">(</mo><mn>10</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">H(20) - H(10)</annotation></semantics></math>,
+and</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mo stretchy="false" form="prefix">(</mo><mtext mathvariant="normal">no event from day 10 to day 20</mtext><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mrow><mi mathvariant="normal">exp</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">{</mo><mi>−</mi><mo stretchy="false" form="prefix">[</mo><mi>H</mi><mo stretchy="false" form="prefix">(</mo><mn>20</mn><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mi>H</mi><mo stretchy="false" form="prefix">(</mo><mn>10</mn><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">]</mo><mo stretchy="false" form="postfix">}</mo><mo>,</mo></mrow><annotation encoding="application/x-tex">
+P(\text{no event from day 10 to day 20}) = \exp\{-[H(20) - H(10)]\},
+</annotation></semantics></math></p>
+<p>so the probability of the event is one minus this. A small amount of
+hazard gives a probability close to 0, a large amount a probability
+close to 1.</p>
+<p><strong>Cox model.</strong> A Cox model splits the hazard of a person
+into two parts:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">hazard of a person</mtext><mo>=</mo><munder><munder><mrow><msub><mi>h</mi><mn>0</mn></msub><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">baseline: the same for everyone, changes over time</mtext></munder><mo>×</mo><munder><munder><mrow><mi>r</mi><mo>=</mo><msup><mi>e</mi><mrow><msup><mi>β</mi><mi>⊤</mi></msup><mi>x</mi></mrow></msup></mrow><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">relative risk: personal, from the covariates</mtext></munder></mrow><annotation encoding="application/x-tex">
+\text{hazard of a person} = \underbrace{h_0(t)}_{\text{baseline: the same for everyone, changes over time}} \times \underbrace{r = e^{\beta^\top x}}_{\text{relative risk: personal, from the covariates}}
+</annotation></semantics></math></p>
+<p><strong>How the baseline hazard is estimated.</strong> The cumulative
+baseline hazard
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>H</mi><mn>0</mn></msub><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">H_0(t)</annotation></semantics></math>
+only goes up at the times when someone has the event. At such a time it
+goes up by</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mfrac><mtext mathvariant="normal">number of events at that time</mtext><mrow><mrow><mtext mathvariant="normal">sum of </mtext><mspace width="0.333em"></mspace></mrow><mi>r</mi><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> over everyone still at risk at that time</mtext></mrow></mrow></mfrac><annotation encoding="application/x-tex">
+\frac{\text{number of events at that time}}{\text{sum of } r \text{ over everyone still at risk at that time}}
+</annotation></semantics></math></p>
+<p>where “at risk” means followed at that time and not yet exposed.
+(With several events at the same time, Efron’s method, which
+<code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code> uses, adjusts the denominator slightly.) One event
+among people with a high total risk is not surprising, so the step is
+small; one event among people with a low total risk is surprising, so
+the step is large.</p>
+<p><strong>From hazard to weight.</strong> For one row of a patient
+covering <code>(tstart, timevar]</code>: take the baseline hazard over
+the row,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>H</mi><mn>0</mn></msub><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo><msub><mi>H</mi><mn>0</mn></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mtext mathvariant="normal">start</mtext></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">H_0(t) - H_0(t_\text{start})</annotation></semantics></math>;
+multiply by the patient’s
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math>
+to get the patient’s hazard over the row; turn it into the probability
+of what actually happened (exposure or no exposure); the weight is the
+inverse of that probability, multiplied over the rows of the patient so
+far. Section 4 does this step by step for three patients.</p>
+</div>
+<div class="section level2">
+<h2 id="what-the-weights-should-be">2. What the weights should be<a class="anchor" aria-label="anchor" href="#what-the-weights-should-be"></a>
 </h2>
 <p>For <code>type = "first"</code>, each row of a subject covers an
 interval <code>(tstart, timevar]</code> until the first exposure (for
@@ -115,7 +167,7 @@ weights (<code>type = "cens"</code>) use the probability of remaining
 uncensored the same way.</p>
 </div>
 <div class="section level2">
-<h2 id="what-older-versions-computed">2. What older versions computed<a class="anchor" aria-label="anchor" href="#what-older-versions-computed"></a>
+<h2 id="what-older-versions-computed">3. What older versions computed<a class="anchor" aria-label="anchor" href="#what-older-versions-computed"></a>
 </h2>
 <p>Older versions computed the hazard of a row as</p>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>H</mi><mn>0</mn></msub><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo><msub><mi>H</mi><mn>0</mn></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mtext mathvariant="normal">prev</mtext></msub><mo stretchy="false" form="postfix">)</mo><mo>,</mo></mrow><annotation encoding="application/x-tex">
@@ -138,7 +190,7 @@ exposed rows come out too large, and weights of unexposed rows too
 small.</p>
 </div>
 <div class="section level2">
-<h2 id="a-worked-example-with-three-patients">3. A worked example with three patients<a class="anchor" aria-label="anchor" href="#a-worked-example-with-three-patients"></a>
+<h2 id="a-worked-example-with-three-patients">4. A worked example with three patients<a class="anchor" aria-label="anchor" href="#a-worked-example-with-three-patients"></a>
 </h2>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="va">cases</span><span class="op">$</span><span class="va">tiny</span><span class="op">$</span><span class="va">data</span></span>
@@ -180,6 +232,101 @@ is computed by hand from the risk sets (Efron’s method, as
 <span><span class="va">H0</span> <span class="op">&lt;-</span> <span class="fu">H_efron</span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">tstart</span>, <span class="va">d</span><span class="op">$</span><span class="va">time</span>, <span class="va">d</span><span class="op">$</span><span class="va">a</span>, <span class="va">r</span><span class="op">)</span></span>
 <span><span class="fu">H0</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">5</span>, <span class="fl">10</span>, <span class="fl">15</span>, <span class="fl">20</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 0.0000000 0.0000000 0.4903081 2.8137422</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="step-by-step">Step by step<a class="anchor" aria-label="anchor" href="#step-by-step"></a>
+</h3>
+<p><strong>Relative risks.</strong> The Cox model gives
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo>=</mo><mi>−</mi><mn>1.59</mn></mrow><annotation encoding="application/x-tex">\beta = -1.59</annotation></semantics></math>
+for <code>l</code> (higher <code>l</code>, lower risk; with three
+patients this is just how the data fell), so each row has relative risk
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><msup><mi>e</mi><mrow><mi>−</mi><mn>1.59</mn><mo>×</mo><mi>l</mi></mrow></msup></mrow><annotation encoding="application/x-tex">r = e^{-1.59 \times l}</annotation></semantics></math>:</p>
+<table class="table">
+<thead><tr class="header">
+<th align="right">patient</th>
+<th align="left">row</th>
+<th align="right">l</th>
+<th align="right">r</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td align="right">1</td>
+<td align="left">(0, 10]</td>
+<td align="right">0.5</td>
+<td align="right">0.453</td>
+</tr>
+<tr class="even">
+<td align="right">1</td>
+<td align="left">(10, 20]</td>
+<td align="right">1.2</td>
+<td align="right">0.149</td>
+</tr>
+<tr class="odd">
+<td align="right">2</td>
+<td align="left">(0, 15]</td>
+<td align="right">-0.3</td>
+<td align="right">1.609</td>
+</tr>
+<tr class="even">
+<td align="right">3</td>
+<td align="left">(0, 5]</td>
+<td align="right">0.1</td>
+<td align="right">0.853</td>
+</tr>
+<tr class="odd">
+<td align="right">3</td>
+<td align="left">(5, 20]</td>
+<td align="right">0.8</td>
+<td align="right">0.281</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The baseline hazard.</strong> It goes up only on day 15
+(patient 2 is exposed) and day 20 (patient 1 is exposed):</p>
+<ul>
+<li>Day 15: at risk are the rows (10, 20], (0, 15], (5, 20] of patients
+1, 2, 3. Step = 1 / (0.149 + 1.609 + 0.281) =
+<strong>0.490</strong>.</li>
+<li>Day 20: patient 2 is no longer at risk; at risk are the rows (10,
+20], (5, 20] of patients 1 and 3. Step = 1 / (0.149 + 0.281) =
+<strong>2.323</strong>.</li>
+</ul>
+<p>So
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+is 0 up to day 15, 0.490 from day 15 and 2.814 from day 20, as computed
+above.</p>
+<p><strong>One row: patient 1 from day 10 to day 20, exposed at day
+20.</strong></p>
+<ol style="list-style-type: decimal">
+<li>Baseline hazard over the row:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>H</mi><mn>0</mn></msub><mo stretchy="false" form="prefix">(</mo><mn>20</mn><mo stretchy="false" form="postfix">)</mo><mo>−</mo><msub><mi>H</mi><mn>0</mn></msub><mo stretchy="false" form="prefix">(</mo><mn>10</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">H_0(20) - H_0(10)</annotation></semantics></math>
+= 2.814 − 0.000 = 2.814.</li>
+<li>Hazard of patient 1 over the row: ×
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math>
+= 2.814 × 0.149 = <strong>0.420</strong>.</li>
+<li>Probability of exposure in the row:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><msup><mi>e</mi><mrow><mi>−</mi><mn>0.420</mn></mrow></msup></mrow><annotation encoding="application/x-tex">1 - e^{-0.420}</annotation></semantics></math>
+= 0.343.</li>
+<li>Weight: the first row (day 0 to 10) has no hazard, so its
+probability of no exposure is 1; the weight is 1 / 0.343 =
+<strong>2.918</strong>.</li>
+</ol>
+<p><strong>What the old versions did with the same row.</strong> In step
+1 they did not use
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>H</mi><mn>0</mn></msub><mo stretchy="false" form="prefix">(</mo><mn>20</mn><mo stretchy="false" form="postfix">)</mo><mo>−</mo><msub><mi>H</mi><mn>0</mn></msub><mo stretchy="false" form="prefix">(</mo><mn>10</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">H_0(20) - H_0(10)</annotation></semantics></math>.
+The time just before day 20 among all times in the data is day 15 (the
+end of patient 2’s row), so they used
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>H</mi><mn>0</mn></msub><mo stretchy="false" form="prefix">(</mo><mn>20</mn><mo stretchy="false" form="postfix">)</mo><mo>−</mo><msub><mi>H</mi><mn>0</mn></msub><mo stretchy="false" form="prefix">(</mo><mn>15</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">H_0(20) - H_0(15)</annotation></semantics></math>
+= 2.814 − 0.490 = 2.323: the step of 0.490 on day 15 was left out,
+although patient 1 was followed on that day. Then the hazard is 0.347
+instead of 0.420, the probability of exposure 0.293 instead of 0.343,
+and the weight 3.414 instead of 2.918. A hazard that is too small makes
+the probability of an exposure too small, so the weight of an exposed
+row too large; for an unexposed row it makes the probability of
+<em>no</em> exposure too large, so the weight too small.</p>
+</div>
+<div class="section level3">
+<h3 id="all-rows">All rows<a class="anchor" aria-label="anchor" href="#all-rows"></a>
+</h3>
 <p>For each row, the correct hazard uses <code>tstart</code>; the old
 one used the previous time in the data:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
@@ -291,8 +438,9 @@ weights, and the development version gives the correct ones:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">w_dev</span> <span class="op">-</span> <span class="va">w_correct</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 1.332268e-15</span></span></code></pre></div>
 </div>
+</div>
 <div class="section level2">
-<h2 id="is-my-data-affected">4. Is my data affected?<a class="anchor" aria-label="anchor" href="#is-my-data-affected"></a>
+<h2 id="is-my-data-affected">5. Is my data affected?<a class="anchor" aria-label="anchor" href="#is-my-data-affected"></a>
 </h2>
 <p>Only rows that enter the exposure (or censoring) model matter, and
 only if their <code>tstart</code> is not the time point just before
@@ -319,7 +467,7 @@ is affected. If the count is 0 for your data, the old versions gave the
 correct weights.</p>
 </div>
 <div class="section level2">
-<h2 id="all-versions-from-1-0-to-1-3-2">5. All versions from 1.0 to 1.3.2<a class="anchor" aria-label="anchor" href="#all-versions-from-1-0-to-1-3-2"></a>
+<h2 id="all-versions-from-1-0-to-1-3-2">6. All versions from 1.0 to 1.3.2<a class="anchor" aria-label="anchor" href="#all-versions-from-1-0-to-1-3-2"></a>
 </h2>
 <p>The same cases were run in every version of ipw on CRAN (in separate
 R sessions, with the script
@@ -561,7 +709,7 @@ used <code>haartdat</code>, where the two agree.</p>
 <span><span class="co">#&gt;               245.2007               117.2714</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="if-you-used-an-older-version">6. If you used an older version<a class="anchor" aria-label="anchor" href="#if-you-used-an-older-version"></a>
+<h2 id="if-you-used-an-older-version">7. If you used an older version<a class="anchor" aria-label="anchor" href="#if-you-used-an-older-version"></a>
 </h2>
 <ol style="list-style-type: decimal">
 <li>Check your data with <code>rows_affected()</code> above. If it
@@ -569,7 +717,7 @@ returns 0, your weights were correct.</li>
 <li>Otherwise, recompute the weights with the fixed version. With an
 older version you can get correct weights by first splitting every row
 at all times that occur in the data, so that all subjects share one time
-grid; the last column of the table in section 5 shows that this gives
+grid; the last column of the table in section 6 shows that this gives
 the correct weights in every version. For example:</li>
 </ol>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
@@ -586,7 +734,7 @@ the correct weights in every version. For example:</li>
 piece.</p>
 </div>
 <div class="section level2">
-<h2 id="the-code-before-and-after">7. The code: before and after<a class="anchor" aria-label="anchor" href="#the-code-before-and-after"></a>
+<h2 id="the-code-before-and-after">8. The code: before and after<a class="anchor" aria-label="anchor" href="#the-code-before-and-after"></a>
 </h2>
 <p>The code below is taken from the source packages on CRAN (stored with
 this article by <code>data-raw/make-survival-bug-article-data.R</code>);
@@ -701,7 +849,7 @@ and other data.</p>
 <h3 id="tests">Tests<a class="anchor" aria-label="anchor" href="#tests"></a>
 </h3>
 <p>The package tests compare the weights with a baseline hazard computed
-by hand from the risk sets, as in section 3, for
+by hand from the risk sets, as in section 4, for
 <code>type = "first"</code> and <code>type = "cens"</code>, on data with
 individual visit times, with tied times and with follow-up starting
 below 0, with the rows in random order. This is the test (from
@@ -731,7 +879,7 @@ below 0, with the rows in random order. This is the test (from
 <span>    <span class="fu">expect_equal</span><span class="op">(</span><span class="va">w</span>, <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="va">ref</span><span class="op">$</span><span class="va">w</span><span class="op">)</span>, tolerance <span class="op">=</span> <span class="fl">1e-10</span>, label <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="va">nm</span>, <span class="va">tp</span><span class="op">)</span><span class="op">)</span></span>
 <span>  <span class="op">}</span></span>
 <span><span class="op">}</span><span class="op">)</span></span></code></pre>
-<p>The same comparison fails for every version up to 1.3.2, as section 5
+<p>The same comparison fails for every version up to 1.3.2, as section 6
 shows. Another test checks that <code>type = "first"</code> and
 <code>type = "all"</code> agree when every subject is exposed at most
 once (<code>tests/testthat/test-audit-ipwtm.R</code>). The tests run on
