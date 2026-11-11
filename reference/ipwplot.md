@@ -59,6 +59,10 @@ ipwplot(
 
   Additional graphical parameters passed to `boxplot` or `plot`.
 
+## Value
+
+`NULL`, invisibly. Called for its side effect (a plot).
+
 ## Author
 
 Willem M. van der Wal <willem@vanderwalresearch.com>, Ronald B. Geskus

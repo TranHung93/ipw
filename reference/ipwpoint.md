@@ -113,18 +113,21 @@ Standard errors: `ipwpoint` only estimates the weights. Standard errors
 for the marginal structural model have to be obtained when that model is
 fitted. Robust (sandwich) standard errors, for example from
 [`svyglm()`](https://rdrr.io/pkg/survey/man/svyglm.html) in the survey
-package as in Van der Wal and Geskus (2011), treat the weights as known
-and tend to be conservative (too large). Austin (2016) compared naive,
-robust and bootstrap standard errors in simulations and recommends the
-bootstrap, in which the weights are re-estimated in each bootstrap
-sample. This takes the uncertainty in the estimated weights into
-account; see the bootstrap example below. About 200 bootstrap samples
-are usually enough to estimate a standard error. In the package's
-simulation study (article "Simulation study" on the package website),
-the bootstrap standard error was accurate for a point treatment with
-good overlap, while robust standard errors were about 12% too large.
-When some weights are extreme (poor overlap), no standard error was
-reliable, the bootstrap included. Check the weights first with
+package as in Van der Wal and Geskus (2011), treat the weights as known.
+For a binary point treatment with good overlap they were conservative
+(too large) in simulations, but they can be too small for a continuous
+exposure (`family = "gaussian"`) and for time-varying weights; use the
+bootstrap there. Austin (2016) compared naive, robust and bootstrap
+standard errors in simulations and recommends the bootstrap, in which
+the weights are re-estimated in each bootstrap sample. This takes the
+uncertainty in the estimated weights into account; see the bootstrap
+example below. About 200 bootstrap samples are usually enough to
+estimate a standard error. In the package's simulation study (article
+"Simulation study" on the package website), the bootstrap standard error
+was accurate for a point treatment with good overlap, while robust
+standard errors were about 12% too large. When some weights are extreme
+(poor overlap), no standard error was reliable, the bootstrap included.
+Check the weights first with
 [`summary()`](https://rdrr.io/r/base/summary.html) and
 [`ipwplot`](https://tranhung93.github.io/ipw/reference/ipwplot.md), and
 consider truncation (`trunc`) or overlap weights (`estimand = "ATO"`).
@@ -442,7 +445,8 @@ if (requireNamespace("survey", quietly = TRUE)) {
 
 # Bootstrap standard error and percentile confidence interval for the MSM.
 # The robust standard error from svyglm() treats the weights as known and
-# tends to be conservative. Austin (2016) recommends the bootstrap, with the
+# can be too large or too small (simulation study, scenarios 7a and 7b).
+# Austin (2016) recommends the bootstrap, with the
 # weights re-estimated in each bootstrap sample: each bootstrap sample below
 # re-fits ipwpoint() and the MSM. (A weighted lm() gives the same point
 # estimate as svyglm() and is faster.)

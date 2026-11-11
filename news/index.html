@@ -19,7 +19,8 @@
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/methods.html">Methods behind the new features: formulas, code and rationale</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/bug-fixes.html">Bugs fixed after ipw 1.3.2</a></li>
+    <li><a class="dropdown-item" href="../articles/methods.html">Methods behind the new features: formulas, code and rationale</a></li>
     <li><a class="dropdown-item" href="../articles/simulations.html">Simulation study: do the weights recover known effects?</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -43,6 +44,17 @@
 <div class="section level3">
 <h3 id="bug-fixes-development-version">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-development-version"></a></h3>
 <ul><li>
+<code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> and <code><a href="../reference/ipwtm.html">ipwtm()</a></code>: <code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code> terms in the <code>numerator</code> and <code>denominator</code> formulas were silently dropped, so the models were fitted without the offset and <strong>the weights were wrong</strong>. This affected ipw 1.3.1 and 1.3.2 on CRAN; ipw 1.2.1.1 was fine. Formulas are now used as written.</li>
+<li>
+<code><a href="../reference/ipwpoint.html">ipwpoint()</a></code>: <code>denominator = ~ .</code> (all other columns of <code>data</code>) failed with “Variables not found in data: .” and works again, as in ipw 1.2.1.1. In <code><a href="../reference/ipwtm.html">ipwtm()</a></code> a <code>.</code> is now a clear error, because it would include the id, time and exposure columns; list the covariates instead.</li>
+<li>
+<code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> and <code><a href="../reference/ipwtm.html">ipwtm()</a></code>, <code>family = "ordinal"</code>: an unordered factor exposure whose levels are not numbers now gives a warning, because its levels are used in alphabetical order unless set otherwise (e.g. “high” &lt; “low” &lt; “mid”). Use an ordered factor to make the order explicit.</li>
+<li>
+<code><a href="../reference/ipwtm.html">ipwtm()</a></code>, <code>family = "survival"</code>: a <code>ties</code> argument passed through <code>...</code> to <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code> was silently ignored (Efron was always used), and <code>method</code> gave the error “formal argument matched by multiple actual arguments”. Both are now passed on; the default is still <code>ties = "efron"</code>.</li>
+<li>
+<code><a href="../reference/ipwtm.html">ipwtm()</a></code>, <code>family = "survival"</code>: rows with <code>tstart &gt;= timevar</code> now give a clear error instead of “missing values in object” or no error at all.</li>
+<li>Clearer errors: <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> with <code>family = "gaussian"</code> and a non-numeric exposure (was “NA/NaN/Inf in ‘y’”); <code><a href="../reference/ipwplot.html">ipwplot()</a></code> with missing weights (was “‘x’ contains missing values”) or a <code>binwidth</code> of length &gt; 1.</li>
+<li>
 <code><a href="../reference/ipwtm.html">ipwtm()</a></code>, <code>family = "survival"</code>, <code>type = "first"</code> or <code>"cens"</code>: the probability of each row now uses the baseline hazard over the row’s own interval <code>(tstart, timevar]</code>. Before, it used the increase in the baseline hazard since the previous time point in the whole data set, which is only right when all subjects share one time grid (as in <code>haartdat</code>). <strong>Weights change for data in which subjects have their own follow-up times</strong>; for data with a common time grid they are unchanged. <code>type = "all"</code> was not affected.</li>
 <li>
 <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> and <code><a href="../reference/ipwtm.html">ipwtm()</a></code>: a binomial (or survival) 0/1 exposure stored as a factor or character is now used by its labels. With factor levels in the order <code>c("1", "0")</code> the probabilities of the two exposure values were swapped, giving wrong weights.</li>
@@ -66,6 +78,10 @@
 <code><a href="../reference/ipwtm.html">ipwtm()</a></code> examples: the cluster bootstrap moved to <code><a href="../articles/ipw.html">vignette("ipw")</a></code> (section 5), and the part of Example 2 that needs nlme (in Suggests) only runs when nlme is installed.</li>
 </ul></div>
 <div class="section level3">
+<h3 id="documentation-development-version">Documentation<a class="anchor" aria-label="anchor" href="#documentation-development-version"></a></h3>
+<ul><li>New article “Bugs fixed after ipw 1.3.2” on the package website: for each bug above, an example run in ipw 1.2.1.1, ipw 1.3.2 and this version, with the weights compared with weights computed by hand.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="new-features-development-version">New features<a class="anchor" aria-label="anchor" href="#new-features-development-version"></a></h3>
 <ul><li>
 <code><a href="../reference/ipwtm.html">ipwtm()</a></code>: <code>type = "all"</code> now works for <code>family = "multinomial"</code> and <code>"ordinal"</code> (time-varying categorical exposures that switch back and forth).</li>
@@ -80,9 +96,12 @@
 <li>Existing calls are unchanged: without smooth terms the models are still fitted with <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>, and <code>estimand</code> defaults to <code>"ATE"</code>. A covariate named <code>s</code>, <code>te</code>, <code>ti</code> or <code>t2</code> is treated as an ordinary variable.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="documentation-development-version">Documentation<a class="anchor" aria-label="anchor" href="#documentation-development-version"></a></h3>
+<h3 id="documentation-development-version-1">Documentation<a class="anchor" aria-label="anchor" href="#documentation-development-version-1"></a></h3>
 <ul><li>New vignette, “Inverse probability weighting with ipw” (<code><a href="../articles/ipw.html">vignette("ipw")</a></code>), covering every function, with the new models highlighted. Its standard-errors section describes, from the package’s simulation study, when the bootstrap helps (well-behaved weights) and when no standard error is reliable (extreme weights).</li>
-<li>Bootstrap standard errors. The help pages of <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> and <code><a href="../reference/ipwtm.html">ipwtm()</a></code> have a new “Standard errors” paragraph in Details and new examples: a bootstrap that re-estimates the weights and the marginal structural model in each bootstrap sample (<code><a href="../reference/ipwpoint.html">ipwpoint()</a></code>), and a cluster bootstrap that resamples patients and re-runs both <code><a href="../reference/ipwtm.html">ipwtm()</a></code> calls for the HAART example (<code><a href="../reference/ipwtm.html">ipwtm()</a></code>). Robust standard errors (<code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">svyglm()</a></code>, <code><a href="https://rdrr.io/pkg/survival/man/cluster.html" class="external-link">cluster()</a></code>) treat the weights as known and tend to be conservative; Austin (2016, <a href="doi:10.1002/sim.7084" class="uri">doi:10.1002/sim.7084</a>) recommends the bootstrap.</li>
+<li>Bootstrap standard errors. The help pages of <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> and <code><a href="../reference/ipwtm.html">ipwtm()</a></code> have a new “Standard errors” paragraph in Details. <code><a href="../reference/ipwpoint.html">?ipwpoint</a></code> has a bootstrap example that re-estimates the weights and the marginal structural model in each bootstrap sample; the cluster bootstrap that resamples patients and re-runs both <code><a href="../reference/ipwtm.html">ipwtm()</a></code> calls for the HAART example is in section 5 of <code><a href="../articles/ipw.html">vignette("ipw")</a></code>. Robust standard errors (<code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">svyglm()</a></code>, <code><a href="https://rdrr.io/pkg/survival/man/cluster.html" class="external-link">cluster()</a></code>) treat the weights as known. They were conservative for a binary point treatment with good overlap, but can be too small for a continuous exposure and for time-varying weights; Austin (2016, <a href="doi:10.1002/sim.7084" class="uri">doi:10.1002/sim.7084</a>) recommends the bootstrap.</li>
+<li>
+<code><a href="../reference/ipwplot.html">ipwplot()</a></code>: the help page now documents the return value (<code>NULL</code>, invisibly).</li>
+<li>The <code><a href="../reference/ipwtm.html">ipwtm()</a></code> examples no longer call <code><a href="https://rdrr.io/r/grDevices/dev.html" class="external-link">graphics.off()</a></code>, which closed all of the user’s open graphics devices.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="license-development-version">License<a class="anchor" aria-label="anchor" href="#license-development-version"></a></h3>

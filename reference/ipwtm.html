@@ -23,7 +23,8 @@ Supports binomial, survival, multinomial, ordinal, and gaussian families."></hea
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/methods.html">Methods behind the new features: formulas, code and rationale</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/bug-fixes.html">Bugs fixed after ipw 1.3.2</a></li>
+    <li><a class="dropdown-item" href="../articles/methods.html">Methods behind the new features: formulas, code and rationale</a></li>
     <li><a class="dropdown-item" href="../articles/simulations.html">Simulation study: do the weights recover known effects?</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -162,8 +163,11 @@ stopping (on the rows on treatment).</p></dd>
     <p>Standard errors: <code>ipwtm</code> only estimates the weights. Standard errors
 for the marginal structural model have to be obtained when that model is fitted.
 Robust standard errors, for example from <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code> with <code>cluster(id)</code>
-as in Van der Wal and Geskus (2011), treat the weights as known and tend to be
-conservative (too large). Austin (2016) compared naive, robust and bootstrap
+as in Van der Wal and Geskus (2011), treat the weights as known. They are often
+conservative (too large) for a binary point treatment with good overlap, but
+they can be too small
+for time-varying weights (see the simulation results below) and for a continuous
+exposure; use the bootstrap there. Austin (2016) compared naive, robust and bootstrap
 standard errors in simulations and recommends the bootstrap, in which the weights
 are re-estimated in each bootstrap sample. Austin studied a point treatment with
 baseline confounders; for longitudinal data in long format the bootstrap must
@@ -216,9 +220,9 @@ Weighting. <em>Journal of Statistical Software</em>, <b>43</b>(13), 1-23.
 <span class="r-in"><span>  data <span class="op">=</span> <span class="va">haartdat</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co">#plot inverse probability weights</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/grDevices/dev.html" class="external-link">graphics.off</a></span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="ipwplot.html">ipwplot</a></span><span class="op">(</span>weights <span class="op">=</span> <span class="va">temp</span><span class="op">$</span><span class="va">ipw.weights</span>, timevar <span class="op">=</span> <span class="va">haartdat</span><span class="op">$</span><span class="va">fuptime</span>,</span></span>
 <span class="r-in"><span>        binwidth <span class="op">=</span> <span class="fl">100</span>, ylim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">1.5</span>, <span class="fl">1.5</span><span class="op">)</span>, main <span class="op">=</span> <span class="st">"Stabilized inverse probability weights"</span><span class="op">)</span></span></span>
+<span class="r-plt img"><img src="ipwtm-1.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co">#CD4 count has an effect both on dropout and mortality, which causes informative censoring.</span></span></span>
 <span class="r-in"><span><span class="co">#Use inverse probability of censoring weighting to correct for effect of CD4 on dropout.</span></span></span>
@@ -235,10 +239,10 @@ Weighting. <em>Journal of Statistical Software</em>, <b>43</b>(13), 1-23.
 <span class="r-in"><span>  data <span class="op">=</span> <span class="va">haartdat</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co">#plot inverse probability of censoring weights</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/grDevices/dev.html" class="external-link">graphics.off</a></span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="ipwplot.html">ipwplot</a></span><span class="op">(</span>weights <span class="op">=</span> <span class="va">temp2</span><span class="op">$</span><span class="va">ipw.weights</span>, timevar <span class="op">=</span> <span class="va">haartdat</span><span class="op">$</span><span class="va">fuptime</span>,</span></span>
 <span class="r-in"><span>        binwidth <span class="op">=</span> <span class="fl">100</span>, ylim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">1.5</span>, <span class="fl">1.5</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>        main <span class="op">=</span> <span class="st">"Stabilized inverse probability of censoring weights"</span><span class="op">)</span></span></span>
+<span class="r-plt img"><img src="ipwtm-2.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co">#MSM for the causal effect of initiation of HAART on mortality.</span></span></span>
 <span class="r-in"><span><span class="co">#Corrected both for confounding and informative censoring.</span></span></span>
@@ -366,6 +370,7 @@ Weighting. <em>Journal of Statistical Software</em>, <b>43</b>(13), 1-23.
 <span class="r-in"><span><span class="op">}</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  0.2117  0.9409  0.9908  1.0373  1.0125 13.6539 </span>
+<span class="r-plt img"><img src="ipwtm-3.png" alt="" width="700" height="433"></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> coxph(formula = Surv(tstart, fuptime, event) ~ tb, data = startstop, </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     weights = temp$ipw.weights, cluster = id)</span>

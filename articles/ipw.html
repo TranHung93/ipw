@@ -34,7 +34,8 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/methods.html">Methods behind the new features: formulas, code and rationale</a></li>
+<li><a class="dropdown-item" href="../articles/bug-fixes.html">Bugs fixed after ipw 1.3.2</a></li>
+    <li><a class="dropdown-item" href="../articles/methods.html">Methods behind the new features: formulas, code and rationale</a></li>
     <li><a class="dropdown-item" href="../articles/simulations.html">Simulation study: do the weights recover known effects?</a></li>
   </ul>
 </li>
@@ -592,7 +593,10 @@ extreme weights. Check the weights and consider <code>trunc</code>.</p>
 simulations of weighted Cox models, Austin (2016) found naive standard
 errors too small and robust standard errors too large; the bootstrap
 that <strong>re-estimates the weights in each bootstrap sample</strong>
-gave correct standard errors and confidence intervals.</p>
+gave correct standard errors and confidence intervals. Robust standard
+errors are not always too large, though: they can be too small for a
+continuous exposure and for time-varying weights (see below), and the
+bootstrap is then preferred.</p>
 <p>A bootstrap takes a few lines: draw a sample with replacement,
 re-estimate the weights and the MSM on it, and repeat.</p>
 <div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">

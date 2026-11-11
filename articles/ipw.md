@@ -560,7 +560,10 @@ Robust (sandwich) standard errors treat the weights as known. In
 simulations of weighted Cox models, Austin (2016) found naive standard
 errors too small and robust standard errors too large; the bootstrap
 that **re-estimates the weights in each bootstrap sample** gave correct
-standard errors and confidence intervals.
+standard errors and confidence intervals. Robust standard errors are not
+always too large, though: they can be too small for a continuous
+exposure and for time-varying weights (see below), and the bootstrap is
+then preferred.
 
 A bootstrap takes a few lines: draw a sample with replacement,
 re-estimate the weights and the MSM on it, and repeat.

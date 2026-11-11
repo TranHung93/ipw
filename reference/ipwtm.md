@@ -128,15 +128,18 @@ the marginal structural model have to be obtained when that model is
 fitted. Robust standard errors, for example from
 [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) with
 `cluster(id)` as in Van der Wal and Geskus (2011), treat the weights as
-known and tend to be conservative (too large). Austin (2016) compared
-naive, robust and bootstrap standard errors in simulations and
-recommends the bootstrap, in which the weights are re-estimated in each
-bootstrap sample. Austin studied a point treatment with baseline
-confounders; for longitudinal data in long format the bootstrap must
-resample subjects, not rows: keep all rows of a sampled subject, give
-each sampled copy a new id, re-run `ipwtm` (for treatment and, if used,
-censoring weights) on the bootstrap sample and refit the marginal
-structural model. See the cluster bootstrap in section 5 of
+known. They are often conservative (too large) for a binary point
+treatment with good overlap, but they can be too small for time-varying
+weights (see the simulation results below) and for a continuous
+exposure; use the bootstrap there. Austin (2016) compared naive, robust
+and bootstrap standard errors in simulations and recommends the
+bootstrap, in which the weights are re-estimated in each bootstrap
+sample. Austin studied a point treatment with baseline confounders; for
+longitudinal data in long format the bootstrap must resample subjects,
+not rows: keep all rows of a sampled subject, give each sampled copy a
+new id, re-run `ipwtm` (for treatment and, if used, censoring weights)
+on the bootstrap sample and refit the marginal structural model. See the
+cluster bootstrap in section 5 of
 [`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md).
 About 200 bootstrap samples are usually enough to estimate a standard
 error. Time-varying weights are products over time, so a few subjects
@@ -190,9 +193,9 @@ temp <- ipwtm(
   data = haartdat)
 
 #plot inverse probability weights
-graphics.off()
 ipwplot(weights = temp$ipw.weights, timevar = haartdat$fuptime,
         binwidth = 100, ylim = c(-1.5, 1.5), main = "Stabilized inverse probability weights")
+
 
 #CD4 count has an effect both on dropout and mortality, which causes informative censoring.
 #Use inverse probability of censoring weighting to correct for effect of CD4 on dropout.
@@ -209,10 +212,10 @@ temp2 <- ipwtm(
   data = haartdat)
 
 #plot inverse probability of censoring weights
-graphics.off()
 ipwplot(weights = temp2$ipw.weights, timevar = haartdat$fuptime,
         binwidth = 100, ylim = c(-1.5, 1.5),
         main = "Stabilized inverse probability of censoring weights")
+
 
 #MSM for the causal effect of initiation of HAART on mortality.
 #Corrected both for confounding and informative censoring.
@@ -340,6 +343,7 @@ print(summary(coxph(Surv(tstart, fuptime, event) ~ tb + cd4.sqrt, data = startst
 }
 #>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
 #>  0.2117  0.9409  0.9908  1.0373  1.0125 13.6539 
+
 #> Call:
 #> coxph(formula = Surv(tstart, fuptime, event) ~ tb, data = startstop, 
 #>     weights = temp$ipw.weights, cluster = id)

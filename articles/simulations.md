@@ -454,11 +454,11 @@ them removes nearly all confounding, and the small biases that remain
 are either shared by weights from the true model or shrink with the
 sample size. They support a bootstrap that re-estimates the weights for
 analyses with well-behaved weights, where it gives accurate standard
-errors and robust standard errors are conservative. They also show its
-limit: when weights are extreme (poor overlap, long products of
-time-varying weights), no standard error is reliable, and the first step
-is to examine the weights
-([`summary()`](https://rdrr.io/r/base/summary.html),
+errors and robust standard errors were conservative in these scenarios
+(binary point treatment, Cox model). They also show its limit: when
+weights are extreme (poor overlap, long products of time-varying
+weights), no standard error is reliable, and the first step is to
+examine the weights ([`summary()`](https://rdrr.io/r/base/summary.html),
 [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md))
 and consider overlap weights, truncation or a different model.
 

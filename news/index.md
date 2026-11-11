@@ -4,6 +4,41 @@
 
 ### Bug fixes
 
+- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  and [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md):
+  [`offset()`](https://rdrr.io/r/stats/offset.html) terms in the
+  `numerator` and `denominator` formulas were silently dropped, so the
+  models were fitted without the offset and **the weights were wrong**.
+  This affected ipw 1.3.1 and 1.3.2 on CRAN; ipw 1.2.1.1 was fine.
+  Formulas are now used as written.
+- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md):
+  `denominator = ~ .` (all other columns of `data`) failed with
+  “Variables not found in data: .” and works again, as in ipw 1.2.1.1.
+  In [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) a
+  `.` is now a clear error, because it would include the id, time and
+  exposure columns; list the covariates instead.
+- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  and [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md),
+  `family = "ordinal"`: an unordered factor exposure whose levels are
+  not numbers now gives a warning, because its levels are used in
+  alphabetical order unless set otherwise (e.g. “high” \< “low” \<
+  “mid”). Use an ordered factor to make the order explicit.
+- [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md),
+  `family = "survival"`: a `ties` argument passed through `...` to
+  [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) was silently
+  ignored (Efron was always used), and `method` gave the error “formal
+  argument matched by multiple actual arguments”. Both are now passed
+  on; the default is still `ties = "efron"`.
+- [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md),
+  `family = "survival"`: rows with `tstart >= timevar` now give a clear
+  error instead of “missing values in object” or no error at all.
+- Clearer errors:
+  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  with `family = "gaussian"` and a non-numeric exposure (was “NA/NaN/Inf
+  in ‘y’”);
+  [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md)
+  with missing weights (was “‘x’ contains missing values”) or a
+  `binwidth` of length \> 1.
 - [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md),
   `family = "survival"`, `type = "first"` or `"cens"`: the probability
   of each row now uses the baseline hazard over the row’s own interval
@@ -51,6 +86,12 @@
   (section 5), and the part of Example 2 that needs nlme (in Suggests)
   only runs when nlme is installed.
 
+### Documentation
+
+- New article “Bugs fixed after ipw 1.3.2” on the package website: for
+  each bug above, an example run in ipw 1.2.1.1, ipw 1.3.2 and this
+  version, with the weights compared with weights computed by hand.
+
 ### New features
 
 - [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md):
@@ -97,19 +138,27 @@
 - Bootstrap standard errors. The help pages of
   [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
   and [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
-  have a new “Standard errors” paragraph in Details and new examples: a
-  bootstrap that re-estimates the weights and the marginal structural
-  model in each bootstrap sample
-  ([`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)),
-  and a cluster bootstrap that resamples patients and re-runs both
+  have a new “Standard errors” paragraph in Details.
+  [`?ipwpoint`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  has a bootstrap example that re-estimates the weights and the marginal
+  structural model in each bootstrap sample; the cluster bootstrap that
+  resamples patients and re-runs both
   [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) calls
-  for the HAART example
-  ([`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)).
+  for the HAART example is in section 5 of
+  [`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md).
   Robust standard errors
   ([`svyglm()`](https://rdrr.io/pkg/survey/man/svyglm.html),
   [`cluster()`](https://rdrr.io/pkg/survival/man/cluster.html)) treat
-  the weights as known and tend to be conservative; Austin (2016,
+  the weights as known. They were conservative for a binary point
+  treatment with good overlap, but can be too small for a continuous
+  exposure and for time-varying weights; Austin (2016,
   <doi:10.1002/sim.7084>) recommends the bootstrap.
+- [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md):
+  the help page now documents the return value (`NULL`, invisibly).
+- The [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
+  examples no longer call
+  [`graphics.off()`](https://rdrr.io/r/grDevices/dev.html), which closed
+  all of the user’s open graphics devices.
 
 ### License
 
