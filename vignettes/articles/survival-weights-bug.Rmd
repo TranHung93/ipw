@@ -1,0 +1,392 @@
+---
+title: "Survival weights with individual visit times: a bug in every version up to 1.3.2"
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(ipw)
+library(survival)
+stored <- readRDS("survival-weights-bug.rds")
+cases <- stored$cases
+data("haartdat", package = "ipw")
+cases$haartdat_first$data <- haartdat
+cases$haartdat_cens$data <- haartdat
+versions <- names(stored$by_version)
+old_res <- function(v, nm) stored$by_version[[v]]$results[[nm]]
+fmt <- function(x, d = 2) trimws(formatC(x, format = "g", digits = d))
+```
+
+## Summary
+
+`ipwtm()` with `family = "survival"` and `type = "first"` (or `"cens"` for
+censoring weights) computed **wrong weights when subjects have their own
+visit times**, that is, when the rows of different subjects do not start and
+end at the same time points. The probability of each row used the increase
+in the baseline hazard since the previous time point *in the whole data
+set*, instead of since the start of the row.
+
+* The bug is in **every version on CRAN, from ipw 1.0 (2011) to ipw 1.3.2**.
+  All `r length(versions)` versions were installed and run on the same data
+  for this page; they give identical weights.
+* Data in which all subjects share the same time points, such as `haartdat`
+  or data prepared as in Example 2 of `?ipwtm`, were **not affected**.
+* With individual visit times the weights were far off: in the example below
+  some weights differ from the correct ones by a factor of more than 30.
+* The development version fixes it: each row uses the baseline hazard over
+  its own interval `(tstart, timevar]`.
+
+## 1. What the weights should be
+
+For `type = "first"`, each row of a subject covers an interval
+`(tstart, timevar]` until the first exposure (for example the start of a
+treatment). With a Cox model for the time to exposure, the probability of
+*no* exposure during the row is
+
+$$
+P(\text{no exposure in } (t_\text{start}, t]) =
+\exp\{-[H_0(t) - H_0(t_\text{start})]\, e^{\beta^\top x}\},
+$$
+
+where $H_0$ is the cumulative baseline hazard. The probability of exposure
+at the end of the row is one minus this. The weight of a row is the product
+of the inverse probabilities of the rows of that subject so far (and the
+numerator model's probabilities, for stabilised weights). Censoring weights
+(`type = "cens"`) use the probability of remaining uncensored the same way.
+
+## 2. What older versions computed
+
+Older versions computed the hazard of a row as
+
+$$
+H_0(t) - H_0(t_\text{prev}),
+$$
+
+where $t_\text{prev}$ is the time point just before $t$ **among all times
+in the data**, of any subject. When every subject has rows at the same time
+points, $t_\text{prev}$ is the start of the row, and the two are the same.
+When subjects have their own visit times, $t_\text{prev}$ is usually later
+than $t_\text{start}$, so part of the hazard during the row is left out: the
+probability of no exposure is too high and the probability of exposure too
+low. Weights of exposed rows come out too large, and weights of unexposed
+rows too small.
+
+## 3. A worked example with three patients
+
+```{r tiny-data}
+d <- cases$tiny$data
+d
+```
+
+Patients 1 and 3 are at risk from day 10 and day 5 to day 20. Patient 2 is
+exposed at day 15 and patient 1 at day 20, so the baseline hazard increases
+at day 15 and at day 20. The times in the data are 5, 10, 15 and 20.
+
+The Cox model and its cumulative baseline hazard. Here $H_0$ is computed by
+hand from the risk sets (Efron's method, as `coxph()` uses), without
+`basehaz()` or `survfit()`:
+
+```{r tiny-fit}
+fit <- coxph(Surv(tstart, time, a) ~ l, data = d, ties = "efron")
+r <- exp(coef(fit) * d$l)                    # relative hazard of each row
+
+# Efron cumulative baseline hazard from the risk sets
+H_efron <- function(start, stop, event, r) {
+  et <- sort(unique(stop[event == 1]))
+  inc <- vapply(et, function(t) {
+    S0 <- sum(r[start < t & stop >= t])      # risk set at time t
+    D <- which(stop == t & event == 1)       # events at time t
+    k <- length(D)
+    sum(1 / (S0 - (seq_len(k) - 1) / k * sum(r[D])))
+  }, numeric(1))
+  cum <- cumsum(inc)
+  function(t) vapply(t, function(s) {
+    j <- which(et <= s)
+    if (length(j)) cum[max(j)] else 0
+  }, numeric(1))
+}
+H0 <- H_efron(d$tstart, d$time, d$a, r)
+H0(c(5, 10, 15, 20))
+```
+
+For each row, the correct hazard uses `tstart`; the old one used the
+previous time in the data:
+
+```{r tiny-table}
+times <- sort(unique(d$time))
+t_prev <- c(NA, times)[match(d$time, times)]
+hz_correct <- (H0(d$time) - H0(d$tstart)) * r
+hz_old <- (H0(d$time) - ifelse(is.na(t_prev), 0, H0(t_prev))) * r
+p_correct <- ifelse(d$a == 1, 1 - exp(-hz_correct), exp(-hz_correct))
+p_old <- ifelse(d$a == 1, 1 - exp(-hz_old), exp(-hz_old))
+w_correct <- ave(1 / p_correct, d$id, FUN = cumprod)
+w_old <- ave(1 / p_old, d$id, FUN = cumprod)
+
+tab <- data.frame(id = d$id, interval = paste0("(", d$tstart, ", ", d$time, "]"),
+                  old_interval = paste0("(", ifelse(is.na(t_prev), "-", t_prev), ", ", d$time, "]"),
+                  hazard_correct = hz_correct, hazard_old = hz_old,
+                  weight_correct = w_correct, weight_old = w_old)
+knitr::kable(tab, digits = 3)
+```
+
+The rows `(10, 20]` of patient 1 and `(5, 20]` of patient 3 were at risk at
+day 15, when patient 2 was exposed, but the old calculation started counting
+at day 15 and missed that part of the hazard. Patient 1, exposed at day 20,
+gets a weight of `r round(w_old[2], 3)` instead of `r round(w_correct[2], 3)`.
+
+The same numbers from the package. Every old version gives the old weights,
+and the development version gives the correct ones:
+
+```{r tiny-package}
+w_dev <- ipwtm(exposure = a, family = "survival", denominator = ~ l, id = id,
+               tstart = tstart, timevar = time, type = "first", data = d)$ipw.weights
+data.frame(id = d$id, interval = tab$interval,
+           ipw_1.2.1.1 = old_res("1.2.1.1", "tiny")$weights,
+           ipw_1.3.2 = old_res("1.3.2", "tiny")$weights,
+           this_version = w_dev, by_hand = w_correct)
+```
+
+```{r tiny-checks}
+# old versions = the old calculation above; this version = the correct one
+max(abs(old_res("1.0", "tiny")$weights - w_old))
+max(abs(w_dev - w_correct))
+```
+
+## 4. Is my data affected?
+
+Only rows that enter the exposure (or censoring) model matter, and only if
+their `tstart` is not the time point just before their `timevar` among all
+times in the data. This function counts such rows:
+
+```{r check-fun}
+rows_affected <- function(data, id, tstart, timevar, exposure) {
+  d <- data[order(data[[id]], data[[timevar]]), ]
+  in_model <- ave(d[[exposure]], d[[id]], FUN = function(z) cumsum(cumsum(z)) <= 1) == 1
+  times <- sort(unique(d[[timevar]]))
+  t_prev <- c(-Inf, times)[match(d[[timevar]], times)]
+  first_time <- d[[timevar]] == times[1]
+  sum(in_model & !first_time & d[[tstart]] != t_prev)
+}
+rows_affected(haartdat, "patient", "tstart", "fuptime", "haartind")
+rows_affected(cases$own_first$data, "id", "tstart", "time", "a")
+nrow(cases$own_first$data)
+```
+
+`haartdat` has no affected rows: all patients have rows every 100 days. In
+the data with individual visit times nearly every row is affected. If the
+count is 0 for your data, the old versions gave the correct weights.
+
+## 5. All versions from 1.0 to 1.3.2
+
+The same cases were run in every version of ipw on CRAN (in separate R
+sessions, with the script `data-raw/make-survival-bug-article-data.R`) and
+compared with the correct weights computed by hand as above:
+
+* **haartdat**: treatment weights (`type = "first"`) and censoring weights
+  (`type = "cens"`) from the `?ipwtm` example; common time grid.
+* **own times**: 300 subjects, each with their own visit times, unstabilised
+  (`numerator = NULL`) and stabilised (`numerator = ~ x`), and censoring
+  weights.
+* **own times on a common grid**: the same data, with every row split at
+  all times in the data (as in Example 2 of `?ipwtm`).
+
+```{r correct-weights, include = FALSE}
+correct_weights <- function(d, exposure, id, tstart, time, num, den, type) {
+  o <- order(d[[id]], d[[time]])
+  ds <- d[o, ]
+  ev <- ds[[exposure]]
+  sel <- ave(ev, ds[[id]], FUN = function(z) cumsum(cumsum(z)) <= 1) == 1
+  prob <- function(covs) {
+    if (is.null(covs)) return(rep(1, nrow(ds)))
+    act <- ds[sel, ]
+    f <- as.formula(paste0("Surv(", tstart, ", ", time, ", ", exposure, ") ~ ",
+                           paste(covs, collapse = " + ")))
+    m <- coxph(f, data = act, ties = "efron")
+    X <- model.matrix(as.formula(paste("~", paste(covs, collapse = " + "))), ds)[, -1, drop = FALSE]
+    rr <- drop(exp(X %*% coef(m)))
+    H <- H_efron(act[[tstart]], act[[time]], ev[sel], rr[sel])
+    dH <- (H(ds[[time]]) - H(ds[[tstart]])) * rr
+    p <- if (type == "cens") exp(-dH) else ifelse(ev == 1, 1 - exp(-dH), exp(-dH))
+    p[!sel] <- 1
+    p
+  }
+  w <- ave(prob(num) / prob(den), ds[[id]], FUN = cumprod)
+  w[order(o)]
+}
+refs <- list(
+  haartdat_first = correct_weights(haartdat, "haartind", "patient", "tstart", "fuptime",
+                                   c("sex", "age"), c("sex", "age", "cd4.sqrt"), "first"),
+  haartdat_cens = correct_weights(haartdat, "dropout", "patient", "tstart", "fuptime",
+                                  c("sex", "age"), c("sex", "age", "cd4.sqrt"), "cens"),
+  own_first = correct_weights(cases$own_first$data, "a", "id", "tstart", "time",
+                              NULL, c("x", "l"), "first"),
+  own_first_stab = correct_weights(cases$own_first_stab$data, "a", "id", "tstart", "time",
+                                   "x", c("x", "l"), "first"),
+  own_cens = correct_weights(cases$own_cens$data, "dropout", "id", "tstart", "time",
+                             "x", c("x", "l"), "cens"),
+  common_grid_first = correct_weights(cases$common_grid_first$data, "a", "id", "tstart", "time",
+                                      NULL, c("x", "l"), "first"))
+now <- lapply(cases[names(refs)], function(cs) eval(cs$call, list(data = cs$data))$ipw.weights)
+```
+
+```{r versions-table, echo = FALSE}
+status <- function(x, ref) {
+  if (is.null(x)) return("not run")
+  if (!is.na(x$error)) return(if (grepl("No type specified", x$error)) "no type = \"cens\"" else "error")
+  d <- max(abs(x$weights / ref - 1))
+  if (d < 1e-8) "correct" else paste0("wrong (", fmt(d), ")")
+}
+labels <- c(haartdat_first = "haartdat, first", haartdat_cens = "haartdat, cens",
+            own_first = "own times, first", own_first_stab = "own times, first, stabilised",
+            own_cens = "own times, cens", common_grid_first = "own times on a common grid")
+rows <- lapply(versions, function(v) {
+  bv <- stored$by_version[[v]]
+  st <- if (!isTRUE(bv$installed) || is.null(bv$results)) rep("could not be run", length(labels)) else
+    vapply(names(labels), function(nm) status(bv$results[[nm]], refs[[nm]]), "")
+  c(v, st)
+})
+rows[[length(rows) + 1]] <- c(paste0("this version (", utils::packageVersion("ipw"), ")"),
+  vapply(names(labels), function(nm) {
+    d <- max(abs(now[[nm]] / refs[[nm]] - 1)); if (d < 1e-8) "correct" else paste0("wrong (", fmt(d), ")")
+  }, ""))
+tab <- as.data.frame(do.call(rbind, rows), stringsAsFactors = FALSE)
+names(tab) <- c("Version", labels)
+knitr::kable(tab, row.names = FALSE)
+```
+
+The numbers in brackets are the largest relative difference between a
+version's weights and the correct weights (2 means one weight is three times
+too large or too small). Versions 1.0 to 1.0-11 had no `type = "cens"`.
+
+```{r identical, include = FALSE}
+ok <- vapply(versions, function(v) {
+  r <- old_res(v, "own_first")
+  !is.null(r) && is.na(r$error) && isTRUE(all.equal(r$weights, old_res("1.0", "own_first")$weights, tolerance = 1e-10))
+}, logical(1))
+```
+
+All `r sum(ok)` versions give the same weights as ipw 1.0 for the
+individual visit times, to 1e-10. The calculation was the same from the
+first release; the rewrite in 1.3 kept it, and its comparison with 1.2.1.1
+used `haartdat`, where the two agree.
+
+How far off are the weights? For the unstabilised weights:
+
+```{r size}
+old_w <- old_res("1.3.2", "own_first")$weights
+summary(old_w / refs$own_first)
+c(largest_weight_old = max(old_w), largest_weight_correct = max(refs$own_first))
+```
+
+## 6. If you used an older version
+
+1. Check your data with `rows_affected()` above. If it returns 0, your
+   weights were correct.
+2. Otherwise, recompute the weights with the fixed version. With an older
+   version you can get correct weights by first splitting every row at all
+   times that occur in the data, so that all subjects share one time grid;
+   the last column of the table in section 5 shows that this gives the correct
+   weights in every version. For example:
+
+```{r split, eval = FALSE}
+split_common_grid <- function(d) {
+  grid <- sort(unique(c(d$tstart, d$time)))
+  do.call(rbind, lapply(seq_len(nrow(d)), function(r) {
+    cuts <- grid[grid > d$tstart[r] & grid < d$time[r]]
+    s <- c(d$tstart[r], cuts); e <- c(cuts, d$time[r]); k <- length(s)
+    data.frame(id = d$id[r], tstart = s, time = e, x = d$x[r], l = d$l[r],
+               a = c(rep(0, k - 1), d$a[r]))   # exposure on the last piece only
+  }))
+}
+```
+
+The weight at the end of an original row is the weight on its last piece.
+
+## 7. The code: before and after
+
+```{r show-code, include = FALSE}
+show_lines <- function(x, lines) {
+  x <- gsub("\t", "  ", x)
+  cat(sprintf("%4d  %s", lines, x[lines]), sep = "\n")
+}
+```
+
+The code below is taken from the source packages on CRAN (stored with this
+article by `data-raw/make-survival-bug-article-data.R`); line numbers are
+those of `R/ipwtm.R` in each version. Only the denominator model is shown;
+the numerator model had the same code.
+
+### ipw 1.0 (2011)
+
+```{r code-1.0, echo = FALSE, comment = ""}
+show_lines(stored$old_code[["1.0"]], 147:162)
+```
+
+Line 148 makes a list of **all distinct times in the data**
+(`tempdat$timevar`, the end times of all rows of all subjects). Lines
+152-153 take the increase of the cumulative baseline hazard between
+neighbouring times in that list, and line 155 attaches it to each row by its
+end time. Lines 158-160 use that increase as the hazard of the row. The
+start time of the row (`tstart`) is not used at all.
+
+### ipw 1.2.1.1 (the last version before the rewrite)
+
+```{r code-1.2.1.1, echo = FALSE, comment = ""}
+show_lines(stored$old_code[["1.2.1.1"]], 186:202)
+```
+
+The same calculation (lines 187, 191-192, 194, 197); only the censoring
+weights (`type = "cens"`, line 200) were added.
+
+### ipw 1.3.2 (CRAN, after the rewrite)
+
+```{r code-1.3.2, echo = FALSE, comment = ""}
+show_lines(stored$old_code[["1.3.2"]], 491:513)
+```
+
+The rewrite kept the calculation: `u_times` is the list of all distinct end
+times (line 492), `step_haz` the increase between neighbouring times (line
+501), merged onto the rows by their end time and used as the hazard of the
+row (line 513).
+
+### The fix (this version)
+
+```{r code-now, echo = FALSE, comment = ""}
+src <- if (file.exists("../../R/ipwtm.R")) readLines("../../R/ipwtm.R") else character()
+from <- grep("Hazard over each row's own interval", src)
+to <- grep("inst_haz <- ", src)
+if (length(from) == 1 && length(to) == 1) show_lines(src, from:to) else
+  cat("(source of this version not found)\n")
+```
+
+The cumulative baseline hazard is now evaluated at both ends of each row's
+own interval, `timevar` and `tstart`, and the difference is the hazard of
+the row. This is the calculation that `type = "all"` (new in this version)
+already used. For data on a common time grid the weights are unchanged; the
+package tests check this against the stored results of ipw 1.2.1.1 for
+`haartdat` and other data.
+
+### Tests
+
+The package tests compare the weights with a baseline hazard computed by
+hand from the risk sets, as in section 3, for `type = "first"` and
+`type = "cens"`, on data with individual visit times, with tied times and
+with follow-up starting below 0, with the rows in random order. This is the
+test (from `tests/testthat/test-audit2-ipwtm.R`; the helper functions
+`r2_H0()`, `r2_surv_ref()` and `r2_irregular()` are defined at the top of
+that file):
+
+```{r test-code, echo = FALSE, comment = ""}
+tf <- "../../tests/testthat/test-audit2-ipwtm.R"
+tsrc <- if (file.exists(tf)) readLines(tf) else character()
+from <- grep("^r2_H0 <- function", tsrc)
+start <- grep("survival first/cens equal an independent by-hand Efron interval hazard", tsrc)
+end <- if (length(start)) start - 1 + which(tsrc[start:length(tsrc)] == "})")[1] else NA
+if (length(from) == 1 && length(start) == 1 && !is.na(end)) {
+  cat(tsrc[from:(from + 9)], "...", tsrc[start:end], sep = "\n")
+} else cat("(test file not found)\n")
+```
+
+The same comparison fails for every version up to 1.3.2, as section 5 shows.
+Another test checks that `type = "first"` and `type = "all"` agree when every
+subject is exposed at most once (`tests/testthat/test-audit-ipwtm.R`). The
+tests run on Linux, macOS and Windows with every change to the package.
