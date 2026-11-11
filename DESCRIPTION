@@ -18,6 +18,9 @@ Suggests:
     nlme,
     survey,
     boot,
+    data.table,
+    tibble,
+    WeightIt,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr
 Description: Functions to estimate the probability to receive the observed treatment, based on

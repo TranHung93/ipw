@@ -47,6 +47,10 @@ tstartfun <- function(id, timevar, data) {
   if (anyNA(id_vec) || anyNA(time_vec)) {
     stop("'id' and 'timevar' must not contain missing values.")
   }
+  if (any(time_vec <= -1)) {
+    warning("Some 'timevar' values are <= -1: the starting time of -1 given to each ",
+            "subject's first record is then not before its follow-up time.", call. = FALSE)
+  }
 
   n <- nrow(data)
   orig_order <- seq_len(n)

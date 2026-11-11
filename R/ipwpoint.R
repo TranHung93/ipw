@@ -217,9 +217,20 @@ ipwpoint <- function(
     stop("Missing values detected in exposure or covariates. 'ipwpoint' requires complete cases.",
          call. = FALSE)
   }
-  if (family == "binomial" && !all(exp_vec %in% c(0, 1))) {
+  .check_infinite(data, model_vars)
+  if (family == "binomial" && (is.factor(exp_vec) || is.character(exp_vec))) {
+    exp_vec <- .as_binary01(exp_vec)
+    data <- as.data.frame(data)
+    data[[exp_name]] <- exp_vec
+  }
+  if (family == "binomial" &&
+      (!(is.numeric(exp_vec) || is.logical(exp_vec)) || !all(exp_vec %in% c(0, 1)))) {
     stop("Binomial exposure must be coded as 0 or 1.", call. = FALSE)
   }
+  if (family %in% c("binomial", "multinomial", "ordinal") && length(unique(exp_vec)) < 2) {
+    stop("The exposure takes only one value; weights cannot be estimated.", call. = FALSE)
+  }
+  if (family == "ordinal") .check_ordinal_exposure(exp_vec)
   if (family %in% c("poisson", "negbin") &&
       (!is.numeric(exp_vec) || any(exp_vec < 0) || any(exp_vec != round(exp_vec)))) {
     stop("Count exposure must contain non-negative integers for family = '", family, "'.",

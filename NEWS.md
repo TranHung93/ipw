@@ -1,5 +1,38 @@
 # ipw (development version)
 
+## Bug fixes
+
+* `ipwtm()`, `family = "survival"`, `type = "first"` or `"cens"`: the
+  probability of each row now uses the baseline hazard over the row's own
+  interval `(tstart, timevar]`. Before, it used the increase in the baseline
+  hazard since the previous time point in the whole data set, which is only
+  right when all subjects share one time grid (as in `haartdat`). **Weights
+  change for data in which subjects have their own follow-up times**; for data
+  with a common time grid they are unchanged. `type = "all"` was not affected.
+* `ipwpoint()` and `ipwtm()`: a binomial (or survival) 0/1 exposure stored as
+  a factor or character is now used by its labels. With factor levels in the
+  order `c("1", "0")` the probabilities of the two exposure values were
+  swapped, giving wrong weights.
+* `ipwpoint()` and `ipwtm()`, `family = "ordinal"`: a character exposure is
+  now an error. It was ordered alphabetically (e.g. "high" < "low" < "mid").
+  Use an ordered factor or numeric codes.
+* `ipwtm()`: a covariate called `selvar` was replaced by the internal
+  selection indicator; it is now used as the user's covariate.
+* `ipwtm()`: duplicated combinations of `id` and `timevar` are now an error
+  (as in `ipwprobtm()`).
+* `ipwpoint()`: an exposure that takes only one value is now an error
+  instead of returning meaningless weights.
+* `ipwpoint()` and `ipwtm()`: infinite values in model variables now give an
+  error that names the variables.
+* `ipwprobtm()`: `den` and `num` larger than 1 are now an error.
+* `tstartfun()`: warns when follow-up times are <= -1, because the starting
+  time of -1 given to the first record is then not before the follow-up time.
+* `ipwplot()`: zero or negative weights with `logscale = TRUE` are now an
+  error; they were silently left out of the plot.
+* `ipwtm()` examples: the cluster bootstrap moved to `vignette("ipw")`
+  (section 5), and the part of Example 2 that needs nlme (in Suggests) only
+  runs when nlme is installed.
+
 ## New features
 
 * `ipwtm()`: `type = "all"` now works for `family = "multinomial"` and

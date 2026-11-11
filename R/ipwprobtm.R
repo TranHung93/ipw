@@ -70,8 +70,8 @@ ipwprobtm <- function(den, num = NULL, id, timevar, trunc = NULL) {
     if (!is.numeric(x) || length(x) == 0) {
       stop("'", name, "' must be a non-empty numeric vector.", call. = FALSE)
     }
-    if (anyNA(x) || any(!is.finite(x)) || any(x <= 0)) {
-      stop("'", name, "' must contain positive, finite values without missing values.",
+    if (anyNA(x) || any(!is.finite(x)) || any(x <= 0) || any(x > 1)) {
+      stop("'", name, "' must contain positive probabilities (at most 1) without missing values.",
            call. = FALSE)
     }
   }

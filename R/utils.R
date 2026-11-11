@@ -29,6 +29,38 @@
   invisible(TRUE)
 }
 
+# Infinite values in numeric model variables give an error that names them
+.check_infinite <- function(data, vars) {
+  inf_vars <- vars[vapply(vars, function(v) {
+    x <- data[[v]]
+    is.numeric(x) && any(is.infinite(x))
+  }, logical(1))]
+  if (length(inf_vars) > 0) {
+    stop("Non-finite (infinite) values detected in: ", paste(inf_vars, collapse = ", "), ".", call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+# A 0/1 exposure stored as a factor or character is converted by its labels,
+# so the order of factor levels cannot swap the two exposure values.
+.as_binary01 <- function(x) {
+  if ((is.factor(x) || is.character(x)) && all(as.character(x) %in% c("0", "1"))) {
+    as.numeric(as.character(x))
+  } else {
+    x
+  }
+}
+
+# A character exposure has no defined order: as.factor() would sort it alphabetically
+.check_ordinal_exposure <- function(x) {
+  if (is.character(x)) {
+    stop("Ordinal exposure is a character vector, whose order is not defined ",
+         "(it would be sorted alphabetically). Use an ordered factor or numeric codes.",
+         call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
 # Column name from an unquoted symbol or a string
 .get_col_name <- function(expr) {
   if (is.symbol(expr) || is.character(expr)) as.character(expr) else deparse(expr, width.cutoff = 500)

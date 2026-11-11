@@ -17,7 +17,7 @@
 #' resample subjects, not rows: keep all rows of a sampled subject, give each sampled
 #' copy a new id, re-run \code{ipwtm} (for treatment and, if used, censoring weights)
 #' on the bootstrap sample and refit the marginal structural model. See the cluster
-#' bootstrap in Example 1 below. About 200 bootstrap samples are usually enough to
+#' bootstrap in section 5 of \code{vignette("ipw")}. About 200 bootstrap samples are usually enough to
 #' estimate a standard error. Time-varying weights are products over time, so a few
 #' subjects can get very large weights. In the package's simulation study (500
 #' subjects, 4 visits), bootstrap and robust standard errors were then both too
@@ -128,43 +128,9 @@
 #' #uncorrected model
 #' summary(coxph(Surv(tstart, fuptime, event) ~ haartind, data = haartdat))
 #'
-#' #Bootstrap standard error for the MSM above (cluster bootstrap by patient).
-#' #cluster() gives a robust standard error that treats the weights as known and
-#' #tends to be conservative. Austin (2016) recommends the bootstrap, with the
-#' #weights re-estimated in each bootstrap sample.
-#' #With longitudinal data, resample patients, not rows: keep all rows of a
-#' #sampled patient, give each sampled copy a new id, re-run both ipwtm() calls
-#' #and refit the MSM.
-#' #B = 20 keeps the example short; use about 200 in practice.
-#' \donttest{
-#' msm.fun <- function(d) {
-#'   tw <- ipwtm(exposure = haartind, family = "survival",
-#'               numerator = ~ sex + age, denominator = ~ sex + age + cd4.sqrt,
-#'               id = patient, tstart = tstart, timevar = fuptime,
-#'               type = "first", data = d)
-#'   cw <- ipwtm(exposure = dropout, family = "survival",
-#'               numerator = ~ sex + age, denominator = ~ sex + age + cd4.sqrt,
-#'               id = patient, tstart = tstart, timevar = fuptime,
-#'               type = "cens", data = d)
-#'   d$w <- tw$ipw.weights * cw$ipw.weights
-#'   coef(coxph(Surv(tstart, fuptime, event) ~ haartind, data = d,
-#'              weights = w))["haartind"]
-#' }
-#' rows.pat <- split(seq_len(nrow(haartdat)), haartdat$patient)
-#' set.seed(123)
-#' B <- 20
-#' est.boot <- numeric(B)
-#' for (b in seq_len(B)) {
-#'   pick <- sample(length(rows.pat), replace = TRUE)
-#'   d.boot <- haartdat[unlist(rows.pat[pick]), ]
-#'   d.boot$patient <- rep(seq_along(pick), lengths(rows.pat[pick]))
-#'   est.boot[b] <- msm.fun(d.boot)
-#' }
-#' #log hazard ratio with bootstrap standard error
-#' c(estimate = unname(msm.fun(haartdat)), boot.se = sd(est.boot))
-#' #percentile interval (crude with B = 20)
-#' quantile(est.boot, c(0.025, 0.975))
-#' }
+#' #For a bootstrap standard error that re-estimates the weights in each
+#' #bootstrap sample (resampling patients, not rows), see section 5 of
+#' #vignette("ipw").
 #'
 #' ########################################################################
 #' #EXAMPLE 2
@@ -184,10 +150,11 @@
 #' timedat <- merge(timedat, basdat[,c("id", "Ttb")], by = "id", all.x = TRUE)
 #' #compute TB status
 #' timedat$tb.lag <- ifelse(with(timedat, !is.na(Ttb) & fuptime > Ttb), 1, 0)
-#' #longitudinal CD4-model
-#' require(nlme)
-#' cd4.lme <- lme(cd4.sqrt ~ fuptime + tb.lag, random = ~ fuptime | id,
-#'                data = timedat)
+#' #longitudinal CD4-model (needs the nlme package)
+#' if (requireNamespace("nlme", quietly = TRUE)) {
+#' library(survival)
+#' cd4.lme <- nlme::lme(cd4.sqrt ~ fuptime + tb.lag, random = ~ fuptime | id,
+#'                      data = timedat)
 #'
 #' #build new dataset:
 #' #rows corresponding to TB-status switches, and individual end times
@@ -223,18 +190,18 @@
 #'   timevar = fuptime,
 #'   type = "first",
 #'   data = startstop)
-#' summary(temp$ipw.weights)
+#' print(summary(temp$ipw.weights))
 #' ipwplot(weights = temp$ipw.weights, timevar = startstop$fuptime, binwidth = 100)
 #'
 #' #models
 #' #IPW-fitted MSM, using cluster() to obtain robust standard error estimate
-#' require(survival)
-#' summary(coxph(Surv(tstart, fuptime, event) ~ tb + cluster(id),
-#'               data = startstop, weights = temp$ipw.weights))
+#' print(summary(coxph(Surv(tstart, fuptime, event) ~ tb + cluster(id),
+#'                     data = startstop, weights = temp$ipw.weights)))
 #' #unadjusted
-#' summary(coxph(Surv(tstart, fuptime, event) ~ tb, data = startstop))
+#' print(summary(coxph(Surv(tstart, fuptime, event) ~ tb, data = startstop)))
 #' #adjusted using conditioning: part of the effect of TB is adjusted away
-#' summary(coxph(Surv(tstart, fuptime, event) ~ tb + cd4.sqrt, data = startstop))
+#' print(summary(coxph(Surv(tstart, fuptime, event) ~ tb + cd4.sqrt, data = startstop)))
+#' }
 #'
 #' ## Not run:
 #' #compute bootstrap CI for TB parameter (takes a few hours)
@@ -320,6 +287,15 @@ ipwtm <- function(
     trunc       = trunc
   )
 
+  # A 0/1 exposure stored as a factor or character is used by its labels
+  if (family %in% c("binomial", "survival")) {
+    exp_raw <- data[[var_names$exposure]]
+    if (is.factor(exp_raw) || is.character(exp_raw)) {
+      data <- as.data.frame(data)
+      data[[var_names$exposure]] <- .as_binary01(exp_raw)
+    }
+  }
+
   # 3. Sorting & Preserving Original Order ----------------------------------
   ord <- order(data[[var_names$id]], data[[var_names$timevar]])
   order_orig <- seq_len(nrow(data))[ord]
@@ -332,7 +308,7 @@ ipwtm <- function(
     type     = type,
     family   = family
   )
-  sorted_data$selvar <- selvar
+  sorted_data$.ipw_selvar <- selvar  # internal name, so a covariate called 'selvar' is untouched
 
   # 5. Model Fitting & Probability Estimation -------------------------------
   engine_args <- list(
@@ -451,10 +427,21 @@ ipwtm <- function(
     stop("Missing values detected in: ", paste(na_vars, collapse = ", "),
          ". 'ipwtm' requires complete cases.", call. = FALSE)
   }
+  .check_infinite(data, model_vars)
+  if (".ipw_selvar" %in% names(data)) {
+    stop("'.ipw_selvar' is used internally by ipwtm(); please rename that column.", call. = FALSE)
+  }
+  if (anyDuplicated(data.frame(data[[var_names$id]], data[[var_names$timevar]]))) {
+    stop("Each combination of 'id' and 'timevar' must occur only once.", call. = FALSE)
+  }
 
-  if (family %in% c("binomial", "survival") && !all(data[[var_names$exposure]] %in% c(0, 1))) {
+  exp_vec <- data[[var_names$exposure]]
+  if (family %in% c("binomial", "survival")) exp_vec <- .as_binary01(exp_vec)
+  if (family %in% c("binomial", "survival") &&
+      (!(is.numeric(exp_vec) || is.logical(exp_vec)) || !all(exp_vec %in% c(0, 1)))) {
     stop("Exposure must be coded as 0 or 1 for family = \"", family, "\".", call. = FALSE)
   }
+  if (family == "ordinal") .check_ordinal_exposure(exp_vec)
 
   if (family == "survival") {
     for (f in list(numerator, denominator)) {
@@ -505,13 +492,13 @@ ipwtm <- function(
     formula   = form_den,
     family    = fam_link,
     data      = data,
-    subset    = if (type != "all") quote(selvar == 1) else NULL,
+    subset    = if (type != "all") quote(.ipw_selvar == 1) else NULL,
     na.action = stats::na.fail
   ), dots))
 
   pred_den <- as.numeric(stats::predict(mod_den, type = "response"))
   p_den <- rep(1, nrow(data))
-  active <- (data$selvar == 1)
+  active <- (data$.ipw_selvar == 1)
 
   if (type == "all") {
     p_den[data[[exp_col]] == 0] <- 1 - pred_den[data[[exp_col]] == 0]
@@ -538,7 +525,7 @@ ipwtm <- function(
       formula   = form_num,
       family    = fam_link,
       data      = data,
-      subset    = if (type != "all") quote(selvar == 1) else NULL,
+      subset    = if (type != "all") quote(.ipw_selvar == 1) else NULL,
       na.action = stats::na.fail
     ), dots))
 
@@ -571,7 +558,6 @@ ipwtm <- function(
   time_col  <- var_names$timevar
   start_col <- var_names$tstart
   surv_lhs  <- sprintf("survival::Surv(%s, %s, %s)", start_col, time_col, exp_col)
-  u_times   <- sort(unique(data[[time_col]]))
 
   # type = "all" (Graffeo et al. 2018): Andersen-Gill model for recurrent
   # exposure events, fitted on all rows. For each row (tstart, timevar], the
@@ -591,37 +577,30 @@ ipwtm <- function(
 
   .compute_surv_p <- function(mod) {
     if (type == "all") return(.compute_surv_p_all(mod))
+    # Hazard over each row's own interval (tstart, timevar]: L0(timevar) - L0(tstart).
+    # (Up to ipw 1.3.x the increment between consecutive time points of the whole
+    # data set was used, which is only right when all subjects share one time grid.)
     bh <- survival::basehaz(mod, centered = TRUE)
-    df_bh <- data.frame(timevar = u_times)
-    df_bh <- merge(df_bh, data.frame(timevar = bh$time, cum_haz = bh$hazard), by = "timevar", all.x = TRUE)
-
-    if (is.na(df_bh$cum_haz[1])) df_bh$cum_haz[1] <- 0
-    df_bh$cum_haz  <- stats::approx(df_bh$timevar, df_bh$cum_haz, xout = df_bh$timevar, method = "constant", rule = 2)$y
-    df_bh$step_haz <- c(df_bh$cum_haz[1], diff(df_bh$cum_haz, 1))
-
-    merged <- merge(
-      data.frame(orig_seq = seq_len(nrow(data)), timevar = data[[time_col]]),
-      df_bh[, c("timevar", "step_haz")],
-      by = "timevar",
-      all.x = TRUE
-    )
-    merged <- merged[order(merged$orig_seq), ]
-
+    cum_haz_at <- function(t) {
+      out <- stats::approx(bh$time, bh$hazard, xout = t, method = "constant", rule = 2)$y
+      out[t < min(bh$time)] <- 0
+      out
+    }
     risk <- rep(NA_real_, nrow(data))
-    risk[data$selvar == 1] <- stats::predict(mod, type = "risk", centered = TRUE)
-    inst_haz <- merged$step_haz * risk
+    risk[data$.ipw_selvar == 1] <- stats::predict(mod, type = "risk", centered = TRUE)
+    inst_haz <- (cum_haz_at(data[[time_col]]) - cum_haz_at(data[[start_col]])) * risk
 
     p <- rep(1, nrow(data))
-    s0 <- which(data$selvar == 1 & data[[exp_col]] == 0)
+    s0 <- which(data$.ipw_selvar == 1 & data[[exp_col]] == 0)
     p[s0] <- exp(-1 * inst_haz[s0])
 
-    s1 <- which(data$selvar == 1 & data[[exp_col]] == 1)
+    s1 <- which(data$.ipw_selvar == 1 & data[[exp_col]] == 1)
     if (type == "first") {
       p[s1] <- 1 - exp(-1 * inst_haz[s1])
     } else if (type == "cens") {
       p[s1] <- exp(-1 * inst_haz[s1])
     }
-    p[data$selvar == 0] <- 1
+    p[data$.ipw_selvar == 0] <- 1
     p
   }
 
@@ -630,7 +609,7 @@ ipwtm <- function(
   mod_den <- do.call(survival::coxph, c(list(
     formula   = form_den,
     data      = data,
-    subset    = if (type != "all") quote(selvar == 1) else NULL,
+    subset    = if (type != "all") quote(.ipw_selvar == 1) else NULL,
     na.action = stats::na.fail,
     method    = "efron",
     model     = TRUE
@@ -647,7 +626,7 @@ ipwtm <- function(
     mod_num <- do.call(survival::coxph, c(list(
       formula   = form_num,
       data      = data,
-      subset    = if (type != "all") quote(selvar == 1) else NULL,
+      subset    = if (type != "all") quote(.ipw_selvar == 1) else NULL,
       na.action = stats::na.fail,
       method    = "efron",
       model     = TRUE
@@ -674,7 +653,7 @@ ipwtm <- function(
         formula   = form,
         data      = data,
         method    = polr_method,
-        subset    = quote(selvar == 1),
+        subset    = quote(.ipw_selvar == 1),
         na.action = stats::na.fail,
         model     = TRUE
       ), dots, list(Hess = TRUE)))
@@ -682,12 +661,12 @@ ipwtm <- function(
       do.call(nnet::multinom, .with_defaults(list(
         formula   = form,
         data      = data,
-        subset    = quote(selvar == 1),
+        subset    = quote(.ipw_selvar == 1),
         na.action = stats::na.fail
       ), dots, list(trace = FALSE, Hess = TRUE)))
     }
 
-    active <- data$selvar == 1
+    active <- data$.ipw_selvar == 1
     p_vec <- rep(1, nrow(data))
     p_vec[active] <- .prob_of_observed(stats::predict(mod, type = "probs"),
                                        data[[exp_col]][active], mod$lev)
