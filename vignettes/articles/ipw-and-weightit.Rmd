@@ -15,6 +15,9 @@ cox_sim <- readRDS("ipwvcov-cox-simulation.rds")
 # Coverage simulation for ipwtm() weights (section 3), made once with
 # data-raw/make-ipwvcov-tm-simulation.R
 tm_sim <- readRDS("ipwvcov-tm-simulation.rds")
+# Tail index of the cumulative weights and coverage by n (section 3), made
+# once with data-raw/make-ipwvcov-tm-tail.R
+tm_tail <- readRDS("ipwvcov-tm-tail.rds")
 ```
 
 ```{r packages, message = FALSE}
@@ -478,16 +481,72 @@ weights as known, is about 40% too large here, so its intervals are much
 wider than needed. With strongly dependent treatment, `ipwvcov()` and the
 bootstrap give almost the same standard error, but both are about 17%
 smaller than the empirical standard deviation, and coverage drops to about
-93% (the bootstrap's 94.5% is based on 200 data sets). In further runs this
-gap did not shrink when the number of people was quadrupled: the cumulative
-weights have such a heavy tail that the normal approximation behind both
-methods is poor. This is a property of such weights, not of the variance
-formula, which matches the numerical Jacobian of the estimating equations
-exactly. The robust standard error is conservative in both scenarios here,
-but that is not guaranteed; the package's simulation study found settings
-where it was too small as well. When cumulative weights are this variable,
-consider truncation, a less extreme weight model, or a different estimand,
-and treat every standard error with caution.
+93% (the bootstrap's 94.5% is based on 200 data sets). The robust standard
+error is conservative in both scenarios here, but that is not guaranteed;
+the package's simulation study found settings where it was too small as
+well.
+
+### Heavy-tailed weights
+
+Why do both methods fall short in the strong scenario? Cumulative weights
+are products of many factors. When some people have a very low probability
+of their observed treatment history (a near-violation of positivity), the
+weights have a heavy right tail: P(W > x) falls off like $x^{-\gamma}$ for
+a tail index $\gamma$. The weights have a finite variance only if
+$\gamma > 2$. The normal approximation also relies on a finite third moment
+($\gamma > 3$), and estimating the variance well, by the sandwich or by the
+bootstrap, relies on a finite fourth moment ($\gamma > 4$).
+
+To check this explanation, the strong scenario and a milder version of it
+(dependence on the confounder and on the previous treatment three quarters
+as strong) were run with 300, 1200 and 4800 people. The weight
+distribution refers to the final cumulative weight of each person: the
+largest weight and the 99.9th percentile (medians over data sets), the
+Kish effective sample size as a fraction of *n* (mean), and the Hill
+estimate of the tail index from the top 5% (median). There were
+`r tm_tail$summary$replications[1]`, `r tm_tail$summary$replications[2]`
+and `r tm_tail$summary$replications[3]` data sets per size, of which
+`r tm_tail$summary$bootstrap.replications[1]`,
+`r tm_tail$summary$bootstrap.replications[2]` and
+`r tm_tail$summary$bootstrap.replications[3]` were bootstrapped
+(B = `r tm_tail$B`).
+
+```{r tm-tail}
+tail_tab <- tm_tail$summary[, c("scenario", "n", "max.weight", "q999.weight",
+                                "ess.fraction", "hill.tail.index",
+                                "empirical.sd", "mean.se.ipwvcov",
+                                "mean.se.bootstrap", "coverage.ipwvcov",
+                                "coverage.bootstrap", "coverage.robust")]
+knitr::kable(tail_tab, digits = c(0, 0, 1, 1, 2, 2, 4, 4, 4, 3, 3, 3), row.names = FALSE)
+```
+
+The Hill estimate from one sample of 200,000 people per scenario, at three
+tail fractions, with the largest weight and the effective sample size
+fraction in that sample ("moderate" is the moderate scenario above):
+
+```{r tm-tail-big}
+knitr::kable(tm_tail$hill_big, digits = 2)
+```
+
+The tail index is above 2 in every scenario, so the weights have a finite
+variance and the intervals are valid in the limit. It is, however, about
+2.3 in the strong scenario and 2.8 in the milder one, compared with 3.9 in
+the moderate scenario. Coverage of `ipwvcov()` intervals follows the tail
+index: about 95% (moderate), about 94% (milder) and 92 to 93% (strong). In
+the strong scenario coverage does not improve from 300 to 4800 people,
+while the largest weight roughly doubles with every fourfold increase in
+*n* and the effective sample size fraction keeps falling. The cluster
+bootstrap gives about the same standard errors as `ipwvcov()` and does no
+better (its coverage rests on 100 to 200 data sets, so it is uncertain by
+about 2 to 3 percentage points).
+
+Heavy-tailed weights therefore make normal-theory intervals unreliable for
+any method, the bootstrap included. The variance formula is not the cause:
+it matches the numerical Jacobian of the estimating equations exactly.
+Check the weight distribution (`summary()`, `ipwplot()`, the effective
+sample size) before trusting any standard error. If a few people carry much
+of the weight, consider truncation, a less extreme weight model or a
+different estimand.
 
 # 4. Which to use
 

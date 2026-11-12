@@ -99,12 +99,21 @@
 #' \code{lm()}, \code{glm()} or \code{coxph()} (counting-process data;
 #' \code{cluster()} is allowed, \code{ties = "breslow"} when event times are
 #' tied) on all rows of the long data, in the same order, with weights equal
-#' to the product of the weights in \code{object}. Cumulative weights can have
-#' a heavy right tail; in simulations, \code{ipwvcov()} and the cluster
-#' bootstrap then both underestimated the standard error (by about 17\% when
-#' treatment depended strongly on the confounder and on past treatment), while
-#' with moderately variable weights both were accurate. Check the weights with
-#' \code{summary()} and \code{\link{ipwplot}}.
+#' to the product of the weights in \code{object}.
+#'
+#' \strong{Heavy-tailed weights.} Cumulative weights can have a heavy right
+#' tail when some people have a very low probability of their observed
+#' exposure history (a near-violation of positivity). Normal-theory intervals
+#' are then unreliable whatever method gives the standard error, the
+#' bootstrap included. In simulations where treatment depended strongly on the
+#' confounder and on past treatment, the tail index of the final cumulative
+#' weights was about 2.3 (the weights have a finite variance, but not a
+#' finite third or fourth moment). 95\% intervals then covered 92 to 93\% of
+#' the time with \code{ipwvcov()} and 90 to 95\% with the cluster bootstrap,
+#' with no trend towards 95\% between 300 and 4800 people. With a tail index
+#' of about 3.9 both covered about 95\%. Check the weight distribution
+#' (\code{summary()}, \code{\link{ipwplot}} and the effective sample size
+#' \code{sum(w)^2 / sum(w^2)}) before trusting any standard error.
 #'
 #' Not supported, and an error: other exposure families or links, smooth terms
 #' (GAMs), truncated weights (truncation at estimated percentiles is not a

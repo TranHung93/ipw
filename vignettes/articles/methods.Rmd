@@ -700,16 +700,30 @@ row (so that only the last rows carry information) has the same
 coefficients and variance as WeightIt's person-level model (agreement
 $10^{-6}$).
 
-**Finite samples.** In simulations with individual visit times (see the
-comparison article), `ipwvcov()` and the cluster bootstrap agreed closely
-with each other in all scenarios. With moderately variable cumulative
-weights both matched the empirical standard deviation (coverage about 95%);
-when treatment depended strongly on the confounder and on the previous
-treatment, the cumulative weights had a heavy right tail and both were about
-17% too small (coverage about 93%), a gap that did not shrink with four
-times as many people. The formula is exact for the stacked estimating
-equations; the problem is the heavy tail of such weights, which the
-bootstrap shares.
+**Heavy-tailed weights.** Cumulative weights are products of many
+factors. When some people have a very low probability of their observed
+exposure history (a near-violation of positivity), the weights have a heavy
+right tail: P(W > x) falls off like $x^{-\gamma}$ for a tail index $\gamma$.
+The weighted estimating equations then have a finite variance only if
+$\gamma > 2$. The usual normal approximation also relies on a finite third
+moment ($\gamma > 3$), and estimating the variance well, from the sandwich or
+from the bootstrap, relies on a finite fourth moment ($\gamma > 4$).
+
+Simulations with individual visit times (see the comparison article)
+estimated $\gamma$ with the Hill estimator on the top 5% of the final
+cumulative weights. The more strongly treatment depended on the confounder
+and on the previous treatment, the smaller the tail index: about 3.9, 2.8
+and 2.3 in three scenarios. Coverage of 95% intervals from `ipwvcov()`
+followed the tail index: about 95%, about 94% and 92 to 93%. In the
+heaviest-tailed scenario coverage did not improve between 300 and 4800
+people, while the largest weight kept growing with *n*. The cluster
+bootstrap did no better (90 to 95%, on fewer data sets), and `ipwvcov()` and
+the bootstrap gave about the same standard errors throughout. The formula is
+exact for the stacked estimating equations; the problem is the weights,
+and it affects any normal-theory interval. Check the weight distribution
+(`summary()`, `ipwplot()`, the effective sample size) before trusting any
+standard error. If a few people carry much of the weight, consider
+truncation, a less extreme weight model or a different estimand.
 
 **Caveats.** Only binary exposures with logistic `glm()` exposure models;
 truncated weights (truncation at estimated percentiles is not a smooth
