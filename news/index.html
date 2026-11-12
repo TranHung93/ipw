@@ -22,7 +22,7 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/bug-fixes.html">Bugs fixed after ipw 1.3.2</a></li>
     <li><a class="dropdown-item" href="../articles/methods.html">Methods behind the new features: formulas, code and rationale</a></li>
     <li><a class="dropdown-item" href="../articles/simulations.html">Simulation study: do the weights recover known effects?</a></li>
-    <li><a class="dropdown-item" href="../articles/survival-weights-bug.html">Survival weights with individual visit times: a bug in every version up to 1.3.2</a></li>
+    <li><a class="dropdown-item" href="../articles/survival-weights-time-grid.html">Survival weights and the time grid: a caution for ipw 1.3.2 and earlier</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -43,6 +43,11 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="ipw-development-version">ipw (development version)<a class="anchor" aria-label="anchor" href="#ipw-development-version"></a></h2>
 <div class="section level3">
+<h3 id="improvements-development-version">Improvements<a class="anchor" aria-label="anchor" href="#improvements-development-version"></a></h3>
+<ul><li>
+<code><a href="../reference/ipwtm.html">ipwtm()</a></code>, <code>family = "survival"</code>, <code>type = "first"</code> or <code>"cens"</code> no longer needs the data on a full time grid. Up to ipw 1.3.2, the probability of each row used the increase in the baseline hazard since the previous time point in the whole data set, so the weights were correct only when all follow-up was split at all times that occur in the data, as in the examples of the JSS paper, <code>haartdat</code> and Example 2 of <code><a href="../reference/ipwtm.html">?ipwtm</a></code>. Each row now uses the baseline hazard over its own interval <code>(tstart, timevar]</code>, so data with individual visit times can be used directly. <strong>For data on the full grid the weights are unchanged</strong>; for data that are not, they now differ from earlier versions, which gave incorrect weights for such data. <code>type = "all"</code> always used each row’s own interval.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="bug-fixes-development-version">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-development-version"></a></h3>
 <ul><li>
 <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> and <code><a href="../reference/ipwtm.html">ipwtm()</a></code>: <code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code> terms in the <code>numerator</code> and <code>denominator</code> formulas were silently dropped, so the models were fitted without the offset and <strong>the weights were wrong</strong>. This affected ipw 1.3.1 and 1.3.2 on CRAN; ipw 1.2.1.1 was fine. Formulas are now used as written.</li>
@@ -55,8 +60,6 @@
 <li>
 <code><a href="../reference/ipwtm.html">ipwtm()</a></code>, <code>family = "survival"</code>: rows with <code>tstart &gt;= timevar</code> now give a clear error instead of “missing values in object” or no error at all.</li>
 <li>Clearer errors: <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> with <code>family = "gaussian"</code> and a non-numeric exposure (was “NA/NaN/Inf in ‘y’”); <code><a href="../reference/ipwplot.html">ipwplot()</a></code> with missing weights (was “‘x’ contains missing values”) or a <code>binwidth</code> of length &gt; 1.</li>
-<li>
-<code><a href="../reference/ipwtm.html">ipwtm()</a></code>, <code>family = "survival"</code>, <code>type = "first"</code> or <code>"cens"</code>: the probability of each row now uses the baseline hazard over the row’s own interval <code>(tstart, timevar]</code>. Before, it used the increase in the baseline hazard since the previous time point in the whole data set, which is only right when all subjects share one time grid (as in <code>haartdat</code>). <strong>Weights change for data in which subjects have their own follow-up times</strong>; for data with a common time grid they are unchanged. <code>type = "all"</code> was not affected.</li>
 <li>
 <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> and <code><a href="../reference/ipwtm.html">ipwtm()</a></code>: a binomial (or survival) 0/1 exposure stored as a factor or character is now used by its labels. With factor levels in the order <code>c("1", "0")</code> the probabilities of the two exposure values were swapped, giving wrong weights.</li>
 <li>
@@ -81,7 +84,7 @@
 <div class="section level3">
 <h3 id="documentation-development-version">Documentation<a class="anchor" aria-label="anchor" href="#documentation-development-version"></a></h3>
 <ul><li>New article “Bugs fixed after ipw 1.3.2” on the package website: for each bug above, an example run in ipw 1.2.1.1, ipw 1.3.2 and this version, with the weights compared with weights computed by hand.</li>
-<li>New article “Survival weights with individual visit times”: the <code><a href="../reference/ipwtm.html">ipwtm()</a></code> survival bug in detail, with a worked example, a check of whether your data are affected, the results of every ipw version on CRAN (1.0 to 1.3.2, all affected), the old and the new code, and the tests. It includes a simulation with a known answer in which ipw 1.2.1.1 gives the same biased estimate as no weights at all, and the fixed version removes the bias.</li>
+<li>New article “Survival weights and the time grid”: why <code><a href="../reference/ipwtm.html">ipwtm()</a></code> survival weights in ipw 1.3.2 and earlier need the data on a full time grid (as in the JSS paper), a worked example, <code>rows_affected()</code> to check whether your data were on the full grid, the results of every ipw version on CRAN (1.0 to 1.3.2), a simulation with a known answer, the old and the new code, and the tests.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="new-features-development-version">New features<a class="anchor" aria-label="anchor" href="#new-features-development-version"></a></h3>

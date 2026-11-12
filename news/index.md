@@ -2,6 +2,23 @@
 
 ## ipw (development version)
 
+### Improvements
+
+- [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md),
+  `family = "survival"`, `type = "first"` or `"cens"` no longer needs
+  the data on a full time grid. Up to ipw 1.3.2, the probability of each
+  row used the increase in the baseline hazard since the previous time
+  point in the whole data set, so the weights were correct only when all
+  follow-up was split at all times that occur in the data, as in the
+  examples of the JSS paper, `haartdat` and Example 2 of
+  [`?ipwtm`](https://tranhung93.github.io/ipw/reference/ipwtm.md). Each
+  row now uses the baseline hazard over its own interval
+  `(tstart, timevar]`, so data with individual visit times can be used
+  directly. **For data on the full grid the weights are unchanged**; for
+  data that are not, they now differ from earlier versions, which gave
+  incorrect weights for such data. `type = "all"` always used each row’s
+  own interval.
+
 ### Bug fixes
 
 - [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
@@ -39,15 +56,6 @@
   [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md)
   with missing weights (was “‘x’ contains missing values”) or a
   `binwidth` of length \> 1.
-- [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md),
-  `family = "survival"`, `type = "first"` or `"cens"`: the probability
-  of each row now uses the baseline hazard over the row’s own interval
-  `(tstart, timevar]`. Before, it used the increase in the baseline
-  hazard since the previous time point in the whole data set, which is
-  only right when all subjects share one time grid (as in `haartdat`).
-  **Weights change for data in which subjects have their own follow-up
-  times**; for data with a common time grid they are unchanged.
-  `type = "all"` was not affected.
 - [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
   and [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md):
   a binomial (or survival) 0/1 exposure stored as a factor or character
@@ -91,14 +99,13 @@
 - New article “Bugs fixed after ipw 1.3.2” on the package website: for
   each bug above, an example run in ipw 1.2.1.1, ipw 1.3.2 and this
   version, with the weights compared with weights computed by hand.
-- New article “Survival weights with individual visit times”: the
+- New article “Survival weights and the time grid”: why
   [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
-  survival bug in detail, with a worked example, a check of whether your
-  data are affected, the results of every ipw version on CRAN (1.0 to
-  1.3.2, all affected), the old and the new code, and the tests. It
-  includes a simulation with a known answer in which ipw 1.2.1.1 gives
-  the same biased estimate as no weights at all, and the fixed version
-  removes the bias.
+  survival weights in ipw 1.3.2 and earlier need the data on a full time
+  grid (as in the JSS paper), a worked example, `rows_affected()` to
+  check whether your data were on the full grid, the results of every
+  ipw version on CRAN (1.0 to 1.3.2), a simulation with a known answer,
+  the old and the new code, and the tests.
 
 ### New features
 

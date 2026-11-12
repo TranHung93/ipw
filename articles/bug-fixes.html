@@ -37,7 +37,7 @@
 <li><a class="dropdown-item" href="../articles/bug-fixes.html">Bugs fixed after ipw 1.3.2</a></li>
     <li><a class="dropdown-item" href="../articles/methods.html">Methods behind the new features: formulas, code and rationale</a></li>
     <li><a class="dropdown-item" href="../articles/simulations.html">Simulation study: do the weights recover known effects?</a></li>
-    <li><a class="dropdown-item" href="../articles/survival-weights-bug.html">Survival weights with individual visit times: a bug in every version up to 1.3.2</a></li>
+    <li><a class="dropdown-item" href="../articles/survival-weights-time-grid.html">Survival weights and the time grid: a caution for ipw 1.3.2 and earlier</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -70,8 +70,10 @@
     
     
 <p>This page describes the bugs that were found in a review of ipw after
-version 1.3.2 and fixed in the next version. For each bug it shows a
-small example and runs it in three versions:</p>
+version 1.3.2 and fixed in the next version, and one improvement:
+survival weights from <code><a href="../reference/ipwtm.html">ipwtm()</a></code> no longer need the data on a
+full time grid (section 5). For each case it shows a small example and
+runs it in three versions:</p>
 <ul>
 <li>
 <strong>ipw 1.2.1.1</strong>, the last version before the 1.3
@@ -113,8 +115,10 @@ with an unclear error), or as a factor whose levels are in alphabetical
 rather than dose order (all older versions);</li>
 <li>
 <code><a href="../reference/ipwtm.html">ipwtm()</a></code> with <code>family = "survival"</code> and
-<code>type = "first"</code> or <code>"cens"</code>, where subjects have
-their own visit times (all older versions);</li>
+<code>type = "first"</code> or <code>"cens"</code>, with data that were
+not split onto a full time grid, for example one row per visit with each
+subject’s own visit dates (all older versions; data prepared as in the
+JSS paper were fine, see section 5);</li>
 <li>
 <code><a href="../reference/ipwtm.html">ipwtm()</a></code> with a covariate that is called
 <code>selvar</code> (1.3.1 and 1.3.2);</li>
@@ -160,7 +164,7 @@ weights</th>
 <tr class="odd">
 <td align="left">1.2.1.1</td>
 <td align="left">Weights</td>
-<td align="left">0</td>
+<td align="left">4.4e-16</td>
 </tr>
 <tr class="even">
 <td align="left">1.3.2 (CRAN)</td>
@@ -209,7 +213,7 @@ weights</th>
 <tr class="odd">
 <td align="left">1.2.1.1</td>
 <td align="left">Weights</td>
-<td align="left">0</td>
+<td align="left">8.9e-16</td>
 </tr>
 <tr class="even">
 <td align="left">1.3.2 (CRAN)</td>
@@ -353,17 +357,22 @@ correct in all versions:</p>
 <span><span class="co">#&gt; [1] 0</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="survival-exposure-subjects-with-their-own-visit-times">5. Survival exposure: subjects with their own visit times<a class="anchor" aria-label="anchor" href="#survival-exposure-subjects-with-their-own-visit-times"></a>
+<h2 id="survival-weights-a-full-time-grid-is-no-longer-needed">5. Survival weights: a full time grid is no longer needed<a class="anchor" aria-label="anchor" href="#survival-weights-a-full-time-grid-is-no-longer-needed"></a>
 </h2>
 <p>For <code>family = "survival"</code> with <code>type = "first"</code>
 (and the censoring weights with <code>type = "cens"</code>), each row
 covers an interval <code>(tstart, timevar]</code>, and its probability
 should use the baseline hazard over that interval. Older versions used
 the increase in the baseline hazard since the <em>previous time point in
-the whole data set</em>. That is the same thing when all subjects are
-seen at the same times, as in <code>haartdat</code>, but not when they
-have their own visit times: the hazard of a row was then only counted
-from the last visit of <em>any</em> subject, so it was too small.</p>
+the whole data set</em>. That is the same thing when the data are on a
+full time grid, that is, when all follow-up is split at all times that
+occur in the data, as in the examples of the JSS paper,
+<code>haartdat</code> and Example 2 of <code><a href="../reference/ipwtm.html">?ipwtm</a></code>. With such
+data the older versions are correct. With data that are not on the full
+grid, for example one row per visit with each subject’s own visit dates,
+the hazard of a row was only counted from the last time point of
+<em>any</em> subject, so it was too small, and the weights were
+incorrect. The example below uses such data.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cases</span><span class="op">$</span><span class="va">survival</span><span class="op">$</span><span class="va">call</span></span>
 <span><span class="co">#&gt; ipwtm(exposure = a, family = "survival", denominator = ~l, id = id, </span></span>
@@ -420,12 +429,15 @@ weights</th>
 </tr>
 </tbody>
 </table>
-<p>With a common time grid, as in <code>haartdat</code>, nothing
-changes: all versions give the same weights.</p>
-<p><strong>Fix:</strong> each row now uses the hazard over its own
-interval, as <code>type = "all"</code> already did. The article <a href="survival-weights-bug.html">Survival weights with individual visit
-times</a> describes this bug in detail: every version from ipw 1.0 to
-1.3.2 is affected, and it shows the old and the new code.</p>
+<p>On the full grid, as in <code>haartdat</code> or the JSS paper’s
+examples, nothing changes: all versions give the same, correct
+weights.</p>
+<p><strong>Change:</strong> each row now uses the hazard over its own
+interval, as <code>type = "all"</code> already did, so data with
+individual visit times can be used directly. The article <a href="survival-weights-time-grid.html">Survival weights and the time
+grid</a> explains this in detail: how to check whether your data were on
+the full grid, the results of every version from ipw 1.0 to 1.3.2, and
+the old and the new code.</p>
 </div>
 <div class="section level2">
 <h2 id="a-covariate-called-selvar-was-overwritten-ipwtm-1-3-1-and-1-3-2">6. A covariate called <code>selvar</code> was overwritten
@@ -464,7 +476,7 @@ weights</th>
 <tr class="odd">
 <td align="left">1.2.1.1</td>
 <td align="left">Weights</td>
-<td align="left">4.4e-16</td>
+<td align="left">1.2e-15</td>
 </tr>
 <tr class="even">
 <td align="left">1.3.2 (CRAN)</td>
@@ -636,7 +648,7 @@ weights</th>
 <td align="left">error, as it should</td>
 </tr>
 <tr class="odd">
-<td align="left">5. survival, own visit times</td>
+<td align="left">5. survival, not on the full grid</td>
 <td align="left">wrong (up to 25)</td>
 <td align="left">wrong (up to 25)</td>
 <td align="left">correct</td>

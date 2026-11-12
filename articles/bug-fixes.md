@@ -1,8 +1,11 @@
 # Bugs fixed after ipw 1.3.2
 
 This page describes the bugs that were found in a review of ipw after
-version 1.3.2 and fixed in the next version. For each bug it shows a
-small example and runs it in three versions:
+version 1.3.2 and fixed in the next version, and one improvement:
+survival weights from
+[`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) no
+longer need the data on a full time grid (section 5). For each case it
+shows a small example and runs it in three versions:
 
 - **ipw 1.2.1.1**, the last version before the 1.3 rewrite;
 - **ipw 1.3.2**, the version on CRAN when the review was done;
@@ -36,8 +39,10 @@ them.
   with an unclear error), or as a factor whose levels are in
   alphabetical rather than dose order (all older versions);
 - [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) with
-  `family = "survival"` and `type = "first"` or `"cens"`, where subjects
-  have their own visit times (all older versions);
+  `family = "survival"` and `type = "first"` or `"cens"`, with data that
+  were not split onto a full time grid, for example one row per visit
+  with each subject’s own visit dates (all older versions; data prepared
+  as in the JSS paper were fine, see section 5);
 - [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) with
   a covariate that is called `selvar` (1.3.1 and 1.3.2);
 - [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) with
@@ -73,7 +78,7 @@ ref_offset <- unname(1 / ifelse(d$a == 1, p, 1 - p))
 
 | Version | Result | Largest relative difference from the correct weights |
 |:---|:---|:---|
-| 1.2.1.1 | Weights | 0 |
+| 1.2.1.1 | Weights | 4.4e-16 |
 | 1.3.2 (CRAN) | Weights | 1.1 |
 | this version (1.3.2.9000) | Weights | 0 |
 
@@ -102,7 +107,7 @@ ref_dot <- unname(1 / ifelse(d$a == 1, p, 1 - p))
 
 | Version | Result | Largest relative difference from the correct weights |
 |:---|:---|:---|
-| 1.2.1.1 | Weights | 0 |
+| 1.2.1.1 | Weights | 8.9e-16 |
 | 1.3.2 (CRAN) | Error: Variables not found in data: . |  |
 | this version (1.3.2.9000) | Weights | 0 |
 
@@ -198,17 +203,22 @@ max_rel(w$ipw.weights, ref_ordinal)
 #> [1] 0
 ```
 
-## 5. Survival exposure: subjects with their own visit times
+## 5. Survival weights: a full time grid is no longer needed
 
 For `family = "survival"` with `type = "first"` (and the censoring
 weights with `type = "cens"`), each row covers an interval
 `(tstart, timevar]`, and its probability should use the baseline hazard
 over that interval. Older versions used the increase in the baseline
 hazard since the *previous time point in the whole data set*. That is
-the same thing when all subjects are seen at the same times, as in
-`haartdat`, but not when they have their own visit times: the hazard of
-a row was then only counted from the last visit of *any* subject, so it
-was too small.
+the same thing when the data are on a full time grid, that is, when all
+follow-up is split at all times that occur in the data, as in the
+examples of the JSS paper, `haartdat` and Example 2 of
+[`?ipwtm`](https://tranhung93.github.io/ipw/reference/ipwtm.md). With
+such data the older versions are correct. With data that are not on the
+full grid, for example one row per visit with each subject’s own visit
+dates, the hazard of a row was only counted from the last time point of
+*any* subject, so it was too small, and the weights were incorrect. The
+example below uses such data.
 
 ``` r
 
@@ -251,15 +261,16 @@ from the risk sets by hand, without
 | 1.3.2 (CRAN) | Weights | 25 |
 | this version (1.3.2.9000) | Weights | 4.4e-16 |
 
-With a common time grid, as in `haartdat`, nothing changes: all versions
-give the same weights.
+On the full grid, as in `haartdat` or the JSS paper’s examples, nothing
+changes: all versions give the same, correct weights.
 
-**Fix:** each row now uses the hazard over its own interval, as
-`type = "all"` already did. The article [Survival weights with
-individual visit
-times](https://tranhung93.github.io/ipw/articles/survival-weights-bug.md)
-describes this bug in detail: every version from ipw 1.0 to 1.3.2 is
-affected, and it shows the old and the new code.
+**Change:** each row now uses the hazard over its own interval, as
+`type = "all"` already did, so data with individual visit times can be
+used directly. The article [Survival weights and the time
+grid](https://tranhung93.github.io/ipw/articles/survival-weights-time-grid.md)
+explains this in detail: how to check whether your data were on the full
+grid, the results of every version from ipw 1.0 to 1.3.2, and the old
+and the new code.
 
 ## 6. A covariate called `selvar` was overwritten (`ipwtm()`, 1.3.1 and 1.3.2)
 
@@ -291,7 +302,7 @@ ref_selvar <- unname(ave(1 / p_obs, d$id, FUN = cumprod))
 
 | Version | Result | Largest relative difference from the correct weights |
 |:---|:---|:---|
-| 1.2.1.1 | Weights | 4.4e-16 |
+| 1.2.1.1 | Weights | 1.2e-15 |
 | 1.3.2 (CRAN) | Weights | 3.6 |
 | this version (1.3.2.9000) | Weights | 4.4e-16 |
 
@@ -380,7 +391,7 @@ still Efron.
 | 2\. denominator = ~ . | correct | error (should work) | correct |
 | 3\. factor exposure, levels “1”, “0” | wrong (up to 8.7) | wrong (up to 8.7) | correct |
 | 4\. ordinal exposure as text | error (unclear message) | wrong (up to 1.8) | error, as it should |
-| 5\. survival, own visit times | wrong (up to 25) | wrong (up to 25) | correct |
+| 5\. survival, not on the full grid | wrong (up to 25) | wrong (up to 25) | correct |
 | 6\. covariate called selvar | correct | wrong (up to 3.6) | correct |
 | 7\. duplicated id/timevar rows | wrong (no error) | wrong (no error) | error, as it should |
 | 8\. ties = “breslow” | wrong (up to 0.064) | wrong (up to 0.064) | correct |
