@@ -56,6 +56,18 @@ An analysis has three steps:
 > The formulas, code and rationale behind each new feature are in the
 > [methods article](https://tranhung93.github.io/ipw/articles/methods.html).
 
+**ipw or WeightIt?** For point treatments,
+[WeightIt](https://ngreifer.github.io/WeightIt/) offers many more weighting
+methods (machine learning, entropy and energy balancing, CBPS, ...),
+estimands, balance diagnostics through cobalt and outcome models with
+M-estimation standard errors. ipw is designed for exposures that change
+over time in long data with each person's own visit times, Cox models for
+the time to the first switch or to censoring, exposures that switch back
+and forth or recur, count and skewed continuous exposures, and analyses
+with few dependencies. See the README and the article
+[ipw and WeightIt](https://tranhung93.github.io/ipw/articles/ipw-and-weightit.html)
+for a side-by-side comparison.
+
 # 1. Point treatment: a binary exposure
 
 We simulate a confounder `l`, a binary exposure `a` that is more likely at
