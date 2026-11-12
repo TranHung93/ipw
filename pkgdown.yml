@@ -3,11 +3,12 @@ pkgdown: 2.2.1
 pkgdown_sha: ~
 articles:
   articles/bug-fixes: bug-fixes.html
+  articles/ipw-and-weightit: ipw-and-weightit.html
   ipw: ipw.html
   articles/methods: methods.html
   articles/simulations: simulations.html
   articles/survival-weights-time-grid: survival-weights-time-grid.html
-last_built: 2026-11-12T06:12Z
+last_built: 2026-11-12T08:11Z
 urls:
   reference: https://tranhung93.github.io/ipw/reference
   article: https://tranhung93.github.io/ipw/articles

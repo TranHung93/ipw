@@ -5,9 +5,11 @@ in a point treatment situation. Exposure can be binomial, multinomial,
 ordinal, a count (Poisson or negative binomial) or continuous (gaussian,
 gamma or log-normal). Both stabilized and unstabilized weights can be
 estimated, and for a binomial exposure also weights for the effect in
-the treated (ATT) and overlap weights (ATO). Formulas may contain smooth
-terms such as `s(x)`, which are then fitted as generalized additive
-models with mgcv.
+the treated (ATT), the effect in the untreated (ATC) and overlap weights
+(ATO). For a multinomial or ordinal exposure, ATT weights (for a chosen
+`focal` level) and generalized overlap weights are available as well.
+Formulas may contain smooth terms such as `s(x)`, which are then fitted
+as generalized additive models with mgcv.
 
 ## Usage
 
@@ -20,7 +22,8 @@ ipwpoint(
   denominator,
   data,
   trunc = NULL,
-  estimand = c("ATE", "ATT", "ATO"),
+  estimand = c("ATE", "ATT", "ATC", "ATO"),
+  focal = NULL,
   ...
 )
 ```
@@ -52,7 +55,7 @@ ipwpoint(
   Formula specifying the right-hand side of the numerator model. If
   `NULL`, unstabilized weights (numerator = 1) are calculated. Required
   for the continuous families (`"gaussian"`, `"gamma"`, `"lognormal"`);
-  must be `NULL` when `estimand` is `"ATT"` or `"ATO"`.
+  must be `NULL` when `estimand` is `"ATT"`, `"ATC"` or `"ATO"`.
 
 - denominator:
 
@@ -72,11 +75,29 @@ ipwpoint(
 
 - estimand:
 
-  Target estimand for a binomial exposure: `"ATE"` (default; inverse
-  probability weights), `"ATT"` (treated get weight 1, untreated
-  \\p/(1-p)\\) or `"ATO"` (overlap weights: treated \\1-p\\, untreated
-  \\p\\), where \\p\\ is the fitted probability of exposure from the
-  denominator model.
+  Target estimand. For a binomial exposure: `"ATE"` (default; inverse
+  probability weights), `"ATT"` (effect in the treated: treated get
+  weight 1, untreated \\p/(1-p)\\), `"ATC"` (effect in the untreated, or
+  controls: treated get \\(1-p)/p\\, untreated 1) or `"ATO"` (overlap
+  weights: treated \\1-p\\, untreated \\p\\), where \\p\\ is the fitted
+  probability of exposure from the denominator model. For a multinomial
+  or ordinal exposure: `"ATE"`, `"ATT"` (effect in the people at level
+  `focal`: weight \\P_i(focal) / P_i(A_i)\\, 1 for people at the focal
+  level) or `"ATO"` (generalized overlap weights, Li & Li 2019:
+  \\(1/P_i(A_i)) / \sum_k 1/P_i(k)\\), where \\P_i(k)\\ is the fitted
+  probability of level \\k\\ and \\A_i\\ the observed level. For two
+  levels these equal the binomial ATT and ATO weights. `"ATC"` is only
+  available for a binomial exposure; for a categorical exposure use
+  `"ATT"` with `focal` set to the control level. Other families only
+  allow `"ATE"`.
+
+- focal:
+
+  For `estimand = "ATT"` with `family = "multinomial"` or `"ordinal"`:
+  the exposure level whose effect is targeted (the "treated" group),
+  given as a level of the exposure. Required there and must be `NULL`
+  otherwise; for a binomial exposure the focal group is always the
+  exposed (1).
 
 - ...:
 
@@ -85,7 +106,10 @@ ipwpoint(
 
 ## Value
 
-A list of class `"ipwpoint"` containing:
+A list of class `"ipwpoint"` with attributes `"estimand"`, `"exposure"`
+(the name of the exposure column) and, for ATT and ATC weights,
+`"focal"` (the level whose effect is targeted: 1 for a binomial ATT, 0
+for ATC), containing:
 
 - ipw.weights:
 
@@ -111,7 +135,15 @@ A list of class `"ipwpoint"` containing:
 
 Standard errors: `ipwpoint` only estimates the weights. Standard errors
 for the marginal structural model have to be obtained when that model is
-fitted. Robust (sandwich) standard errors, for example from
+fitted. For a binomial exposure (any `estimand`, logit link, exposure
+models without smooth terms, no truncation) and a marginal structural
+model fitted with [`lm()`](https://rdrr.io/r/stats/lm.html) or
+[`glm()`](https://rdrr.io/r/stats/glm.html),
+[`ipwvcov`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) (new,
+experimental) gives standard errors that take the estimation of the
+weights into account (M-estimation); this is the recommended option
+there. For all other cases use the bootstrap described below. Robust
+(sandwich) standard errors, for example from
 [`svyglm()`](https://rdrr.io/pkg/survey/man/svyglm.html) in the survey
 package as in Van der Wal and Geskus (2011), treat the weights as known.
 For a binary point treatment with good overlap they were conservative
@@ -147,6 +179,21 @@ Probability Weighting. *Journal of Statistical Software*, **43**(13),
 1-23. [doi:10.18637/jss.v043.i13](https://doi.org/10.18637/jss.v043.i13)
 .
 
+Li, F., Morgan, K.L. & Zaslavsky, A.M. (2018). Balancing covariates via
+propensity score weighting. *Journal of the American Statistical
+Association*, **113**, 390-400.
+[doi:10.1080/01621459.2016.1260466](https://doi.org/10.1080/01621459.2016.1260466)
+.
+
+Greifer, N. WeightIt: Weighting for Covariate Balance in Observational
+Studies. R package, <https://ngreifer.github.io/WeightIt/>. (Used in the
+package tests as an independent comparison of the weights.)
+
+Li, F. & Li, F. (2019). Propensity score weighting for causal inference
+with multiple treatments. *Annals of Applied Statistics*, **13**(4),
+2389-2415.
+[doi:10.1214/19-AOAS1282](https://doi.org/10.1214/19-AOAS1282) .
+
 Austin, P.C. (2016). Variance estimation when using inverse probability
 of treatment weighting (IPTW) with survival analysis. *Statistics in
 Medicine*, **35**, 5642-5655.
@@ -154,6 +201,7 @@ Medicine*, **35**, 5642-5655.
 
 ## See also
 
+[`ipwvcov`](https://tranhung93.github.io/ipw/reference/ipwvcov.md),
 [`basdat`](https://tranhung93.github.io/ipw/reference/basdat.md),
 [`haartdat`](https://tranhung93.github.io/ipw/reference/haartdat.md),
 [`ipwplot`](https://tranhung93.github.io/ipw/reference/ipwplot.md),
@@ -442,6 +490,13 @@ if (requireNamespace("survey", quietly = TRUE)) {
 #> 
 #> Number of Fisher Scoring iterations: 2
 #> 
+
+# Standard errors that take the estimation of the weights into account
+# (M-estimation; binomial exposure, lm() or glm() MSM)
+msm.lm <- lm(y ~ a, data = simdat, weights = temp$ipw.weights)
+sqrt(diag(ipwvcov(temp, msm.lm)))
+#> (Intercept)           a 
+#>    1.052322    1.086986 
 
 # Bootstrap standard error and percentile confidence interval for the MSM.
 # The robust standard error from svyglm() treats the weights as known and

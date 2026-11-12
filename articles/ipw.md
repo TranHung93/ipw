@@ -26,27 +26,45 @@ An analysis has three steps:
 2.  **Check the weights** with
     [`summary()`](https://rdrr.io/r/base/summary.html) and
     [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md).
-3.  **Fit the MSM** with the weights, and get **standard errors**, for
-    example with a bootstrap that re-estimates the weights when they are
-    well behaved (section 5).
+3.  **Fit the MSM** with the weights, and get **standard errors**: with
+    [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+    for a binary point treatment, otherwise with a bootstrap that
+    re-estimates the weights when they are well behaved (section 5).
 
 | Function | Purpose |
 |----|----|
 | [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md) | Weights for an exposure measured once (point treatment) |
 | [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) | Weights for an exposure that changes over time, and censoring weights |
 | [`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md) | Time-varying weights from probabilities you estimated yourself **(new)** |
+| [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) | Standard errors for the MSM that account for the estimated weights (binary point treatment) **(new)** |
 | [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md) | Plot the distribution of the weights |
 | [`tstartfun()`](https://tranhung93.github.io/ipw/reference/tstartfun.md) | Interval start times for counting-process (Cox) data |
 
 > **New in the development version.** Sections marked **New** describe
 > features added after ipw 1.3.2: count, gamma and log-normal exposures,
-> smooth terms with mgcv, ATT and overlap weights, `type = "all"` for
-> categorical and survival exposures in
+> smooth terms with mgcv, ATT, ATC and overlap weights (also for
+> categorical exposures), standard errors that account for the estimated
+> weights
+> ([`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)),
+> `type = "all"` for categorical and survival exposures in
 > [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md), and
 > [`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md).
 > Existing calls give the same results as before. The formulas, code and
 > rationale behind each new feature are in the [methods
 > article](https://tranhung93.github.io/ipw/articles/methods.html).
+
+**ipw or WeightIt?** For point treatments,
+[WeightIt](https://ngreifer.github.io/WeightIt/) offers many more
+weighting methods (machine learning, entropy and energy balancing, CBPS,
+…), estimands, balance diagnostics through cobalt and outcome models
+with M-estimation standard errors. ipw is designed for exposures that
+change over time in long data with each person’s own visit times, Cox
+models for the time to the first switch or to censoring, exposures that
+switch back and forth or recur, count and skewed continuous exposures,
+and analyses with few dependencies. See the README and the article [ipw
+and
+WeightIt](https://tranhung93.github.io/ipw/articles/ipw-and-weightit.html)
+for a side-by-side comparison.
 
 ## 1. Point treatment: a binary exposure
 
@@ -105,7 +123,10 @@ c(unweighted = unname(coef(lm(y ~ a, data = simdat))["a"]),
 
 For inference, the weighted model is usually fitted with robust standard
 errors, for example with the survey package as in the JSS paper; see
-section 5 for the bootstrap alternative.
+section 5 for
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md),
+which also accounts for the estimation of the weights, and the
+bootstrap.
 
 ``` r
 
@@ -134,15 +155,16 @@ rbind(unstabilized = summary(w.unstab$ipw.weights),
 #> truncated    0.4810092 0.5127181 0.5284768 0.7772294 0.631794   6.274768
 ```
 
-### New: ATT and overlap weights
+### New: ATT, ATC and overlap weights
 
 The weights above target the **average treatment effect (ATE)**: the
 effect if everyone versus no one were exposed. With `estimand = "ATT"`
 the weights target the effect **in the exposed** (exposed get weight 1,
-unexposed p/(1 - p)); with `estimand = "ATO"`, **overlap weights**, the
-effect in the people whose exposure was most uncertain (exposed 1 - p,
-unexposed p, all between 0 and 1). Here p is the fitted probability of
-exposure.
+unexposed p/(1 - p)); with `estimand = "ATC"` the effect **in the
+unexposed** (the controls: exposed (1 - p)/p, unexposed 1); with
+`estimand = "ATO"`, **overlap weights**, the effect in the people whose
+exposure was most uncertain (exposed 1 - p, unexposed p, all between 0
+and 1). Here p is the fitted probability of exposure.
 
 ``` r
 
@@ -152,19 +174,20 @@ fit.estimand <- function(estimand) {
   c(effect = unname(coef(lm(y ~ a, data = simdat, weights = wt))["a"]),
     max.weight = max(wt))
 }
-sapply(c(ATE = "ATE", ATT = "ATT", ATO = "ATO"), fit.estimand)
-#>                  ATE        ATT        ATO
-#> effect      10.64661   9.044102 10.5137145
-#> max.weight 155.30022 154.300216  0.9935609
+sapply(c(ATE = "ATE", ATT = "ATT", ATC = "ATC", ATO = "ATO"), fit.estimand)
+#>                  ATE        ATT      ATC        ATO
+#> effect      10.64661   9.044102 11.95244 10.5137145
+#> max.weight 155.30022 154.300216 19.88275  0.9935609
 ```
 
-The effect was simulated as constant, so all three estimands are 10 in
+The effect was simulated as constant, so all four estimands are 10 in
 truth, and the differences between the estimates are sampling noise. The
 ATT weights show why: unexposed people with a high probability of
-exposure get weights above 100, which makes that estimate unstable.
-Overlap weights never exceed 1, which helps when some people are almost
-always or almost never exposed. With an effect that differs between
-people, the three estimands differ in truth as well.
+exposure get weights above 100, which makes that estimate unstable, and
+the ATC weights do the same for exposed people with a low probability of
+exposure. Overlap weights never exceed 1, which helps when some people
+are almost always or almost never exposed. With an effect that differs
+between people, the three estimands differ in truth as well.
 
 ## 2. Point treatment: other kinds of exposure
 
@@ -190,6 +213,31 @@ rbind(ordinal = summary(w.ord$ipw.weights), multinomial = summary(w.mult$ipw.wei
 #>                  Min.   1st Qu.    Median      Mean  3rd Qu.     Max.
 #> ordinal     0.3728385 0.7198835 0.8864612 0.9986363 1.095597 5.308914
 #> multinomial 0.3563447 0.7223290 0.8959666 1.0031794 1.063840 7.484257
+```
+
+#### New: ATT and overlap weights for categorical exposures
+
+For a categorical exposure, `estimand = "ATT"` targets the effect in the
+people at one level, the **focal** level: each person gets P(focal) /
+P(observed level), so people at the focal level keep weight 1 and the
+others are reweighted to look like them. `estimand = "ATO"` gives
+**generalized overlap weights** (Li & Li 2019): (1 / P(observed level))
+/ sum over all levels k of 1 / P(k). Both need `numerator = NULL`. For
+two levels they are the binomial ATT and ATO weights; for the effect in
+the controls of a categorical exposure, use `"ATT"` with `focal` set to
+the control level.
+
+``` r
+
+w.cat.att <- ipwpoint(exposure = dose, family = "multinomial", denominator = ~ l,
+                  data = cat.dat, estimand = "ATT", focal = "high")
+w.cat.ato <- ipwpoint(exposure = dose, family = "multinomial", denominator = ~ l,
+                  data = cat.dat, estimand = "ATO")
+rbind(ATT.high = tapply(w.cat.att$ipw.weights, cat.dat$dose, mean),
+      ATO = tapply(w.cat.ato$ipw.weights, cat.dat$dose, mean))
+#>                low    medium      high
+#> ATT.high 0.8280057 1.1601986 1.0000000
+#> ATO      0.2287016 0.3283241 0.2797272
 ```
 
 ### Continuous exposures
@@ -554,7 +602,44 @@ for the rows after the first switch. The warning from
 main risk: flexible models can produce probabilities close to 0 or 1 and
 therefore extreme weights. Check the weights and consider `trunc`.
 
-## 5. Standard errors: robust and bootstrap
+## 5. Standard errors: M-estimation, robust and bootstrap
+
+### New: `ipwvcov()` for a binary point treatment
+
+For a binary point treatment and a marginal structural model fitted with
+[`lm()`](https://rdrr.io/r/stats/lm.html) or
+[`glm()`](https://rdrr.io/r/stats/glm.html),
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+returns the variance-covariance matrix of the MSM coefficients with the
+estimation of the weights taken into account. The MSM and the exposure
+model(s) are solved together as one set of estimating equations
+(M-estimation, Lunceford & Davidian 2004), and the sandwich variance of
+all parameters is computed. It works for every estimand (ATE, ATT, ATC,
+ATO), stabilized or not, and is the recommended option in this setting.
+It is new and still experimental. Fit the MSM on the same rows as
+[`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md),
+with `weights = w$ipw.weights`:
+
+``` r
+
+msm.lm <- lm(y ~ a, data = simdat, weights = w$ipw.weights)
+se.mest <- sqrt(diag(ipwvcov(w, msm.lm)))
+se.mest
+#> (Intercept)           a 
+#>    1.052322    1.086986
+```
+
+`lmtest::coeftest(msm.lm, vcov. = ipwvcov(w, msm.lm))` gives Wald tests
+and [`lmtest::coefci()`](https://rdrr.io/pkg/lmtest/man/coeftest.html)
+confidence intervals.
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+needs a logistic exposure model (`link = "logit"`), and does not handle
+truncated weights, smooth terms, other exposure families or time-varying
+weights from
+[`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md); for
+these, use the bootstrap below.
+
+### Robust and bootstrap standard errors
 
 Robust (sandwich) standard errors treat the weights as known. In
 simulations of weighted Cox models, Austin (2016) found naive standard
@@ -577,9 +662,10 @@ msm.effect <- function(d) {
 }
 set.seed(1)
 boot.est <- replicate(200, msm.effect(simdat[sample(nrow(simdat), replace = TRUE), ]))
-c(estimate = unname(msm.effect(simdat)), bootstrap.se = sd(boot.est))
-#>     estimate bootstrap.se 
-#>    10.646610     1.113812
+c(estimate = unname(msm.effect(simdat)), bootstrap.se = sd(boot.est),
+  m.estimation.se = unname(se.mest["a"]))
+#>        estimate    bootstrap.se m.estimation.se 
+#>       10.646610        1.113812        1.086986
 quantile(boot.est, c(0.025, 0.975))   # percentile 95% confidence interval
 #>      2.5%     97.5% 
 #>  8.867114 12.850280
@@ -653,6 +739,147 @@ model before relying on any standard error.
   confounding, positivity, consistency and correctly specified exposure
   (and censoring) models.
 
+### Covariate balance
+
+Good weights make the confounders unrelated to the exposure, so after
+weighting their distribution should be the same in the exposure groups.
+Check this directly: it tests the exposure model where it matters. The
+cobalt package (Greifer) computes balance statistics for any weights;
+ipw’s weights are passed as a plain vector, with `method = "weighting"`.
+The standardized mean difference (SMD) uses the pooled standard
+deviation of the unweighted groups (`s.d.denom = "pooled"`); absolute
+SMDs below 0.1 are a common rule of thumb.
+
+``` r
+
+cobalt::bal.tab(a ~ l, data = simdat, weights = w$ipw.weights,
+                method = "weighting", s.d.denom = "pooled", un = TRUE)
+#> Balance Measures
+#>      Type Diff.Un Diff.Adj
+#> l Contin.  2.2457   0.5901
+#> 
+#> Effective sample sizes
+#>            Control Treated
+#> Unadjusted  481.    519.  
+#> Adjusted     26.55  191.61
+```
+
+Several sets of weights can be compared at once; `love.plot()` draws the
+SMDs before and after weighting. Here the stabilized ATE weights and the
+overlap weights from section 1:
+
+``` r
+
+w.ato <- ipwpoint(exposure = a, family = "binomial", link = "logit",
+                  denominator = ~ l, data = simdat, estimand = "ATO")
+```
+
+``` r
+
+bal <- cobalt::bal.tab(a ~ l, data = simdat, method = "weighting",
+                       weights = data.frame(ATE = w$ipw.weights, ATO = w.ato$ipw.weights),
+                       s.d.denom = "pooled", un = TRUE)
+cobalt::love.plot(bal, thresholds = c(m = 0.1), abs = TRUE)
+```
+
+![](ipw_files/figure-html/love-plot-1.png)
+
+With a logistic denominator model, overlap weights balance the mean of
+every covariate in the model exactly (SMD 0). The stabilized ATE weights
+reduce the SMD of `l` from about 2.2 to about 0.6, which is still far
+above 0.1: with the poor overlap in these data, a few unexposed people
+with a high `l` carry most of the weight (see the effective sample sizes
+below), and their weighted mean of `l` is unstable. This is the same
+problem that made the ATT weights extreme in section 1.
+
+For time-varying weights, check balance at each time point among the
+people for whom the exposure decision is made there. With
+`type = "first"`, these are the rows with `selvar == 1` (not yet on
+HAART at the start of the interval), and the groups are those who start
+HAART in that interval and those who do not; the weight of each row is
+the cumulative weight up to and including that interval. The censoring
+weights do not depend on whether HAART is started, so only the HAART
+weights are used here.
+
+``` r
+
+at.risk <- w.haart$selvar == 1 & haartdat$fuptime %in% c(100, 500)
+haart.sub <- haartdat[at.risk, ]
+cobalt::bal.tab(haartind ~ cd4.sqrt + sex + age, data = haart.sub,
+                weights = w.haart$ipw.weights[at.risk], method = "weighting",
+                s.d.denom = "pooled", un = TRUE, cluster = "fuptime")
+#> Balance by cluster
+#> 
+#> ─── Cluster: 100 ────────────────
+#> 
+#> Balance Measures
+#>             Type Diff.Un Diff.Adj
+#> cd4.sqrt Contin.  0.2515   0.9290
+#> sex       Binary -0.1060  -0.0193
+#> age      Contin. -0.0636  -0.0650
+#> 
+#> Effective sample sizes
+#>                  0     1
+#> Unadjusted 1116.   47.  
+#> Adjusted   1114.52 31.46
+#> 
+#> ─── Cluster: 500 ────────────────
+#> 
+#> Balance Measures
+#>             Type Diff.Un Diff.Adj
+#> cd4.sqrt Contin. -0.8234  -0.3827
+#> sex       Binary  0.0699   0.0632
+#> age      Contin. -0.0785  -0.0825
+#> 
+#> Effective sample sizes
+#>                 0     1
+#> Unadjusted 821.   31.  
+#> Adjusted   811.67 27.28
+```
+
+We show this example as it is, rather than picking a time point where
+the weights look good, because a balance check is only useful if it can
+fail. The result is mixed, and that is useful to know. At 500 days,
+weighting halves the imbalance in CD4 count (SMD from about -0.8 to
+-0.4) but does not remove it; at 100 days, where the few people starting
+HAART happened to have a higher CD4 count, it over-corrects (SMD from
+0.25 to above 0.9). The denominator model is one Cox model with a single
+CD4 coefficient for the whole follow-up; pooled over all at-risk rows,
+weighting reduces the SMD of CD4 from about -0.47 to 0.13. Balance at
+single time points with only 30 to 50 people starting HAART is noisy,
+but a pattern like this suggests checking whether the effect of CD4 on
+starting HAART changes over follow-up, for example by adding an
+interaction with a time-period indicator to the denominator model.
+
+Sex and age are in the numerator as well as the denominator model, so
+the stabilized weights deliberately leave them unbalanced: they must be
+adjusted for in the MSM (e.g. `coxph(... ~ haartind + sex + age)`).
+Unstabilized weights (`numerator = NULL`) would balance them too, at the
+price of more variable weights.
+
+### Effective sample size
+
+Variable weights reduce the information in the data. Kish’s **effective
+sample size**, (sum of weights)^2 / (sum of squared weights), is the
+size of an unweighted sample with about the same precision. Compute it
+overall and by exposure group; a large drop in one group means a few
+people carry most of the weight there.
+
+``` r
+
+ess <- function(w) sum(w)^2 / sum(w^2)
+rbind(n = c(all = nrow(simdat), table(simdat$a)),
+      ATE = c(ess(w$ipw.weights), tapply(w$ipw.weights, simdat$a, ess)),
+      ATO = c(ess(w.ato$ipw.weights), tapply(w.ato$ipw.weights, simdat$a, ess)))
+#>            all         0        1
+#> n   1000.00000 481.00000 519.0000
+#> ATE   84.56724  26.55499 191.6117
+#> ATO  306.02035 152.98533 153.0350
+```
+
+[`cobalt::bal.tab()`](https://ngreifer.github.io/cobalt/reference/bal.tab.html)
+reports the same quantity by group under “Effective sample sizes”.
+
 ## References
 
 - Austin PC (2016). Variance estimation when using inverse probability
@@ -664,9 +891,18 @@ model before relying on any standard error.
 - Graffeo N, Latouche A, Geskus RB, Chevret S (2018). Modeling
   time-varying exposure using inverse probability of treatment weights.
   *Biometrical Journal* 60, 323-332. <doi:10.1002/bimj.201600223>.
+- Greifer N. cobalt: Covariate Balance Tables and Plots. R package,
+  <https://ngreifer.github.io/cobalt/>.
+- Li F, Li F (2019). Propensity score weighting for causal inference
+  with multiple treatments. *Annals of Applied Statistics* 13,
+  2389-2415.
 - Li F, Morgan KL, Zaslavsky AM (2018). Balancing covariates via
   propensity score weighting. *Journal of the American Statistical
   Association* 113, 390-400.
+- Lunceford JK, Davidian M (2004). Stratification and weighting via the
+  propensity score in estimation of causal treatment effects: a
+  comparative study. *Statistics in Medicine* 23, 2937-2960.
+  <doi:10.1002/sim.1903>.
 - Robins JM, Hernán MA, Brumback B (2000). Marginal structural models
   and causal inference in epidemiology. *Epidemiology* 11, 550-560.
 - van der Wal WM, Geskus RB (2011). ipw: An R package for inverse

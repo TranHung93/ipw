@@ -4,6 +4,8 @@
 
 - [Bugs fixed after ipw
   1.3.2](https://tranhung93.github.io/ipw/articles/bug-fixes.md):
+- [ipw and WeightIt side by
+  side](https://tranhung93.github.io/ipw/articles/ipw-and-weightit.md):
 - [Inverse probability weighting with
   ipw](https://tranhung93.github.io/ipw/articles/ipw.md):
 - [Methods behind the new features: formulas, code and

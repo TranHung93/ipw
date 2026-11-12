@@ -35,6 +35,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/bug-fixes.html">Bugs fixed after ipw 1.3.2</a></li>
+    <li><a class="dropdown-item" href="../articles/ipw-and-weightit.html">ipw and WeightIt side by side</a></li>
     <li><a class="dropdown-item" href="../articles/methods.html">Methods behind the new features: formulas, code and rationale</a></li>
     <li><a class="dropdown-item" href="../articles/simulations.html">Simulation study: do the weights recover known effects?</a></li>
     <li><a class="dropdown-item" href="../articles/survival-weights-time-grid.html">Survival weights and the time grid: a caution for ipw 1.3.2 and earlier</a></li>
@@ -74,10 +75,11 @@ to the same step: estimate the probability, or density, of the exposure
 each person actually received, then take a ratio. This article gives,
 for each new feature, the formula, the code in the package and why that
 approach was chosen. Section 6 covers recurrent exposure events (Graffeo
-et al. 2018), and section 7 <code><a href="../reference/ipwprobtm.html">ipwprobtm()</a></code>, which turns
-probabilities you estimated yourself into time-varying weights. How to
-use the features is shown in the <a href="ipw.html">main vignette</a>;
-whether they recover known effects is checked in the <a href="simulations.html">simulation study</a>.</p>
+et al. 2018), section 7 <code><a href="../reference/ipwprobtm.html">ipwprobtm()</a></code>, which turns
+probabilities you estimated yourself into time-varying weights, and
+section 8 the standard errors of <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code>. How to use the
+features is shown in the <a href="ipw.html">main vignette</a>; whether
+they recover known effects is checked in the <a href="simulations.html">simulation study</a>.</p>
 <div class="section level2">
 <h2 id="notation-and-the-shared-formula">Notation and the shared formula<a class="anchor" aria-label="anchor" href="#notation-and-the-shared-formula"></a>
 </h2>
@@ -112,28 +114,29 @@ forms the weight:</p>
 <code class="sourceCode R"><span><span class="va">ipw_weights</span> <span class="op">&lt;-</span> <span class="va">num</span><span class="op">$</span><span class="va">dens</span> <span class="op">/</span> <span class="va">den</span><span class="op">$</span><span class="va">dens</span>   <span class="co"># num$dens = 1 when numerator = NULL</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="estimand-att-and-overlap-weights-for-a-binomial-point-treatment">1. <code>estimand</code>: ATT and overlap weights for a binomial
-point treatment<a class="anchor" aria-label="anchor" href="#estimand-att-and-overlap-weights-for-a-binomial-point-treatment"></a>
+<h2 id="estimand-att-atc-and-overlap-weights-for-a-binomial-point-treatment">1. <code>estimand</code>: ATT, ATC and overlap weights for a
+binomial point treatment<a class="anchor" aria-label="anchor" href="#estimand-att-atc-and-overlap-weights-for-a-binomial-point-treatment"></a>
 </h2>
 <p>The <code>estimand</code> argument changes which population the
 weights standardise to, using the same fitted propensity score
 <em>e</em>(<em>L</em>) = P(<em>A</em> = 1 | <em>L</em>) from the
 denominator model.</p>
 <p><strong>Formula.</strong></p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mtext mathvariant="normal">ATE: </mtext><mspace width="0.333em"></mspace></mrow><mi>w</mi><mo>=</mo><mfrac><mi>A</mi><mi>e</mi></mfrac><mo>+</mo><mfrac><mrow><mn>1</mn><mo>−</mo><mi>A</mi></mrow><mrow><mn>1</mn><mo>−</mo><mi>e</mi></mrow></mfrac><mspace width="2.0em"></mspace><mrow><mtext mathvariant="normal">ATT: </mtext><mspace width="0.333em"></mspace></mrow><mi>w</mi><mo>=</mo><mi>A</mi><mo>+</mo><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>A</mi><mo stretchy="false" form="postfix">)</mo><mfrac><mi>e</mi><mrow><mn>1</mn><mo>−</mo><mi>e</mi></mrow></mfrac><mspace width="2.0em"></mspace><mrow><mtext mathvariant="normal">ATO: </mtext><mspace width="0.333em"></mspace></mrow><mi>w</mi><mo>=</mo><mi>A</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>e</mi><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>A</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mi>e</mi></mrow><annotation encoding="application/x-tex">
-\text{ATE: } w = \frac{A}{e} + \frac{1-A}{1-e} \qquad \text{ATT: } w = A + (1-A)\frac{e}{1-e} \qquad \text{ATO: } w = A(1-e) + (1-A)\,e
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mtext mathvariant="normal">ATE: </mtext><mspace width="0.333em"></mspace></mrow><mi>w</mi><mo>=</mo><mfrac><mi>A</mi><mi>e</mi></mfrac><mo>+</mo><mfrac><mrow><mn>1</mn><mo>−</mo><mi>A</mi></mrow><mrow><mn>1</mn><mo>−</mo><mi>e</mi></mrow></mfrac><mspace width="2.0em"></mspace><mrow><mtext mathvariant="normal">ATT: </mtext><mspace width="0.333em"></mspace></mrow><mi>w</mi><mo>=</mo><mi>A</mi><mo>+</mo><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>A</mi><mo stretchy="false" form="postfix">)</mo><mfrac><mi>e</mi><mrow><mn>1</mn><mo>−</mo><mi>e</mi></mrow></mfrac><mspace width="2.0em"></mspace><mrow><mtext mathvariant="normal">ATC: </mtext><mspace width="0.333em"></mspace></mrow><mi>w</mi><mo>=</mo><mi>A</mi><mfrac><mrow><mn>1</mn><mo>−</mo><mi>e</mi></mrow><mi>e</mi></mfrac><mo>+</mo><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>A</mi><mo stretchy="false" form="postfix">)</mo><mspace width="2.0em"></mspace><mrow><mtext mathvariant="normal">ATO: </mtext><mspace width="0.333em"></mspace></mrow><mi>w</mi><mo>=</mo><mi>A</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>e</mi><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>A</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mi>e</mi></mrow><annotation encoding="application/x-tex">
+\text{ATE: } w = \frac{A}{e} + \frac{1-A}{1-e} \qquad \text{ATT: } w = A + (1-A)\frac{e}{1-e} \qquad \text{ATC: } w = A\frac{1-e}{e} + (1-A) \qquad \text{ATO: } w = A(1-e) + (1-A)\,e
 </annotation></semantics></math></p>
 <p><strong>Code.</strong></p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ipw_weights</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/switch.html" class="external-link">switch</a></span><span class="op">(</span><span class="va">estimand</span>,</span>
 <span>  ATE <span class="op">=</span> <span class="va">num</span><span class="op">$</span><span class="va">dens</span> <span class="op">/</span> <span class="va">den</span><span class="op">$</span><span class="va">dens</span>,</span>
 <span>  ATT <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">exp_vec</span> <span class="op">==</span> <span class="fl">1</span>, <span class="fl">1</span>, <span class="va">den</span><span class="op">$</span><span class="va">p</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">den</span><span class="op">$</span><span class="va">p</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  ATC <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">exp_vec</span> <span class="op">==</span> <span class="fl">1</span>, <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">den</span><span class="op">$</span><span class="va">p</span><span class="op">)</span> <span class="op">/</span> <span class="va">den</span><span class="op">$</span><span class="va">p</span>, <span class="fl">1</span><span class="op">)</span>,</span>
 <span>  ATO <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">exp_vec</span> <span class="op">==</span> <span class="fl">1</span>, <span class="fl">1</span> <span class="op">-</span> <span class="va">den</span><span class="op">$</span><span class="va">p</span>, <span class="va">den</span><span class="op">$</span><span class="va">p</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><code>den$p</code> is the fitted P(<em>A</em> = 1 | <em>L</em>) kept
-from the binomial denominator model; <code>"ATT"</code> and
-<code>"ATO"</code> require <code>numerator = NULL</code> and a binomial
-family.</p>
+from the binomial denominator model; <code>"ATT"</code>,
+<code>"ATC"</code> and <code>"ATO"</code> require
+<code>numerator = NULL</code>.</p>
 <p><strong>Why this approach.</strong> Each estimand answers a different
 clinical question; the formulas only change who gets how much
 weight.</p>
@@ -148,6 +151,12 @@ actually received it?” Treated people keep weight 1; untreated people
 are reweighted to look like the treated group. Useful when treatment is
 only realistic for some patients.</li>
 <li>
+<strong>ATC:</strong> “What would the treatment have done for the
+people who did not receive it?” The mirror image of the ATT: untreated
+people keep weight 1 and treated people are reweighted to look like the
+untreated group. Useful when the question is whether to extend a
+treatment to those not yet receiving it.</li>
+<li>
 <strong>ATO (overlap):</strong> “What is the effect in patients for
 whom doctors could have gone either way?” Every weight lies between 0
 and 1, so no single person can dominate. This helps when some patients
@@ -156,9 +165,9 @@ huge and need truncation. With a logistic model, overlap weights also
 make the average of every covariate in the model exactly equal between
 the groups.</li>
 <li>
-<strong>Why no numerator:</strong> ATT and overlap weights are not a
-ratio of two probabilities, so stabilizing them has no meaning. ipw
-gives an error instead of silently ignoring a numerator.</li>
+<strong>Why no numerator:</strong> ATT, ATC and overlap weights are
+not a ratio of two probabilities, so stabilizing them has no meaning.
+ipw gives an error instead of silently ignoring a numerator.</li>
 <li>
 <strong>Which to use:</strong> choose by the clinical question
 first. If ATE weights are extreme, consider ATO, and state clearly which
@@ -168,6 +177,57 @@ patients the result describes.</li>
 propensity score itself, so results describe that population, not a
 pre-specified one; this should be stated when reporting ATO
 estimates.</p>
+<div class="section level3">
+<h3 id="att-and-overlap-weights-for-multinomial-and-ordinal-exposures">ATT and overlap weights for multinomial and ordinal exposures<a class="anchor" aria-label="anchor" href="#att-and-overlap-weights-for-multinomial-and-ordinal-exposures"></a>
+</h3>
+<p>For an exposure with levels
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>K</mi></mrow><annotation encoding="application/x-tex">k = 1, \dots, K</annotation></semantics></math>,
+let
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>k</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">P_i(k)</annotation></semantics></math>
+be the fitted probability of level
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+for person <em>i</em> (from <code><a href="https://rdrr.io/pkg/nnet/man/multinom.html" class="external-link">nnet::multinom</a></code> or
+<code><a href="https://rdrr.io/pkg/MASS/man/polr.html" class="external-link">MASS::polr</a></code>) and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>A</mi><mi>i</mi></msub><annotation encoding="application/x-tex">A_i</annotation></semantics></math>
+the observed level.</p>
+<p><strong>Formula.</strong> With a focal level
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+(argument <code>focal</code>), and for generalized overlap weights (Li
+&amp; Li 2019):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mtext mathvariant="normal">ATT: </mtext><mspace width="0.333em"></mspace></mrow><msub><mi>w</mi><mi>i</mi></msub><mo>=</mo><mfrac><mrow><msub><mi>P</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>f</mi><mo stretchy="false" form="postfix">)</mo></mrow><mrow><msub><mi>P</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>A</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow></mfrac><mspace width="2.0em"></mspace><mrow><mtext mathvariant="normal">ATO: </mtext><mspace width="0.333em"></mspace></mrow><msub><mi>w</mi><mi>i</mi></msub><mo>=</mo><mfrac><mrow><mn>1</mn><mi>/</mi><msub><mi>P</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>A</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><mrow><munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>K</mi></munderover><mn>1</mn><mi>/</mi><msub><mi>P</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>k</mi><mo stretchy="false" form="postfix">)</mo></mrow></mfrac></mrow><annotation encoding="application/x-tex">
+\text{ATT: } w_i = \frac{P_i(f)}{P_i(A_i)} \qquad
+\text{ATO: } w_i = \frac{1 / P_i(A_i)}{\sum_{k=1}^{K} 1 / P_i(k)}
+</annotation></semantics></math></p>
+<p>People at the focal level get ATT weight 1. With
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">K = 2</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><mn>2</mn><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mi>e</mi></mrow><annotation encoding="application/x-tex">P_i(2) = e</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">f = 2</annotation></semantics></math>
+these are the binomial formulas above: ATT gives
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>e</mi><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>e</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">e/(1-e)</annotation></semantics></math>
+to the others, and ATO gives
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mi>/</mi><mi>e</mi><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mi>/</mi><mi>e</mi><mo>+</mo><mn>1</mn><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>e</mi><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mn>1</mn><mo>−</mo><mi>e</mi></mrow><annotation encoding="application/x-tex">(1/e) / (1/e + 1/(1-e)) = 1 - e</annotation></semantics></math>
+to level 2 and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>e</mi><annotation encoding="application/x-tex">e</annotation></semantics></math>
+to level 1.</p>
+<p><strong>Code.</strong> The full matrix of fitted probabilities is
+built by the internal helper <code>.prob_matrix()</code> (also used for
+the probability of the observed level):</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">ipw_weights</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/switch.html" class="external-link">switch</a></span><span class="op">(</span><span class="va">estimand</span>,</span>
+<span>  ATT <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">exp_vec</span><span class="op">)</span> <span class="op">==</span> <span class="va">focal</span>, <span class="fl">1</span>, <span class="va">den</span><span class="op">$</span><span class="va">pmat</span><span class="op">[</span>, <span class="va">focal</span><span class="op">]</span> <span class="op">/</span> <span class="va">den</span><span class="op">$</span><span class="va">dens</span><span class="op">)</span>,</span>
+<span>  ATO <span class="op">=</span> <span class="op">(</span><span class="fl">1</span> <span class="op">/</span> <span class="va">den</span><span class="op">$</span><span class="va">dens</span><span class="op">)</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/pkg/Matrix/man/colSums-methods.html" class="external-link">rowSums</a></span><span class="op">(</span><span class="fl">1</span> <span class="op">/</span> <span class="va">den</span><span class="op">$</span><span class="va">pmat</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><strong>Why this approach.</strong> The ATT for a categorical
+exposure compares every level with what would have happened to the
+people at the focal level, so the weights reweight each other level to
+resemble the focal group. The generalized overlap weights target the
+people with substantial probability of every level; like binomial
+overlap weights they are bounded, here by 1. <code>"ATC"</code> is not
+offered for categorical exposures: with more than two levels there is no
+single control group, and the effect in the controls is the ATT with
+<code>focal</code> set to the control level.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="skewed-continuous-exposures-gamma-and-lognormal">2. Skewed continuous exposures: <code>"gamma"</code> and
@@ -190,7 +250,7 @@ f(a \mid L) = \frac{1}{a \sigma \sqrt{2\pi}} \exp\!\left(-\frac{(\log a - \mu)^2
 the stabilized log-normal weight equals the gaussian weight computed on
 log <em>A</em>.</p>
 <p><strong>Code.</strong></p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># gamma</span></span>
 <span><span class="va">mod</span>   <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="fu">stats</span><span class="fu">::</span><span class="va"><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm</a></span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">base</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>family <span class="op">=</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">Gamma</a></span><span class="op">(</span>link <span class="op">=</span> <span class="st">"log"</span><span class="op">)</span><span class="op">)</span>, <span class="va">dots</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">shape</span> <span class="op">&lt;-</span> <span class="fl">1</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span><span class="op">$</span><span class="va">dispersion</span></span>
@@ -258,7 +318,7 @@ f(a \mid L) = \frac{e^{-\mu} \mu^{a}}{a!}
 f(a \mid L) = \frac{\Gamma(a + \theta)}{\Gamma(\theta)\, a!} \left(\frac{\theta}{\theta + \mu}\right)^{\theta} \left(\frac{\mu}{\theta + \mu}\right)^{a}
 </annotation></semantics></math></p>
 <p><strong>Code.</strong></p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># poisson</span></span>
 <span><span class="va">mod</span>  <span class="op">&lt;-</span> <span class="fu">.fit_glm_or_gam</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">base</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>family <span class="op">=</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span>, <span class="va">dots</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">dens</span> <span class="op">&lt;-</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/Poisson.html" class="external-link">dpois</a></span><span class="op">(</span><span class="va">exp_vec</span>, lambda <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">mod</span>, type <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
@@ -324,7 +384,7 @@ from the GAM’s fitted values.</p>
 <code><a href="https://rdrr.io/pkg/mgcv/man/gam.html" class="external-link">mgcv::gam()</a></code>, and gives the formula an environment in which
 <code>s()</code> and the others are mgcv’s, so users need not attach
 mgcv:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">.fit_glm_or_gam</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">args</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="kw">if</span> <span class="op">(</span><span class="fu">.uses_smooths</span><span class="op">(</span><span class="va">args</span><span class="op">$</span><span class="va">formula</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="fu">.require_mgcv</span><span class="op">(</span><span class="op">)</span></span>
@@ -396,7 +456,7 @@ category observed in interval <em>k</em>.</p>
 selected (<code>selvar = 1</code>), so the existing categorical engine
 fits <code><a href="https://rdrr.io/pkg/nnet/man/multinom.html" class="external-link">nnet::multinom()</a></code> or <code><a href="https://rdrr.io/pkg/MASS/man/polr.html" class="external-link">MASS::polr()</a></code> on all
 rows:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">p_vec</span><span class="op">[</span><span class="va">active</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu">.prob_of_observed</span><span class="op">(</span><span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">mod</span>, type <span class="op">=</span> <span class="st">"probs"</span><span class="op">)</span>,</span>
 <span>                                   <span class="va">data</span><span class="op">[[</span><span class="va">exp_col</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="va">active</span><span class="op">]</span>, <span class="va">mod</span><span class="op">$</span><span class="va">lev</span><span class="op">)</span></span>
 <span><span class="va">weights</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/split.html" class="external-link">unsplit</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/split.html" class="external-link">split</a></span><span class="op">(</span><span class="va">p_ratio</span>, <span class="va">data</span><span class="op">[[</span><span class="va">id_col</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>, <span class="va">cumprod</span><span class="op">)</span>, <span class="va">data</span><span class="op">[[</span><span class="va">id_col</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span></code></pre></div>
@@ -452,7 +512,7 @@ observed in row <em>k</em> (event or no event).</p>
 <code>coxph(Surv(tstart, timevar, exposure) ~ ...)</code> on all rows;
 each row’s probability uses the baseline hazard over that row’s own
 interval:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">bh</span> <span class="op">&lt;-</span> <span class="fu">survival</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/basehaz.html" class="external-link">basehaz</a></span><span class="op">(</span><span class="va">mod</span>, centered <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">d_cum_haz</span> <span class="op">&lt;-</span> <span class="fu">cum_haz_at</span><span class="op">(</span><span class="va">data</span><span class="op">[[</span><span class="va">time_col</span><span class="op">]</span><span class="op">]</span><span class="op">)</span> <span class="op">-</span> <span class="fu">cum_haz_at</span><span class="op">(</span><span class="va">data</span><span class="op">[[</span><span class="va">start_col</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="va">h</span> <span class="op">&lt;-</span> <span class="va">d_cum_haz</span> <span class="op">*</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">mod</span>, type <span class="op">=</span> <span class="st">"risk"</span>, centered <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -509,7 +569,7 @@ section:</p>
 W_i(t) = \prod_{k \le t} \frac{num_{ik}}{den_{ik}}
 </annotation></semantics></math></p>
 <p><strong>Code.</strong></p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ratio</span> <span class="op">&lt;-</span> <span class="va">num</span> <span class="op">/</span> <span class="va">den</span></span>
 <span><span class="va">ord</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">timevar</span><span class="op">)</span></span>
 <span><span class="va">cum</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/split.html" class="external-link">unsplit</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/split.html" class="external-link">split</a></span><span class="op">(</span><span class="va">ratio</span><span class="op">[</span><span class="va">ord</span><span class="op">]</span>, <span class="va">id</span><span class="op">[</span><span class="va">ord</span><span class="op">]</span><span class="op">)</span>, <span class="va">cumprod</span><span class="op">)</span>, <span class="va">id</span><span class="op">[</span><span class="va">ord</span><span class="op">]</span><span class="op">)</span></span>
@@ -559,6 +619,155 @@ cross-fitting help. The user is responsible for setting probabilities to
 probabilities are only approximate.</p>
 </div>
 <div class="section level2">
+<h2 id="ipwvcov-standard-errors-that-account-for-the-estimated-weights">8. <code>ipwvcov()</code>: standard errors that account for the
+estimated weights<a class="anchor" aria-label="anchor" href="#ipwvcov-standard-errors-that-account-for-the-estimated-weights"></a>
+</h2>
+<p><code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> (new, experimental) gives the variance of the
+coefficients of a marginal structural model fitted with
+<code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code> or <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> and weights from
+<code>ipwpoint(family = "binomial")</code>, with the estimation of the
+weights taken into account (M-estimation: Lunceford &amp; Davidian 2004;
+Stefanski &amp; Boos 2002).</p>
+<p><strong>Formula.</strong> Stack the parameters
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>θ</mi><mo>=</mo><mo stretchy="false" form="prefix">(</mo><mi>β</mi><mo>,</mo><mi>α</mi><mo>,</mo><mi>γ</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\theta = (\beta, \alpha, \gamma)</annotation></semantics></math>
+of the MSM, the denominator model and the (optional) numerator model.
+For person <em>i</em>, with MSM design row
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>X</mi><mi>i</mi></msub><annotation encoding="application/x-tex">X_i</annotation></semantics></math>,
+mean
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>μ</mi><mi>i</mi></msub><annotation encoding="application/x-tex">\mu_i</annotation></semantics></math>,
+variance function
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>V</mi><annotation encoding="application/x-tex">V</annotation></semantics></math>,
+and exposure-model design rows
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Z</mi><mi>i</mi></msub><annotation encoding="application/x-tex">Z_i</annotation></semantics></math>
+(denominator, fitted
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>p</mi><mi>i</mi></msub><annotation encoding="application/x-tex">p_i</annotation></semantics></math>)
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>Z</mi><mi>i</mi><mrow><mi>n</mi><mi>u</mi><mi>m</mi></mrow></msubsup><annotation encoding="application/x-tex">Z^{num}_i</annotation></semantics></math>
+(numerator, fitted
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>q</mi><mi>i</mi></msub><annotation encoding="application/x-tex">q_i</annotation></semantics></math>):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ψ</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>θ</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><msub><mi>U</mi><mi>i</mi></msub></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><msub><mi>S</mi><mi>i</mi></msub></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><msub><mi>R</mi><mi>i</mi></msub></mtd></mtr></mtable><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><msub><mi>w</mi><mi>i</mi></msub><msub><mi>X</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>y</mi><mi>i</mi></msub><mo>−</mo><msub><mi>μ</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mfrac><mrow><mi>d</mi><msub><mi>μ</mi><mi>i</mi></msub><mi>/</mi><mi>d</mi><msub><mi>η</mi><mi>i</mi></msub></mrow><mrow><mi>V</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>μ</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow></mfrac></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><msub><mi>Z</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>a</mi><mi>i</mi></msub><mo>−</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mfrac><mrow><mi>d</mi><msub><mi>p</mi><mi>i</mi></msub><mi>/</mi><mi>d</mi><msub><mi>η</mi><mi>i</mi></msub></mrow><mrow><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow></mfrac></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><msubsup><mi>Z</mi><mi>i</mi><mrow><mi>n</mi><mi>u</mi><mi>m</mi></mrow></msubsup><mo stretchy="false" form="prefix">(</mo><msub><mi>a</mi><mi>i</mi></msub><mo>−</mo><msub><mi>q</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mfrac><mrow><mi>d</mi><msub><mi>q</mi><mi>i</mi></msub><mi>/</mi><mi>d</mi><msub><mi>η</mi><mi>i</mi></msub></mrow><mrow><msub><mi>q</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>q</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow></mfrac></mtd></mtr></mtable><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">
+\psi_i(\theta) = \begin{pmatrix}
+U_i \\ S_i \\ R_i
+\end{pmatrix} = \begin{pmatrix}
+w_i X_i (y_i - \mu_i)\, \frac{d\mu_i/d\eta_i}{V(\mu_i)} \\
+Z_i (a_i - p_i)\, \frac{dp_i/d\eta_i}{p_i(1-p_i)} \\
+Z^{num}_i (a_i - q_i)\, \frac{dq_i/d\eta_i}{q_i(1-q_i)}
+\end{pmatrix}
+</annotation></semantics></math></p>
+<p>Because
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>U</mi><mi>i</mi></msub><annotation encoding="application/x-tex">U_i</annotation></semantics></math>
+is proportional to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>w</mi><mi>i</mi></msub><annotation encoding="application/x-tex">w_i</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∂</mi><msub><mi>U</mi><mi>i</mi></msub><mi>/</mi><mi>∂</mi><mi>α</mi><mo>=</mo><msub><mi>U</mi><mi>i</mi></msub><msubsup><mi>d</mi><mi>i</mi><mi>T</mi></msubsup></mrow><annotation encoding="application/x-tex">\partial U_i / \partial \alpha =
+U_i d_i^T</annotation></semantics></math> with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>d</mi><mi>i</mi></msub><mo>=</mo><mi>∂</mi><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mi>w</mi><mi>i</mi></msub><mi>/</mi><mi>∂</mi><mi>α</mi><mo>=</mo><mi>g</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>a</mi><mi>i</mi></msub><mo>,</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mo stretchy="false" form="prefix">(</mo><mi>d</mi><msub><mi>p</mi><mi>i</mi></msub><mi>/</mi><mi>d</mi><msub><mi>η</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msub><mi>Z</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">d_i = \partial \log w_i / \partial \alpha = g(a_i, p_i)\,
+(dp_i/d\eta_i)\, Z_i</annotation></semantics></math>, where</p>
+<table class="table">
+<thead><tr class="header">
+<th>estimand</th>
+<th><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>,</mo><mi>p</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">g(1, p)</annotation></semantics></math></th>
+<th><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi>p</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">g(0, p)</annotation></semantics></math></th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>ATE</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>1</mn><mi>/</mi><mi>p</mi></mrow><annotation encoding="application/x-tex">-1/p</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>p</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">1/(1-p)</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td>ATT</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>p</mi><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">1/(p(1-p))</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td>ATC</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>1</mn><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>p</mi><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">-1/(p(1-p))</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td>ATO</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>1</mn><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>p</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">-1/(1-p)</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>p</mi></mrow><annotation encoding="application/x-tex">1/p</annotation></semantics></math></td>
+</tr>
+</tbody>
+</table>
+<p>and, for stabilized ATE weights,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>e</mi><mi>i</mi></msub><mo>=</mo><mi>∂</mi><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mi>w</mi><mi>i</mi></msub><mi>/</mi><mi>∂</mi><mi>γ</mi><mo>=</mo><mo stretchy="false" form="prefix">(</mo><msub><mi>a</mi><mi>i</mi></msub><mi>/</mi><msub><mi>q</mi><mi>i</mi></msub><mo>−</mo><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>a</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>q</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mo stretchy="false" form="prefix">(</mo><mi>d</mi><msub><mi>q</mi><mi>i</mi></msub><mi>/</mi><mi>d</mi><msub><mi>η</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msubsup><mi>Z</mi><mi>i</mi><mrow><mi>n</mi><mi>u</mi><mi>m</mi></mrow></msubsup></mrow><annotation encoding="application/x-tex">e_i = \partial \log w_i / \partial \gamma
+= (a_i/q_i - (1-a_i)/(1-q_i))\, (dq_i/d\eta_i)\, Z^{num}_i</annotation></semantics></math>.
+The bread
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo>=</mo><mi>−</mi><msub><mo>∑</mo><mi>i</mi></msub><mi>∂</mi><msub><mi>ψ</mi><mi>i</mi></msub><mi>/</mi><mi>∂</mi><mi>θ</mi></mrow><annotation encoding="application/x-tex">A = -\sum_i \partial \psi_i / \partial \theta</annotation></semantics></math>
+is block upper-triangular:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><munder><mo>∑</mo><mi>i</mi></munder><msub><mi>w</mi><mi>i</mi></msub><mfrac><mrow><mo stretchy="false" form="prefix">(</mo><mi>d</mi><msub><mi>μ</mi><mi>i</mi></msub><mi>/</mi><mi>d</mi><msub><mi>η</mi><mi>i</mi></msub><msup><mo stretchy="false" form="postfix">)</mo><mn>2</mn></msup></mrow><mrow><mi>V</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>μ</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow></mfrac><msub><mi>X</mi><mi>i</mi></msub><msubsup><mi>X</mi><mi>i</mi><mi>T</mi></msubsup></mtd><mtd columnalign="center" style="text-align: center"><mi>−</mi><munder><mo>∑</mo><mi>i</mi></munder><msub><mi>U</mi><mi>i</mi></msub><msubsup><mi>d</mi><mi>i</mi><mi>T</mi></msubsup></mtd><mtd columnalign="center" style="text-align: center"><mi>−</mi><munder><mo>∑</mo><mi>i</mi></munder><msub><mi>U</mi><mi>i</mi></msub><msubsup><mi>e</mi><mi>i</mi><mi>T</mi></msubsup></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><munder><mo>∑</mo><mi>i</mi></munder><mfrac><mrow><mo stretchy="false" form="prefix">(</mo><mi>d</mi><msub><mi>p</mi><mi>i</mi></msub><mi>/</mi><mi>d</mi><msub><mi>η</mi><mi>i</mi></msub><msup><mo stretchy="false" form="postfix">)</mo><mn>2</mn></msup></mrow><mrow><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow></mfrac><msub><mi>Z</mi><mi>i</mi></msub><msubsup><mi>Z</mi><mi>i</mi><mi>T</mi></msubsup></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><munder><mo>∑</mo><mi>i</mi></munder><mfrac><mrow><mo stretchy="false" form="prefix">(</mo><mi>d</mi><msub><mi>q</mi><mi>i</mi></msub><mi>/</mi><mi>d</mi><msub><mi>η</mi><mi>i</mi></msub><msup><mo stretchy="false" form="postfix">)</mo><mn>2</mn></msup></mrow><mrow><msub><mi>q</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>q</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow></mfrac><msubsup><mi>Z</mi><mi>i</mi><mrow><mi>n</mi><mi>u</mi><mi>m</mi></mrow></msubsup><msubsup><mi>Z</mi><mi>i</mi><mrow><mi>n</mi><mi>u</mi><mi>m</mi><mspace width="0.167em"></mspace><mi>T</mi></mrow></msubsup></mtd></mtr></mtable><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">
+A = \begin{pmatrix}
+\sum_i w_i \frac{(d\mu_i/d\eta_i)^2}{V(\mu_i)} X_i X_i^T &amp; -\sum_i U_i d_i^T &amp; -\sum_i U_i e_i^T \\
+0 &amp; \sum_i \frac{(dp_i/d\eta_i)^2}{p_i(1-p_i)} Z_i Z_i^T &amp; 0 \\
+0 &amp; 0 &amp; \sum_i \frac{(dq_i/d\eta_i)^2}{q_i(1-q_i)} Z^{num}_i Z^{num\,T}_i
+\end{pmatrix}
+</annotation></semantics></math></p>
+<p>the meat is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>B</mi><mo>=</mo><msub><mo>∑</mo><mi>i</mi></msub><msub><mi>ψ</mi><mi>i</mi></msub><msubsup><mi>ψ</mi><mi>i</mi><mi>T</mi></msubsup></mrow><annotation encoding="application/x-tex">B = \sum_i \psi_i \psi_i^T</annotation></semantics></math>,
+and the variance is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>A</mi><mrow><mi>−</mi><mn>1</mn></mrow></msup><mi>B</mi><msup><mi>A</mi><mrow><mi>−</mi><mi>T</mi></mrow></msup></mrow><annotation encoding="application/x-tex">A^{-1} B A^{-T}</annotation></semantics></math>;
+<code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> returns its
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>
+block.</p>
+<p><strong>Code.</strong> Each block is a cross-product computed in base
+R; for example, for the denominator model and the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+block:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">g</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/switch.html" class="external-link">switch</a></span><span class="op">(</span><span class="va">estimand</span>,</span>
+<span>  ATE <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">a</span> <span class="op">==</span> <span class="fl">1</span>, <span class="op">-</span><span class="fl">1</span> <span class="op">/</span> <span class="va">p</span>, <span class="fl">1</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">p</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  ATT <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">a</span> <span class="op">==</span> <span class="fl">1</span>, <span class="fl">0</span>, <span class="fl">1</span> <span class="op">/</span> <span class="op">(</span><span class="va">p</span> <span class="op">*</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">p</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  ATC <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">a</span> <span class="op">==</span> <span class="fl">1</span>, <span class="op">-</span><span class="fl">1</span> <span class="op">/</span> <span class="op">(</span><span class="va">p</span> <span class="op">*</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">p</span><span class="op">)</span><span class="op">)</span>, <span class="fl">0</span><span class="op">)</span>,</span>
+<span>  ATO <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">a</span> <span class="op">==</span> <span class="fl">1</span>, <span class="op">-</span><span class="fl">1</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">p</span><span class="op">)</span>, <span class="fl">1</span> <span class="op">/</span> <span class="va">p</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">D</span> <span class="op">&lt;-</span> <span class="va">den</span><span class="op">$</span><span class="va">Z</span> <span class="op">*</span> <span class="op">(</span><span class="va">g</span> <span class="op">*</span> <span class="va">den</span><span class="op">$</span><span class="va">dp</span><span class="op">)</span>          <span class="co"># rows d_i</span></span>
+<span><span class="va">A</span><span class="op">[</span><span class="va">beta</span>, <span class="va">alpha</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="op">-</span><span class="fu"><a href="https://rdrr.io/pkg/Matrix/man/matmult-methods.html" class="external-link">crossprod</a></span><span class="op">(</span><span class="va">U</span>, <span class="va">D</span><span class="op">)</span></span>
+<span><span class="va">V</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/Matrix/man/solve-methods.html" class="external-link">solve</a></span><span class="op">(</span><span class="va">A</span><span class="op">)</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="fu"><a href="https://rdrr.io/pkg/Matrix/man/matmult-methods.html" class="external-link">crossprod</a></span><span class="op">(</span><span class="va">Psi</span><span class="op">)</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/Matrix/man/solve-methods.html" class="external-link">solve</a></span><span class="op">(</span><span class="va">A</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p><strong>Why this approach.</strong> Robust standard errors of the
+weighted MSM treat the weights as known. Estimating the weights usually
+<em>reduces</em> the variance of an ATE estimate, so these standard
+errors are conservative for the ATE, but for the ATT, ATC and ATO they
+can be too small. The stacked estimating equations account for this
+exactly (asymptotically) and need no resampling. The bread uses expected
+(Fisher) information. For canonical links (logit, gaussian identity)
+this equals the observed information, so the sandwich is exact; for
+other links the two are only asymptotically equivalent, and in the tests
+a probit or cloglog exposure model gave standard errors up to 2% away
+from the exact (numerical-Jacobian) sandwich. <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code>
+therefore requires logistic exposure models. For the marginal structural
+model any <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> link is accepted. For a saturated model
+such as <code>y ~ a</code> with a binary exposure, the expected and
+observed information are exactly equal in any sample, whatever the link:
+the fitted mean in each exposure group is that group’s weighted mean of
+<code>y</code>, so the extra term of the observed information,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>∑</mo><mi>i</mi></msub><msub><mi>w</mi><mi>i</mi></msub><msub><mi>X</mi><mi>i</mi></msub><msubsup><mi>X</mi><mi>i</mi><mi>T</mi></msubsup><mo stretchy="false" form="prefix">(</mo><msub><mi>y</mi><mi>i</mi></msub><mo>−</mo><msub><mi>μ</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mi>c</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>η</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\sum_i w_i X_i X_i^T (y_i - \mu_i)\, c(\eta_i)</annotation></semantics></math>
+with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>
+the derivative of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mi>d</mi><mi>μ</mi><mi>/</mi><mi>d</mi><mi>η</mi><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mi>V</mi><mo stretchy="false" form="prefix">(</mo><mi>μ</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(d\mu/d\eta)/V(\mu)</annotation></semantics></math>
+with respect to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>η</mi><annotation encoding="application/x-tex">\eta</annotation></semantics></math>,
+sums to zero within each group, where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>η</mi><mi>i</mi></msub><annotation encoding="application/x-tex">\eta_i</annotation></semantics></math>
+and hence
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>η</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">c(\eta_i)</annotation></semantics></math>
+are constant. For other MSMs with a non-canonical link (for example a
+log link with covariates) the two are asymptotically equivalent when the
+model is correctly specified. Dispersion parameters cancel. No
+small-sample correction is applied. The package tests compare the result
+with a numerical Jacobian of the stacked equations and with
+<code>glm_weightit(vcov = "asympt")</code> from the WeightIt
+package.</p>
+<p><strong>Caveats.</strong> Only binary point treatments with logistic
+<code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> exposure models; truncated weights (truncation at
+estimated percentiles is not a smooth function of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>),
+smooth terms, other families and time-varying weights from
+<code><a href="../reference/ipwtm.html">ipwtm()</a></code> are not covered, and the bootstrap remains the
+advice there.</p>
+</div>
+<div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
 <ul>
@@ -574,12 +783,20 @@ and Causal Inference from Incomplete-Data Perspectives</em>. Wiley.</li>
 <li>Imai K, van Dyk DA (2004). Causal inference with general treatment
 regimes: generalizing the propensity score. <em>Journal of the American
 Statistical Association</em> 99, 854–866.</li>
+<li>Li F, Li F (2019). Propensity score weighting for causal inference
+with multiple treatments. <em>Annals of Applied Statistics</em> 13,
+2389–2415.</li>
 <li>Li F, Morgan KL, Zaslavsky AM (2018). Balancing covariates via
 propensity score weighting. <em>Journal of the American Statistical
 Association</em> 113, 390–400.</li>
+<li>Lunceford JK, Davidian M (2004). Stratification and weighting via
+the propensity score in estimation of causal treatment effects: a
+comparative study. <em>Statistics in Medicine</em> 23, 2937–2960.</li>
 <li>Robins JM, Hernán MA, Brumback B (2000). Marginal structural models
 and causal inference in epidemiology. <em>Epidemiology</em> 11,
 550–560.</li>
+<li>Stefanski LA, Boos DD (2002). The calculus of M-estimation. <em>The
+American Statistician</em> 56, 29–38.</li>
 <li>van der Laan MJ, Polley EC, Hubbard AE (2007). Super learner.
 <em>Statistical Applications in Genetics and Molecular Biology</em>
 6(1).</li>

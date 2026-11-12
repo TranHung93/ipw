@@ -96,9 +96,38 @@
 
 ### Documentation
 
+- [`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md),
+  section 6: covariate balance with
+  [`cobalt::bal.tab()`](https://ngreifer.github.io/cobalt/reference/bal.tab.html)
+  and `love.plot()` (ipw weights passed as a vector), for the binary
+  point treatment and for the HAART example at two time points, and the
+  Kish effective sample size overall and by exposure group.
+
+- New section “ipw or WeightIt?” in the README (with a comparison table)
+  and a short version near the start of
+  [`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md):
+  when to use which package.
+
+- New article “ipw and WeightIt side by side”: the same binary and
+  categorical point treatments in both packages (weights and standard
+  errors), and longitudinal data with individual visit times in
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) and
+  `weightitMSM()`.
+
+- [`?ipwpoint`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  and
+  [`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md),
+  section 5:
+  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+  is the recommended standard error for a binary point treatment; the
+  bootstrap remains the advice otherwise. The methods article has new
+  sections on ATC, categorical ATT/ATO weights and
+  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md).
+
 - New article “Bugs fixed after ipw 1.3.2” on the package website: for
   each bug above, an example run in ipw 1.2.1.1, ipw 1.3.2 and this
   version, with the weights compared with weights computed by hand.
+
 - New article “Survival weights and the time grid”: why
   [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
   survival weights in ipw 1.3.2 and earlier need the data on a full time
@@ -109,15 +138,51 @@
 
 ### New features
 
+- New
+  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+  (**new, experimental; still under discussion**): the
+  variance-covariance matrix of the coefficients of a marginal
+  structural model fitted with [`lm()`](https://rdrr.io/r/stats/lm.html)
+  or [`glm()`](https://rdrr.io/r/stats/glm.html) and
+  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  weights for a binary exposure, taking the estimation of the weights
+  into account (M-estimation with stacked estimating equations,
+  Lunceford & Davidian 2004). Works for `estimand = "ATE"` (stabilized
+  or not), `"ATT"`, `"ATC"` and `"ATO"`, with logistic exposure models
+  (`link = "logit"`). Not for other links, truncated weights, smooth
+  terms, other families or
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
+  weights: use the bootstrap there. Agrees with
+  `WeightIt::glm_weightit(vcov = "asympt")` in the tests.
+
+- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md):
+  `estimand = "ATC"` (effect in the untreated) for a binomial exposure:
+  treated get weight (1 - p)/p, untreated 1.
+
+- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md):
+  `estimand = "ATT"` and `"ATO"` for `family = "multinomial"` and
+  `"ordinal"`. The new argument `focal` gives the level whose effect the
+  ATT targets: weight P(focal) / P(observed level), 1 at the focal
+  level. `"ATO"` gives generalized overlap weights (Li & Li 2019). For
+  two levels both equal the binomial weights. For the effect in the
+  controls of a categorical exposure use `"ATT"` with `focal` set to the
+  control level.
+
+- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  results now carry the attributes `"estimand"`, `"exposure"` and (for
+  ATT and ATC) `"focal"`. The list elements are unchanged.
+
 - [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md):
   `type = "all"` now works for `family = "multinomial"` and `"ordinal"`
   (time-varying categorical exposures that switch back and forth).
+
 - [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md):
   `type = "all"` now works for `family = "survival"`, following Graffeo,
   Latouche, Geskus & Chevret (2018, *Biometrical Journal*): exposure
   events may recur, an Andersen-Gill Cox model is fitted on all rows,
   and each row’s probability uses the cumulative baseline hazard over
   its own interval.
+
 - New
   [`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md):
   time-varying inverse probability weights from probabilities you
@@ -125,18 +190,22 @@
   SuperLearner): the ratios are multiplied over time within each
   subject, in time order. For a point treatment no function is needed:
   the weights are `num / den`.
+
 - [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md):
   new families for count exposures (`"poisson"`, `"negbin"`) and skewed
   continuous exposures (`"gamma"`, `"lognormal"`).
+
 - Smooth terms (`s()`, `te()`, `ti()`, `t2()`) in model formulas are
   fitted as generalized additive models with mgcv: in
   [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
   for the binomial, gaussian and poisson families, and in
   [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) for
   the binomial family.
+
 - [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md):
   new `estimand` argument for a binomial exposure: `"ATE"` (default),
   `"ATT"` (effect in the treated) and `"ATO"` (overlap weights).
+
 - Existing calls are unchanged: without smooth terms the models are
   still fitted with [`glm()`](https://rdrr.io/r/stats/glm.html), and
   `estimand` defaults to `"ATE"`. A covariate named `s`, `te`, `ti` or

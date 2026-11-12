@@ -127,6 +127,86 @@ ipwplot(weights = temp_tm$ipw.weights, timevar = haartdat$fuptime,
 
 ![](reference/figures/README-example_tm-1.png)
 
+## ipw or WeightIt?
+
+[WeightIt](https://ngreifer.github.io/WeightIt/) (Greifer) is a
+comprehensive R package for weighting, and for many analyses it is the
+better choice. The two packages overlap for simple cases (a binary point
+treatment with a logistic model gives the same weights in both) and are
+complementary otherwise.
+
+**Use WeightIt** for point treatments when you want machine-learning or
+balancing methods (generalized boosted models, SuperLearner, BART, CBPS,
+entropy balancing, energy balancing, and more), a wide choice of
+estimands, balance diagnostics through cobalt, and outcome models whose
+standard errors account for the estimation of the weights
+(`glm_weightit()`, `coxph_weightit()`, also for ordinal and multinomial
+outcomes).
+
+**Use ipw** for
+
+- exposures that change over time in **long (counting-process) data**,
+  where each person has their own visit times:
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) fits
+  one model pooled over all rows;
+- **Cox models** for the time to the first switch of treatment or to
+  censoring (`ipwtm(family = "survival")`);
+- exposures that **switch back and forth or recur** (`type = "all"`,
+  including Cox models for recurrent exposure events);
+- **count and skewed continuous** exposures with built-in models
+  (Poisson, negative binomial, gamma, log-normal);
+- analyses with **few dependencies**.
+
+A WeightIt analysis of a point treatment, with entropy balancing and an
+outcome model whose standard errors account for the estimated weights:
+
+``` r
+
+W <- WeightIt::weightit(a ~ l, data = simdat, method = "ebal", estimand = "ATE")
+fit <- WeightIt::glm_weightit(y ~ a, data = simdat, weightit = W)
+summary(fit)$coefficients
+#>              Estimate Std. Error   z value      Pr(>|z|)
+#> (Intercept) -5.653647  0.3779844 -14.95736  1.394591e-50
+#> a           10.684785  0.4998841  21.37453 2.306556e-101
+```
+
+An ipw analysis of time-varying data in long format (one row per patient
+per interval, as in `haartdat` above), with weights for starting HAART
+and for dropout, and a weighted Cox model:
+
+``` r
+
+w.start <- ipwtm(exposure = haartind, family = "survival", numerator = ~ sex + age,
+                 denominator = ~ sex + age + cd4.sqrt, id = patient,
+                 tstart = tstart, timevar = fuptime, type = "first", data = haartdat)
+w.drop <- ipwtm(exposure = dropout, family = "survival", numerator = ~ sex + age,
+                denominator = ~ sex + age + cd4.sqrt, id = patient,
+                tstart = tstart, timevar = fuptime, type = "cens", data = haartdat)
+msm.cox <- coxph(Surv(tstart, fuptime, event) ~ haartind + cluster(patient),
+                 data = haartdat, weights = w.start$ipw.weights * w.drop$ipw.weights)
+summary(msm.cox)$conf.int
+#>          exp(coef) exp(-coef) lower .95 upper .95
+#> haartind 0.3920629   2.550611 0.1614445 0.9521124
+```
+
+|  | ipw | WeightIt |
+|----|----|----|
+| Treatment types | binary, multinomial, ordinal, count (Poisson, negative binomial), continuous (normal, gamma, log-normal) | binary, multi-category (incl. ordinal), continuous (normal or other conditional density, or kernel density) |
+| Methods | parametric models: [`glm()`](https://rdrr.io/r/stats/glm.html), `multinom()`, `polr()`, `glm.nb()`, GAMs (mgcv), Cox models; your own probabilities ([`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md)) | propensity score models (GLM, GBM, SuperLearner, BART, CBPS, …) and balancing methods (entropy, energy, stable balancing weights, …); user-defined methods |
+| Estimands | ATE (stabilized or not); ATT, ATC, ATO for a binary, ATT and ATO for a categorical point treatment | ATE, ATT, ATC, ATO, ATM, ATOS (binary); ATE, ATT, ATC, ATO, ATM (multi-category) |
+| Longitudinal data | long data, one row per person and interval; individual (irregular) visit times; one model pooled over time (pooled logistic, Cox, multinomial, ordinal, GEE) | `weightitMSM()`: wide data, one row per person, one model per time point (the same time points for everyone); weights multiplied over time points |
+| Censoring | censoring weights with the same models, including Cox models (`type = "cens"`) | censoring weights with `.cens()` in `weightit()` and `weightitMSM()` |
+| Outcome models and standard errors | fit with [`lm()`](https://rdrr.io/r/stats/lm.html), [`glm()`](https://rdrr.io/r/stats/glm.html), [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html), [`svyglm()`](https://rdrr.io/pkg/survey/man/svyglm.html) etc.; [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) (new) for M-estimation standard errors with a binary point treatment; otherwise the bootstrap | `glm_weightit()`, `ordinal_weightit()`, `multinom_weightit()`, `coxph_weightit()`: M-estimation, robust, bootstrap, fractional weighted bootstrap and cluster-robust standard errors |
+| Trimming | truncation at percentiles (`trunc`) | `trim()` (trimming or truncation) |
+| Diagnostics | [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md); balance with cobalt (weights passed as a vector) | [`summary()`](https://rdrr.io/r/base/summary.html) (weight ranges, effective sample size, …); full cobalt integration |
+| Dependencies | MASS, nnet, survival, geepack | cobalt, ggplot2, cli, rlang, sandwich, generics, arg, plus optional packages for many methods |
+| License | GPL (\>= 2) | GPL (\>= 2) |
+
+A side-by-side comparison on the same data, including the standard
+errors and what longitudinal data with individual visit times mean for
+each package, is in the article [ipw and
+WeightIt](https://tranhung93.github.io/ipw/articles/ipw-and-weightit.html).
+
 ## Authors
 
 - **Hung Thai Tran** - Research Assistant, Biostatistics Group at OUCRU.
@@ -141,6 +221,8 @@ ipwplot(weights = temp_tm$ipw.weights, timevar = haartdat$fuptime,
 - Robins J.M., Hernán M.A. & Brumback B.A. (2000). Marginal structural
   models and causal inference in epidemiology. *Epidemiology*, **11**,
   550-560.
+- Greifer N. WeightIt: Weighting for Covariate Balance in Observational
+  Studies. R package, <https://ngreifer.github.io/WeightIt/>.
 
 # Package index
 
@@ -156,6 +238,14 @@ weights.
 - [`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md)
   : Time-Varying Inverse Probability Weights From User-Supplied
   Probabilities
+
+## Standard errors
+
+Standard errors for a marginal structural model that take the estimation
+of the weights into account.
+
+- [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) :
+  Standard Errors that Account for Estimated Weights (M-estimation)
 
 ## Diagnostics
 
@@ -184,6 +274,8 @@ weights.
 
 - [Bugs fixed after ipw
   1.3.2](https://tranhung93.github.io/ipw/articles/bug-fixes.md):
+- [ipw and WeightIt side by
+  side](https://tranhung93.github.io/ipw/articles/ipw-and-weightit.md):
 - [Inverse probability weighting with
   ipw](https://tranhung93.github.io/ipw/articles/ipw.md):
 - [Methods behind the new features: formulas, code and

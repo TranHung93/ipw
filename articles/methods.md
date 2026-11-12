@@ -5,10 +5,12 @@ the same step: estimate the probability, or density, of the exposure
 each person actually received, then take a ratio. This article gives,
 for each new feature, the formula, the code in the package and why that
 approach was chosen. Section 6 covers recurrent exposure events (Graffeo
-et al. 2018), and section 7
+et al. 2018), section 7
 [`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md),
 which turns probabilities you estimated yourself into time-varying
-weights. How to use the features is shown in the [main
+weights, and section 8 the standard errors of
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md).
+How to use the features is shown in the [main
 vignette](https://tranhung93.github.io/ipw/articles/ipw.md); whether
 they recover known effects is checked in the [simulation
 study](https://tranhung93.github.io/ipw/articles/simulations.md).
@@ -48,7 +50,7 @@ models, and one line forms the weight:
 ipw_weights <- num$dens / den$dens   # num$dens = 1 when numerator = NULL
 ```
 
-## 1. `estimand`: ATT and overlap weights for a binomial point treatment
+## 1. `estimand`: ATT, ATC and overlap weights for a binomial point treatment
 
 The `estimand` argument changes which population the weights standardise
 to, using the same fitted propensity score *e*(*L*) = P(*A* = 1 \| *L*)
@@ -57,7 +59,7 @@ from the denominator model.
 **Formula.**
 
 ``` math
-\text{ATE: } w = \frac{A}{e} + \frac{1-A}{1-e} \qquad \text{ATT: } w = A + (1-A)\frac{e}{1-e} \qquad \text{ATO: } w = A(1-e) + (1-A)\,e
+\text{ATE: } w = \frac{A}{e} + \frac{1-A}{1-e} \qquad \text{ATT: } w = A + (1-A)\frac{e}{1-e} \qquad \text{ATC: } w = A\frac{1-e}{e} + (1-A) \qquad \text{ATO: } w = A(1-e) + (1-A)\,e
 ```
 
 **Code.**
@@ -67,13 +69,14 @@ from the denominator model.
 ipw_weights <- switch(estimand,
   ATE = num$dens / den$dens,
   ATT = ifelse(exp_vec == 1, 1, den$p / (1 - den$p)),
+  ATC = ifelse(exp_vec == 1, (1 - den$p) / den$p, 1),
   ATO = ifelse(exp_vec == 1, 1 - den$p, den$p)
 )
 ```
 
 `den$p` is the fitted P(*A* = 1 \| *L*) kept from the binomial
-denominator model; `"ATT"` and `"ATO"` require `numerator = NULL` and a
-binomial family.
+denominator model; `"ATT"`, `"ATC"` and `"ATO"` require
+`numerator = NULL`.
 
 **Why this approach.** Each estimand answers a different clinical
 question; the formulas only change who gets how much weight.
@@ -85,6 +88,11 @@ question; the formulas only change who gets how much weight.
   Treated people keep weight 1; untreated people are reweighted to look
   like the treated group. Useful when treatment is only realistic for
   some patients.
+- **ATC:** “What would the treatment have done for the people who did
+  not receive it?” The mirror image of the ATT: untreated people keep
+  weight 1 and treated people are reweighted to look like the untreated
+  group. Useful when the question is whether to extend a treatment to
+  those not yet receiving it.
 - **ATO (overlap):** “What is the effect in patients for whom doctors
   could have gone either way?” Every weight lies between 0 and 1, so no
   single person can dominate. This helps when some patients are almost
@@ -92,9 +100,9 @@ question; the formulas only change who gets how much weight.
   need truncation. With a logistic model, overlap weights also make the
   average of every covariate in the model exactly equal between the
   groups.
-- **Why no numerator:** ATT and overlap weights are not a ratio of two
-  probabilities, so stabilizing them has no meaning. ipw gives an error
-  instead of silently ignoring a numerator.
+- **Why no numerator:** ATT, ATC and overlap weights are not a ratio of
+  two probabilities, so stabilizing them has no meaning. ipw gives an
+  error instead of silently ignoring a numerator.
 - **Which to use:** choose by the clinical question first. If ATE
   weights are extreme, consider ATO, and state clearly which patients
   the result describes.
@@ -102,6 +110,48 @@ question; the formulas only change who gets how much weight.
 **Caveat.** The overlap population is defined by the propensity score
 itself, so results describe that population, not a pre-specified one;
 this should be stated when reporting ATO estimates.
+
+### ATT and overlap weights for multinomial and ordinal exposures
+
+For an exposure with levels $`k = 1, \dots, K`$, let $`P_i(k)`$ be the
+fitted probability of level $`k`$ for person *i* (from
+[`nnet::multinom`](https://rdrr.io/pkg/nnet/man/multinom.html) or
+[`MASS::polr`](https://rdrr.io/pkg/MASS/man/polr.html)) and $`A_i`$ the
+observed level.
+
+**Formula.** With a focal level $`f`$ (argument `focal`), and for
+generalized overlap weights (Li & Li 2019):
+
+``` math
+\text{ATT: } w_i = \frac{P_i(f)}{P_i(A_i)} \qquad
+\text{ATO: } w_i = \frac{1 / P_i(A_i)}{\sum_{k=1}^{K} 1 / P_i(k)}
+```
+
+People at the focal level get ATT weight 1. With $`K = 2`$,
+$`P_i(2) = e`$ and $`f = 2`$ these are the binomial formulas above: ATT
+gives $`e/(1-e)`$ to the others, and ATO gives
+$`(1/e) / (1/e + 1/(1-e)) = 1 - e`$ to level 2 and $`e`$ to level 1.
+
+**Code.** The full matrix of fitted probabilities is built by the
+internal helper `.prob_matrix()` (also used for the probability of the
+observed level):
+
+``` r
+
+ipw_weights <- switch(estimand,
+  ATT = ifelse(as.character(exp_vec) == focal, 1, den$pmat[, focal] / den$dens),
+  ATO = (1 / den$dens) / rowSums(1 / den$pmat)
+)
+```
+
+**Why this approach.** The ATT for a categorical exposure compares every
+level with what would have happened to the people at the focal level, so
+the weights reweight each other level to resemble the focal group. The
+generalized overlap weights target the people with substantial
+probability of every level; like binomial overlap weights they are
+bounded, here by 1. `"ATC"` is not offered for categorical exposures:
+with more than two levels there is no single control group, and the
+effect in the controls is the ATT with `focal` set to the control level.
 
 ## 2. Skewed continuous exposures: `"gamma"` and `"lognormal"`
 
@@ -493,6 +543,114 @@ is responsible for setting probabilities to 1 after the first switch for
 `type = "first"` or `"cens"`. Standard errors that ignore the estimation
 of the probabilities are only approximate.
 
+## 8. `ipwvcov()`: standard errors that account for the estimated weights
+
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+(new, experimental) gives the variance of the coefficients of a marginal
+structural model fitted with [`lm()`](https://rdrr.io/r/stats/lm.html)
+or [`glm()`](https://rdrr.io/r/stats/glm.html) and weights from
+`ipwpoint(family = "binomial")`, with the estimation of the weights
+taken into account (M-estimation: Lunceford & Davidian 2004; Stefanski &
+Boos 2002).
+
+**Formula.** Stack the parameters $`\theta = (\beta, \alpha, \gamma)`$
+of the MSM, the denominator model and the (optional) numerator model.
+For person *i*, with MSM design row $`X_i`$, mean $`\mu_i`$, variance
+function $`V`$, and exposure-model design rows $`Z_i`$ (denominator,
+fitted $`p_i`$) and $`Z^{num}_i`$ (numerator, fitted $`q_i`$):
+
+``` math
+\psi_i(\theta) = \begin{pmatrix}
+U_i \\ S_i \\ R_i
+\end{pmatrix} = \begin{pmatrix}
+w_i X_i (y_i - \mu_i)\, \frac{d\mu_i/d\eta_i}{V(\mu_i)} \\
+Z_i (a_i - p_i)\, \frac{dp_i/d\eta_i}{p_i(1-p_i)} \\
+Z^{num}_i (a_i - q_i)\, \frac{dq_i/d\eta_i}{q_i(1-q_i)}
+\end{pmatrix}
+```
+
+Because $`U_i`$ is proportional to $`w_i`$,
+$`\partial U_i / \partial \alpha =
+U_i d_i^T`$ with
+$`d_i = \partial \log w_i / \partial \alpha = g(a_i, p_i)\,
+(dp_i/d\eta_i)\, Z_i`$, where
+
+| estimand | $`g(1, p)`$     | $`g(0, p)`$    |
+|----------|-----------------|----------------|
+| ATE      | $`-1/p`$        | $`1/(1-p)`$    |
+| ATT      | $`0`$           | $`1/(p(1-p))`$ |
+| ATC      | $`-1/(p(1-p))`$ | $`0`$          |
+| ATO      | $`-1/(1-p)`$    | $`1/p`$        |
+
+and, for stabilized ATE weights,
+$`e_i = \partial \log w_i / \partial \gamma
+= (a_i/q_i - (1-a_i)/(1-q_i))\, (dq_i/d\eta_i)\, Z^{num}_i`$. The bread
+$`A = -\sum_i \partial \psi_i / \partial \theta`$ is block
+upper-triangular:
+
+``` math
+A = \begin{pmatrix}
+\sum_i w_i \frac{(d\mu_i/d\eta_i)^2}{V(\mu_i)} X_i X_i^T & -\sum_i U_i d_i^T & -\sum_i U_i e_i^T \\
+0 & \sum_i \frac{(dp_i/d\eta_i)^2}{p_i(1-p_i)} Z_i Z_i^T & 0 \\
+0 & 0 & \sum_i \frac{(dq_i/d\eta_i)^2}{q_i(1-q_i)} Z^{num}_i Z^{num\,T}_i
+\end{pmatrix}
+```
+
+the meat is $`B = \sum_i \psi_i \psi_i^T`$, and the variance is
+$`A^{-1} B A^{-T}`$;
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+returns its $`\beta`$ block.
+
+**Code.** Each block is a cross-product computed in base R; for example,
+for the denominator model and the $`\beta`$-$`\alpha`$ block:
+
+``` r
+
+g <- switch(estimand,
+  ATE = ifelse(a == 1, -1 / p, 1 / (1 - p)),
+  ATT = ifelse(a == 1, 0, 1 / (p * (1 - p))),
+  ATC = ifelse(a == 1, -1 / (p * (1 - p)), 0),
+  ATO = ifelse(a == 1, -1 / (1 - p), 1 / p))
+D <- den$Z * (g * den$dp)          # rows d_i
+A[beta, alpha] <- -crossprod(U, D)
+V <- solve(A) %*% crossprod(Psi) %*% t(solve(A))
+```
+
+**Why this approach.** Robust standard errors of the weighted MSM treat
+the weights as known. Estimating the weights usually *reduces* the
+variance of an ATE estimate, so these standard errors are conservative
+for the ATE, but for the ATT, ATC and ATO they can be too small. The
+stacked estimating equations account for this exactly (asymptotically)
+and need no resampling. The bread uses expected (Fisher) information.
+For canonical links (logit, gaussian identity) this equals the observed
+information, so the sandwich is exact; for other links the two are only
+asymptotically equivalent, and in the tests a probit or cloglog exposure
+model gave standard errors up to 2% away from the exact
+(numerical-Jacobian) sandwich.
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+therefore requires logistic exposure models. For the marginal structural
+model any [`glm()`](https://rdrr.io/r/stats/glm.html) link is accepted.
+For a saturated model such as `y ~ a` with a binary exposure, the
+expected and observed information are exactly equal in any sample,
+whatever the link: the fitted mean in each exposure group is that
+group’s weighted mean of `y`, so the extra term of the observed
+information, $`\sum_i w_i X_i X_i^T (y_i - \mu_i)\, c(\eta_i)`$ with
+$`c`$ the derivative of $`(d\mu/d\eta)/V(\mu)`$ with respect to
+$`\eta`$, sums to zero within each group, where $`\eta_i`$ and hence
+$`c(\eta_i)`$ are constant. For other MSMs with a non-canonical link
+(for example a log link with covariates) the two are asymptotically
+equivalent when the model is correctly specified. Dispersion parameters
+cancel. No small-sample correction is applied. The package tests compare
+the result with a numerical Jacobian of the stacked equations and with
+`glm_weightit(vcov = "asympt")` from the WeightIt package.
+
+**Caveats.** Only binary point treatments with logistic
+[`glm()`](https://rdrr.io/r/stats/glm.html) exposure models; truncated
+weights (truncation at estimated percentiles is not a smooth function of
+$`\alpha`$), smooth terms, other families and time-varying weights from
+[`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) are not
+covered, and the bootstrap remains the advice there.
+
 ## References
 
 - Cole SR, Hernán MA (2008). Constructing inverse probability weights
@@ -507,11 +665,19 @@ of the probabilities are only approximate.
 - Imai K, van Dyk DA (2004). Causal inference with general treatment
   regimes: generalizing the propensity score. *Journal of the American
   Statistical Association* 99, 854–866.
+- Li F, Li F (2019). Propensity score weighting for causal inference
+  with multiple treatments. *Annals of Applied Statistics* 13,
+  2389–2415.
 - Li F, Morgan KL, Zaslavsky AM (2018). Balancing covariates via
   propensity score weighting. *Journal of the American Statistical
   Association* 113, 390–400.
+- Lunceford JK, Davidian M (2004). Stratification and weighting via the
+  propensity score in estimation of causal treatment effects: a
+  comparative study. *Statistics in Medicine* 23, 2937–2960.
 - Robins JM, Hernán MA, Brumback B (2000). Marginal structural models
   and causal inference in epidemiology. *Epidemiology* 11, 550–560.
+- Stefanski LA, Boos DD (2002). The calculus of M-estimation. *The
+  American Statistician* 56, 29–38.
 - van der Laan MJ, Polley EC, Hubbard AE (2007). Super learner.
   *Statistical Applications in Genetics and Molecular Biology* 6(1).
 - van der Wal WM, Geskus RB (2011). ipw: An R package for inverse

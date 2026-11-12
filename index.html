@@ -39,6 +39,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="articles/bug-fixes.html">Bugs fixed after ipw 1.3.2</a></li>
+    <li><a class="dropdown-item" href="articles/ipw-and-weightit.html">ipw and WeightIt side by side</a></li>
     <li><a class="dropdown-item" href="articles/methods.html">Methods behind the new features: formulas, code and rationale</a></li>
     <li><a class="dropdown-item" href="articles/simulations.html">Simulation study: do the weights recover known effects?</a></li>
     <li><a class="dropdown-item" href="articles/survival-weights-time-grid.html">Survival weights and the time grid: a caution for ipw 1.3.2 and earlier</a></li>
@@ -170,6 +171,114 @@
 <p><img src="reference/figures/README-example_tm-1.png" alt="" width="100%"></p>
 </div>
 <div class="section level2">
+<h2 id="ipw-or-weightit">ipw or WeightIt?<a class="anchor" aria-label="anchor" href="#ipw-or-weightit"></a>
+</h2>
+<p><a href="https://ngreifer.github.io/WeightIt/" class="external-link">WeightIt</a> (Greifer) is a comprehensive R package for weighting, and for many analyses it is the better choice. The two packages overlap for simple cases (a binary point treatment with a logistic model gives the same weights in both) and are complementary otherwise.</p>
+<p><strong>Use WeightIt</strong> for point treatments when you want machine-learning or balancing methods (generalized boosted models, SuperLearner, BART, CBPS, entropy balancing, energy balancing, and more), a wide choice of estimands, balance diagnostics through cobalt, and outcome models whose standard errors account for the estimation of the weights (<code>glm_weightit()</code>, <code>coxph_weightit()</code>, also for ordinal and multinomial outcomes).</p>
+<p><strong>Use ipw</strong> for</p>
+<ul>
+<li>exposures that change over time in <strong>long (counting-process) data</strong>, where each person has their own visit times: <code><a href="reference/ipwtm.html">ipwtm()</a></code> fits one model pooled over all rows;</li>
+<li>
+<strong>Cox models</strong> for the time to the first switch of treatment or to censoring (<code>ipwtm(family = "survival")</code>);</li>
+<li>exposures that <strong>switch back and forth or recur</strong> (<code>type = "all"</code>, including Cox models for recurrent exposure events);</li>
+<li>
+<strong>count and skewed continuous</strong> exposures with built-in models (Poisson, negative binomial, gamma, log-normal);</li>
+<li>analyses with <strong>few dependencies</strong>.</li>
+</ul>
+<p>A WeightIt analysis of a point treatment, with entropy balancing and an outcome model whose standard errors account for the estimated weights:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">W</span> <span class="op">&lt;-</span> <span class="fu">WeightIt</span><span class="fu">::</span><span class="fu"><a href="https://ngreifer.github.io/WeightIt/reference/weightit.html" class="external-link">weightit</a></span><span class="op">(</span><span class="va">a</span> <span class="op">~</span> <span class="va">l</span>, data <span class="op">=</span> <span class="va">simdat</span>, method <span class="op">=</span> <span class="st">"ebal"</span>, estimand <span class="op">=</span> <span class="st">"ATE"</span><span class="op">)</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu">WeightIt</span><span class="fu">::</span><span class="fu"><a href="https://ngreifer.github.io/WeightIt/reference/glm_weightit.html" class="external-link">glm_weightit</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">a</span>, data <span class="op">=</span> <span class="va">simdat</span>, weightit <span class="op">=</span> <span class="va">W</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">$</span><span class="va">coefficients</span></span>
+<span><span class="co">#&gt;              Estimate Std. Error   z value      Pr(&gt;|z|)</span></span>
+<span><span class="co">#&gt; (Intercept) -5.653647  0.3779844 -14.95736  1.394591e-50</span></span>
+<span><span class="co">#&gt; a           10.684785  0.4998841  21.37453 2.306556e-101</span></span></code></pre></div>
+<p>An ipw analysis of time-varying data in long format (one row per patient per interval, as in <code>haartdat</code> above), with weights for starting HAART and for dropout, and a weighted Cox model:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">w.start</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ipwtm.html">ipwtm</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">haartind</span>, family <span class="op">=</span> <span class="st">"survival"</span>, numerator <span class="op">=</span> <span class="op">~</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">age</span>,</span>
+<span>                 denominator <span class="op">=</span> <span class="op">~</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">cd4.sqrt</span>, id <span class="op">=</span> <span class="va">patient</span>,</span>
+<span>                 tstart <span class="op">=</span> <span class="va">tstart</span>, timevar <span class="op">=</span> <span class="va">fuptime</span>, type <span class="op">=</span> <span class="st">"first"</span>, data <span class="op">=</span> <span class="va">haartdat</span><span class="op">)</span></span>
+<span><span class="va">w.drop</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ipwtm.html">ipwtm</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">dropout</span>, family <span class="op">=</span> <span class="st">"survival"</span>, numerator <span class="op">=</span> <span class="op">~</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">age</span>,</span>
+<span>                denominator <span class="op">=</span> <span class="op">~</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">cd4.sqrt</span>, id <span class="op">=</span> <span class="va">patient</span>,</span>
+<span>                tstart <span class="op">=</span> <span class="va">tstart</span>, timevar <span class="op">=</span> <span class="va">fuptime</span>, type <span class="op">=</span> <span class="st">"cens"</span>, data <span class="op">=</span> <span class="va">haartdat</span><span class="op">)</span></span>
+<span><span class="va">msm.cox</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">tstart</span>, <span class="va">fuptime</span>, <span class="va">event</span><span class="op">)</span> <span class="op">~</span> <span class="va">haartind</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/pkg/survival/man/cluster.html" class="external-link">cluster</a></span><span class="op">(</span><span class="va">patient</span><span class="op">)</span>,</span>
+<span>                 data <span class="op">=</span> <span class="va">haartdat</span>, weights <span class="op">=</span> <span class="va">w.start</span><span class="op">$</span><span class="va">ipw.weights</span> <span class="op">*</span> <span class="va">w.drop</span><span class="op">$</span><span class="va">ipw.weights</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">msm.cox</span><span class="op">)</span><span class="op">$</span><span class="va">conf.int</span></span>
+<span><span class="co">#&gt;          exp(coef) exp(-coef) lower .95 upper .95</span></span>
+<span><span class="co">#&gt; haartind 0.3920629   2.550611 0.1614445 0.9521124</span></span></code></pre></div>
+<table class="table">
+<colgroup>
+<col width="33%">
+<col width="33%">
+<col width="33%">
+</colgroup>
+<thead><tr>
+<th></th>
+<th>ipw</th>
+<th>WeightIt</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Treatment types</td>
+<td>binary, multinomial, ordinal, count (Poisson, negative binomial), continuous (normal, gamma, log-normal)</td>
+<td>binary, multi-category (incl. ordinal), continuous (normal or other conditional density, or kernel density)</td>
+</tr>
+<tr>
+<td>Methods</td>
+<td>parametric models: <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>, <code>multinom()</code>, <code>polr()</code>, <code>glm.nb()</code>, GAMs (mgcv), Cox models; your own probabilities (<code><a href="reference/ipwprobtm.html">ipwprobtm()</a></code>)</td>
+<td>propensity score models (GLM, GBM, SuperLearner, BART, CBPS, …) and balancing methods (entropy, energy, stable balancing weights, …); user-defined methods</td>
+</tr>
+<tr>
+<td>Estimands</td>
+<td>ATE (stabilized or not); ATT, ATC, ATO for a binary, ATT and ATO for a categorical point treatment</td>
+<td>ATE, ATT, ATC, ATO, ATM, ATOS (binary); ATE, ATT, ATC, ATO, ATM (multi-category)</td>
+</tr>
+<tr>
+<td>Longitudinal data</td>
+<td>long data, one row per person and interval; individual (irregular) visit times; one model pooled over time (pooled logistic, Cox, multinomial, ordinal, GEE)</td>
+<td>
+<code>weightitMSM()</code>: wide data, one row per person, one model per time point (the same time points for everyone); weights multiplied over time points</td>
+</tr>
+<tr>
+<td>Censoring</td>
+<td>censoring weights with the same models, including Cox models (<code>type = "cens"</code>)</td>
+<td>censoring weights with <code>.cens()</code> in <code>weightit()</code> and <code>weightitMSM()</code>
+</td>
+</tr>
+<tr>
+<td>Outcome models and standard errors</td>
+<td>fit with <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code>, <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>, <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code>, <code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">svyglm()</a></code> etc.; <code><a href="reference/ipwvcov.html">ipwvcov()</a></code> (new) for M-estimation standard errors with a binary point treatment; otherwise the bootstrap</td>
+<td>
+<code>glm_weightit()</code>, <code>ordinal_weightit()</code>, <code>multinom_weightit()</code>, <code>coxph_weightit()</code>: M-estimation, robust, bootstrap, fractional weighted bootstrap and cluster-robust standard errors</td>
+</tr>
+<tr>
+<td>Trimming</td>
+<td>truncation at percentiles (<code>trunc</code>)</td>
+<td>
+<code>trim()</code> (trimming or truncation)</td>
+</tr>
+<tr>
+<td>Diagnostics</td>
+<td>
+<code><a href="reference/ipwplot.html">ipwplot()</a></code>; balance with cobalt (weights passed as a vector)</td>
+<td>
+<code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> (weight ranges, effective sample size, …); full cobalt integration</td>
+</tr>
+<tr>
+<td>Dependencies</td>
+<td>MASS, nnet, survival, geepack</td>
+<td>cobalt, ggplot2, cli, rlang, sandwich, generics, arg, plus optional packages for many methods</td>
+</tr>
+<tr>
+<td>License</td>
+<td>GPL (&gt;= 2)</td>
+<td>GPL (&gt;= 2)</td>
+</tr>
+</tbody>
+</table>
+<p>A side-by-side comparison on the same data, including the standard errors and what longitudinal data with individual visit times mean for each package, is in the article <a href="https://tranhung93.github.io/ipw/articles/ipw-and-weightit.html">ipw and WeightIt</a>.</p>
+</div>
+<div class="section level2">
 <h2 id="authors">Authors<a class="anchor" aria-label="anchor" href="#authors"></a>
 </h2>
 <ul>
@@ -187,6 +296,7 @@
 <ul>
 <li>Van der Wal W.M. &amp; Geskus R.B. (2011). ipw: An R Package for Inverse Probability Weighting. <em>Journal of Statistical Software</em>, <strong>43</strong>(13), 1-23.</li>
 <li>Robins J.M., Hernán M.A. &amp; Brumback B.A. (2000). Marginal structural models and causal inference in epidemiology. <em>Epidemiology</em>, <strong>11</strong>, 550-560.</li>
+<li>Greifer N. WeightIt: Weighting for Covariate Balance in Observational Studies. R package, <a href="https://ngreifer.github.io/WeightIt/" class="external-link uri">https://ngreifer.github.io/WeightIt/</a>.</li>
 </ul>
 </div>
 </div>
