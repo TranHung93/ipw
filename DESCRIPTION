@@ -21,6 +21,7 @@ Suggests:
     data.table,
     tibble,
     WeightIt,
+    cobalt,
     lmtest,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr

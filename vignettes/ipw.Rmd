@@ -12,6 +12,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height
                       out.width = "100%")
 has_survey <- requireNamespace("survey", quietly = TRUE)
 has_mgcv <- requireNamespace("mgcv", quietly = TRUE)
+has_cobalt <- requireNamespace("cobalt", quietly = TRUE)
 ```
 
 ```{r packages, message = FALSE}
@@ -184,12 +185,12 @@ controls of a categorical exposure, use `"ATT"` with `focal` set to the
 control level.
 
 ```{r categorical-estimands}
-w.att <- ipwpoint(exposure = dose, family = "multinomial", denominator = ~ l,
+w.cat.att <- ipwpoint(exposure = dose, family = "multinomial", denominator = ~ l,
                   data = cat.dat, estimand = "ATT", focal = "high")
-w.ato <- ipwpoint(exposure = dose, family = "multinomial", denominator = ~ l,
+w.cat.ato <- ipwpoint(exposure = dose, family = "multinomial", denominator = ~ l,
                   data = cat.dat, estimand = "ATO")
-rbind(ATT.high = tapply(w.att$ipw.weights, cat.dat$dose, mean),
-      ATO = tapply(w.ato$ipw.weights, cat.dat$dose, mean))
+rbind(ATT.high = tapply(w.cat.att$ipw.weights, cat.dat$dose, mean),
+      ATO = tapply(w.cat.ato$ipw.weights, cat.dat$dose, mean))
 ```
 
 ## Continuous exposures
@@ -595,6 +596,98 @@ any standard error.
   positivity, consistency and correctly specified exposure (and censoring)
   models.
 
+## Covariate balance
+
+Good weights make the confounders unrelated to the exposure, so after
+weighting their distribution should be the same in the exposure groups.
+Check this directly: it tests the exposure model where it matters. The
+cobalt package (Greifer) computes balance statistics for any weights; ipw's
+weights are passed as a plain vector, with `method = "weighting"`. The
+standardized mean difference (SMD) uses the pooled standard deviation of the
+unweighted groups (`s.d.denom = "pooled"`); absolute SMDs below 0.1 are a
+common rule of thumb.
+
+```{r balance-point, eval = has_cobalt}
+cobalt::bal.tab(a ~ l, data = simdat, weights = w$ipw.weights,
+                method = "weighting", s.d.denom = "pooled", un = TRUE)
+```
+
+Several sets of weights can be compared at once; `love.plot()` draws the
+SMDs before and after weighting. Here the stabilized ATE weights and the
+overlap weights from section 1:
+
+```{r ato-weights}
+w.ato <- ipwpoint(exposure = a, family = "binomial", link = "logit",
+                  denominator = ~ l, data = simdat, estimand = "ATO")
+```
+
+```{r love-plot, eval = has_cobalt, fig.height = 2.6}
+bal <- cobalt::bal.tab(a ~ l, data = simdat, method = "weighting",
+                       weights = data.frame(ATE = w$ipw.weights, ATO = w.ato$ipw.weights),
+                       s.d.denom = "pooled", un = TRUE)
+cobalt::love.plot(bal, thresholds = c(m = 0.1), abs = TRUE)
+```
+
+With a logistic denominator model, overlap weights balance the mean of every
+covariate in the model exactly (SMD 0). The stabilized ATE weights reduce the
+SMD of `l` from about 2.2 to about 0.6, which is still far above 0.1: with
+the poor overlap in these data, a few unexposed people with a high `l` carry
+most of the weight (see the effective sample sizes below), and their
+weighted mean of `l` is unstable. This is the same problem that made the ATT
+weights extreme in section 1.
+
+For time-varying weights, check balance at each time point among the people
+for whom the exposure decision is made there. With `type = "first"`, these
+are the rows with `selvar == 1` (not yet on HAART at the start of the
+interval), and the groups are those who start HAART in that interval and
+those who do not; the weight of each row is the cumulative weight up to and
+including that interval. The censoring weights do not depend on whether
+HAART is started, so only the HAART weights are used here.
+
+```{r balance-haart, eval = has_cobalt}
+at.risk <- w.haart$selvar == 1 & haartdat$fuptime %in% c(100, 500)
+haart.sub <- haartdat[at.risk, ]
+cobalt::bal.tab(haartind ~ cd4.sqrt + sex + age, data = haart.sub,
+                weights = w.haart$ipw.weights[at.risk], method = "weighting",
+                s.d.denom = "pooled", un = TRUE, cluster = "fuptime")
+```
+
+The result is mixed, and that is useful to know. At 500 days, weighting
+halves the imbalance in CD4 count (SMD from about -0.8 to -0.4) but does not
+remove it; at 100 days, where the few people starting HAART happened to have
+a higher CD4 count, it over-corrects (SMD from 0.25 to above 0.9). The
+denominator model is one Cox model with a single CD4 coefficient for the
+whole follow-up; pooled over all at-risk rows, weighting reduces the SMD of
+CD4 from about -0.47 to 0.13. Balance at single time points with only 30 to
+50 people starting HAART is noisy, but a pattern like this suggests checking
+whether the effect of CD4 on starting HAART changes over follow-up, for
+example by adding an interaction with a time-period indicator to the
+denominator model.
+
+Sex and age are in the numerator as well as the denominator model, so the
+stabilized weights deliberately leave them unbalanced: they must be adjusted
+for in the MSM (e.g. `coxph(... ~ haartind + sex + age)`). Unstabilized
+weights (`numerator = NULL`) would balance them too, at the price of more
+variable weights.
+
+## Effective sample size
+
+Variable weights reduce the information in the data. Kish's **effective
+sample size**, (sum of weights)^2 / (sum of squared weights), is the size of
+an unweighted sample with about the same precision. Compute it overall and
+by exposure group; a large drop in one group means a few people carry most
+of the weight there.
+
+```{r ess}
+ess <- function(w) sum(w)^2 / sum(w^2)
+rbind(n = c(all = nrow(simdat), table(simdat$a)),
+      ATE = c(ess(w$ipw.weights), tapply(w$ipw.weights, simdat$a, ess)),
+      ATO = c(ess(w.ato$ipw.weights), tapply(w.ato$ipw.weights, simdat$a, ess)))
+```
+
+`cobalt::bal.tab()` reports the same quantity by group under "Effective
+sample sizes".
+
 # References
 
 * Austin PC (2016). Variance estimation when using inverse probability of
@@ -606,6 +699,8 @@ any standard error.
 * Graffeo N, Latouche A, Geskus RB, Chevret S (2018). Modeling time-varying
   exposure using inverse probability of treatment weights. *Biometrical
   Journal* 60, 323-332. doi:10.1002/bimj.201600223.
+* Greifer N. cobalt: Covariate Balance Tables and Plots. R package,
+  <https://ngreifer.github.io/cobalt/>.
 * Li F, Li F (2019). Propensity score weighting for causal inference with
   multiple treatments. *Annals of Applied Statistics* 13, 2389-2415.
 * Li F, Morgan KL, Zaslavsky AM (2018). Balancing covariates via propensity
