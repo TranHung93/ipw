@@ -116,6 +116,16 @@ test_that("categorical ATT and ATO weights agree with WeightIt", {
                     reltol = 1e-12, maxit = 1000)$ipw.weights
   wit_w <- WeightIt::weightit(m ~ l + z, data = d, method = "glm", estimand = "ATO")$weights
   expect_equal(ipw_w, unname(wit_w), tolerance = 1e-6)
+
+  # ordered factor: ordinal logistic model (MASS::polr in ipw)
+  for (est in c("ATT", "ATO")) {
+    foc <- if (est == "ATT") "mid" else NULL
+    ipw_o <- ipwpoint(o, "ordinal", "logit", denominator = ~ l + z, data = d,
+                      estimand = est, focal = foc)$ipw.weights
+    wit_o <- WeightIt::weightit(o ~ l + z, data = d, method = "glm",
+                                estimand = est, focal = foc)$weights
+    expect_equal(ipw_o, unname(wit_o), tolerance = 1e-4, label = paste("ordinal", est))
+  }
 })
 
 test_that("estimand and focal errors are clear", {
