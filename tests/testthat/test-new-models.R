@@ -272,6 +272,17 @@ test_that("ipwpoint refuses ATT/ATO for other families or with a numerator", {
   d$c <- rpois(100, 2)
   expect_error(ipwpoint(exposure = c, family = "poisson", denominator = ~ l, data = d,
                         estimand = "ATT"), "only available")
+  expect_error(ipwpoint(exposure = c, family = "poisson", denominator = ~ l, data = d,
+                        estimand = "ATT"), "'binomial', 'multinomial', 'ordinal'")
+  # multinomial and ordinal exposures now allow ATT (with focal) and ATO
+  d$m <- factor(sample(c("x", "y", "z"), 100, replace = TRUE))
+  expect_no_error(ipwpoint(exposure = m, family = "multinomial", denominator = ~ l,
+                           data = d, estimand = "ATO"))
+  expect_no_error(ipwpoint(exposure = m, family = "multinomial", denominator = ~ l,
+                           data = d, estimand = "ATT", focal = "y"))
+  expect_error(ipwpoint(exposure = m, family = "multinomial", numerator = ~ 1,
+                        denominator = ~ l, data = d, estimand = "ATT", focal = "y"),
+               "must be NULL")
   expect_error(ipwpoint(exposure = a, family = "binomial", link = "logit", numerator = ~ 1,
                         denominator = ~ l, data = d, estimand = "ATO"), "must be NULL")
   expect_error(ipwpoint(exposure = a, family = "binomial", link = "logit", numerator = ~ 1,

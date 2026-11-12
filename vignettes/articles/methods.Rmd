@@ -100,6 +100,44 @@ the formulas only change who gets how much weight.
 itself, so results describe that population, not a pre-specified one; this
 should be stated when reporting ATO estimates.
 
+## ATT and overlap weights for multinomial and ordinal exposures
+
+For an exposure with levels $k = 1, \dots, K$, let $P_i(k)$ be the fitted
+probability of level $k$ for person *i* (from `nnet::multinom` or
+`MASS::polr`) and $A_i$ the observed level.
+
+**Formula.** With a focal level $f$ (argument `focal`), and for generalized
+overlap weights (Li & Li 2019):
+
+$$
+\text{ATT: } w_i = \frac{P_i(f)}{P_i(A_i)} \qquad
+\text{ATO: } w_i = \frac{1 / P_i(A_i)}{\sum_{k=1}^{K} 1 / P_i(k)}
+$$
+
+People at the focal level get ATT weight 1. With $K = 2$, $P_i(2) = e$ and
+$f = 2$ these are the binomial formulas above: ATT gives $e/(1-e)$ to the
+others, and ATO gives $(1/e) / (1/e + 1/(1-e)) = 1 - e$ to level 2 and $e$
+to level 1.
+
+**Code.** The full matrix of fitted probabilities is built by the internal
+helper `.prob_matrix()` (also used for the probability of the observed level):
+
+```r
+ipw_weights <- switch(estimand,
+  ATT = ifelse(as.character(exp_vec) == focal, 1, den$pmat[, focal] / den$dens),
+  ATO = (1 / den$dens) / rowSums(1 / den$pmat)
+)
+```
+
+**Why this approach.** The ATT for a categorical exposure compares every
+level with what would have happened to the people at the focal level, so
+the weights reweight each other level to resemble the focal group. The
+generalized overlap weights target the people with substantial probability
+of every level; like binomial overlap weights they are bounded, here by 1.
+`"ATC"` is not offered for categorical exposures: with more than two levels
+there is no single control group, and the effect in the controls is the ATT
+with `focal` set to the control level.
+
 # 2. Skewed continuous exposures: `"gamma"` and `"lognormal"`
 
 For a positive, right-skewed exposure (dose, duration, a biomarker), *f* is a
@@ -480,6 +518,8 @@ the probabilities are only approximate.
 * Imai K, van Dyk DA (2004). Causal inference with general treatment
   regimes: generalizing the propensity score. *Journal of the American
   Statistical Association* 99, 854–866.
+* Li F, Li F (2019). Propensity score weighting for causal inference with
+  multiple treatments. *Annals of Applied Statistics* 13, 2389–2415.
 * Li F, Morgan KL, Zaslavsky AM (2018). Balancing covariates via propensity
   score weighting. *Journal of the American Statistical Association* 113,
   390–400.

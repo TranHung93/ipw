@@ -46,7 +46,8 @@ An analysis has three steps:
 
 > **New in the development version.** Sections marked **New** describe
 > features added after ipw 1.3.2: count, gamma and log-normal exposures,
-> smooth terms with mgcv, ATT, ATC and overlap weights, `type = "all"` for
+> smooth terms with mgcv, ATT, ATC and overlap weights (also for
+> categorical exposures), `type = "all"` for
 > categorical and survival exposures in `ipwtm()`, and `ipwprobtm()`.
 > Existing calls give the same results as before.
 > The formulas, code and rationale behind each new feature are in the
@@ -165,6 +166,27 @@ w.ord <- ipwpoint(exposure = dose, family = "ordinal", link = "logit",
 w.mult <- ipwpoint(exposure = dose, family = "multinomial",
                    numerator = ~ 1, denominator = ~ l, data = cat.dat)
 rbind(ordinal = summary(w.ord$ipw.weights), multinomial = summary(w.mult$ipw.weights))
+```
+
+### New: ATT and overlap weights for categorical exposures
+
+For a categorical exposure, `estimand = "ATT"` targets the effect in the
+people at one level, the **focal** level: each person gets
+P(focal) / P(observed level), so people at the focal level keep weight 1 and
+the others are reweighted to look like them. `estimand = "ATO"` gives
+**generalized overlap weights** (Li & Li 2019): (1 / P(observed level)) /
+sum over all levels k of 1 / P(k). Both need `numerator = NULL`. For two
+levels they are the binomial ATT and ATO weights; for the effect in the
+controls of a categorical exposure, use `"ATT"` with `focal` set to the
+control level.
+
+```{r categorical-estimands}
+w.att <- ipwpoint(exposure = dose, family = "multinomial", denominator = ~ l,
+                  data = cat.dat, estimand = "ATT", focal = "high")
+w.ato <- ipwpoint(exposure = dose, family = "multinomial", denominator = ~ l,
+                  data = cat.dat, estimand = "ATO")
+rbind(ATT.high = tapply(w.att$ipw.weights, cat.dat$dose, mean),
+      ATO = tapply(w.ato$ipw.weights, cat.dat$dose, mean))
 ```
 
 ## Continuous exposures
@@ -555,6 +577,8 @@ any standard error.
 * Graffeo N, Latouche A, Geskus RB, Chevret S (2018). Modeling time-varying
   exposure using inverse probability of treatment weights. *Biometrical
   Journal* 60, 323-332. doi:10.1002/bimj.201600223.
+* Li F, Li F (2019). Propensity score weighting for causal inference with
+  multiple treatments. *Annals of Applied Statistics* 13, 2389-2415.
 * Li F, Morgan KL, Zaslavsky AM (2018). Balancing covariates via propensity
   score weighting. *Journal of the American Statistical Association* 113,
   390-400.
