@@ -125,7 +125,7 @@ should agree up to rounding:</p>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>max.abs.difference <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">w_ipw</span><span class="op">[[</span><span class="va">est</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">ipw.weights</span> <span class="op">-</span> <span class="va">w_wit</span><span class="op">[[</span><span class="va">est</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">weights</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>    max.weight <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">w_ipw</span><span class="op">[[</span><span class="va">est</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">ipw.weights</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                             ATE          ATT          ATC          ATO</span></span>
-<span><span class="co">#&gt; max.abs.difference 1.065814e-14 1.065814e-14 7.105427e-15 3.330669e-16</span></span>
+<span><span class="co">#&gt; max.abs.difference 1.065814e-14 2.220446e-15 8.881784e-15 2.220446e-16</span></span>
 <span><span class="co">#&gt; max.weight         1.180340e+01 8.832774e+00 1.080340e+01 9.152786e-01</span></span></code></pre></div>
 <p>The largest difference is at the level of floating-point rounding.
 Stabilized ATE weights agree too: <code>numerator = ~ 1</code> in ipw
@@ -149,7 +149,7 @@ its ATT weights with the untreated as the “treated” group
 <span>          <span class="fu">norm_by_group</span><span class="op">(</span><span class="va">ss</span><span class="op">$</span><span class="va">ps.weights</span><span class="op">[[</span><span class="va">psw_args</span><span class="op">[[</span><span class="va">est</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">weight</span><span class="op">]</span><span class="op">]</span>, <span class="va">d</span><span class="op">$</span><span class="va">a</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span><span class="op">)</span></span>
 <span><span class="co">#&gt;          ATE          ATT          ATC          ATO </span></span>
-<span><span class="co">#&gt; 0.000000e+00 4.336809e-19 3.469447e-18 8.673617e-19</span></span></code></pre></div>
+<span><span class="co">#&gt; 1.734723e-18 4.336809e-19 0.000000e+00 1.734723e-18</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="standard-errors">Standard errors<a class="anchor" aria-label="anchor" href="#standard-errors"></a>

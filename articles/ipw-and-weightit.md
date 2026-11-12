@@ -64,7 +64,7 @@ sapply(estimands, function(est)
   c(max.abs.difference = max(abs(w_ipw[[est]]$ipw.weights - w_wit[[est]]$weights)),
     max.weight = max(w_ipw[[est]]$ipw.weights)))
 #>                             ATE          ATT          ATC          ATO
-#> max.abs.difference 1.065814e-14 1.065814e-14 7.105427e-15 3.330669e-16
+#> max.abs.difference 1.065814e-14 2.220446e-15 8.881784e-15 2.220446e-16
 #> max.weight         1.180340e+01 8.832774e+00 1.080340e+01 9.152786e-01
 ```
 
@@ -93,7 +93,7 @@ sapply(estimands, function(est) {
           norm_by_group(ss$ps.weights[[psw_args[[est]]$weight]], d$a)))
 })
 #>          ATE          ATT          ATC          ATO 
-#> 0.000000e+00 4.336809e-19 3.469447e-18 8.673617e-19
+#> 1.734723e-18 4.336809e-19 0.000000e+00 1.734723e-18
 ```
 
 ### Standard errors
