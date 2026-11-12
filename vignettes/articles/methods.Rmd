@@ -650,12 +650,87 @@ to 4% larger and the difference did not shrink (n from 600 to 38 400).
 `ipwvcov()` matches the numerical Jacobian of the exact stacked equations
 in all cases.
 
-**Caveats.** Only binary point treatments with logistic `glm()` exposure models;
+**Time-varying weights from `ipwtm()`.** For `family = "binomial"` with
+logistic models, each model (denominator, numerator; treatment, censoring)
+is a parameter block, and the person, not the row, is the unit of
+independence. For row $r$ of person $p$, `ipwtm()` defines the weight as a
+product over that person's rows $s \le r$ in time order,
+
+$$
+w_r = \prod_{s \le r} \frac{f^{num}_s}{f^{den}_s}, \qquad
+f_s = \begin{cases}
+P(A_s = a_s) & \text{type "first" or "all", rows used by the model}\\
+1 - p_s & \text{type "cens", rows used by the model (the censoring row included)}\\
+1 & \text{rows after the first switch ("first", "cens")},
+\end{cases}
+$$
+
+where the rows used by the model are those with `selvar = 1` (all rows for
+`type = "all"`). With logistic models, $\partial \log f_s / \partial \alpha =
+(a_s - p_s) Z_s$ for "first" and "all", and $-p_s Z_s$ for "cens", so
+
+$$
+d_r = \frac{\partial \log w_r}{\partial \alpha} = -\sum_{s \le r,\ s \in p} \frac{\partial \log f^{den}_s}{\partial \alpha},
+\qquad
+e_r = \frac{\partial \log w_r}{\partial \gamma} = \sum_{s \le r,\ s \in p} \frac{\partial \log f^{num}_s}{\partial \gamma},
+$$
+
+cumulative sums within person, which also carry the value forward after the
+switch. The exposure-model score of person $p$ is $S_p = \sum_s (a_s - p_s)
+Z_s$ over the rows used by the model, and its information comes from the
+fitted glm. For the MSM, $U_r$ is the row score (the glm score, or for a
+Cox model on counting-process data `Surv(tstart, time, event)` the weighted
+score residual with risk sets $\{j: t^{start}_j < t \le t_j\}$), the cross
+blocks are $-\sum_r U_r d_r^T$ and $-\sum_r U_r e_r^T$ (for the Cox model
+by the same identity as above, now row by row), and the meat is
+$B = \sum_p \psi_p \psi_p^T$ with $\psi_p$ the sum of all scores of person
+$p$. A list of weight objects whose weights multiply, such as treatment
+times censoring weights, adds one block per model.
+
+The package tests compare the result with central finite differences of
+the stacked equations, with the weights recomputed from the model
+coefficients by independent code that follows the definition above
+(agreement about $10^{-7}$, on shuffled rows), for a `glm()` MSM with
+"all" and "cens" weights, a Cox MSM with "first" and "cens" weights and a
+subset of `haartdat`. They also compare with `WeightIt::glm_weightit(vcov =
+"asympt")` for a `weightitMSM()` object: with visits at the same times for
+everyone and time-specific columns in the pooled model, the weights are the
+same, and an MSM fitted on the long data with one parameter per non-last
+row (so that only the last rows carry information) has the same
+coefficients and variance as WeightIt's person-level model (agreement
+$10^{-6}$).
+
+**Heavy-tailed weights.** Cumulative weights are products of many
+factors. When some people have a very low probability of their observed
+exposure history (a near-violation of positivity), the weights have a heavy
+right tail: P(W > x) falls off like $x^{-\gamma}$ for a tail index $\gamma$.
+The weighted estimating equations then have a finite variance only if
+$\gamma > 2$. The usual normal approximation also relies on a finite third
+moment ($\gamma > 3$), and estimating the variance well, from the sandwich or
+from the bootstrap, relies on a finite fourth moment ($\gamma > 4$).
+
+Simulations with individual visit times (see the comparison article)
+estimated $\gamma$ with the Hill estimator on the top 5% of the final
+cumulative weights. The more strongly treatment depended on the confounder
+and on the previous treatment, the smaller the tail index: about 3.9, 2.8
+and 2.3 in three scenarios. Coverage of 95% intervals from `ipwvcov()`
+followed the tail index: about 95%, about 94% and 92 to 93%. In the
+heaviest-tailed scenario coverage did not improve between 300 and 4800
+people, while the largest weight kept growing with *n*. The cluster
+bootstrap did no better (90 to 95%, on fewer data sets), and `ipwvcov()` and
+the bootstrap gave about the same standard errors throughout. The formula is
+exact for the stacked estimating equations; the problem is the weights,
+and it affects any normal-theory interval. Check the weight distribution
+(`summary()`, `ipwplot()`, the effective sample size) before trusting any
+standard error. If a few people carry much of the weight, consider
+truncation, a less extreme weight model or a different estimand.
+
+**Caveats.** Only binary exposures with logistic `glm()` exposure models;
 truncated weights (truncation at estimated percentiles is not a smooth
-function of $\alpha$), smooth terms, other families, Cox models with
-counting-process data, strata, clusters or frailties, and time-varying
-weights from `ipwtm()` are not covered, and the bootstrap remains the
-advice there.
+function of $\alpha$), smooth terms, other families (including Cox
+exposure models in `ipwtm(family = "survival")`), Cox MSMs with strata or
+frailties, and Efron ties with tied event times are not covered, and the
+bootstrap remains the advice there.
 
 # References
 

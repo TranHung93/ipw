@@ -110,6 +110,26 @@
   `frailty()` and `tt()` are not supported. Checked against a numerical
   Jacobian of the stacked equations and a coverage simulation. Results for
   `lm()` and `glm()` models are unchanged.
+* `ipwvcov()` now also accepts time-varying weights from `ipwtm()` with
+  `family = "binomial"` and `link = "logit"` (`type = "first"`, `"cens"` or
+  `"all"`), or a list of `ipwtm()`/`ipwpoint()` results whose weights
+  multiply (e.g. treatment times censoring weights), with an `lm()`, `glm()`
+  or counting-process `coxph()` MSM on the long data. Scores are summed
+  within subject. Checked against a numerical Jacobian of the stacked
+  equations, `WeightIt::glm_weightit(vcov = "asympt")` with `weightitMSM()`
+  for visits at common times, and a coverage simulation. Cox, multinomial,
+  ordinal and gaussian exposure models in `ipwtm()` and truncated weights
+  give an error (use the cluster bootstrap). Results for `ipwpoint()`
+  weights are unchanged. `?ipwvcov` and the articles explain that
+  heavy-tailed cumulative weights (a near-violation of positivity) make
+  normal-theory intervals unreliable for any method, the bootstrap
+  included. A simulation (`data-raw/make-ipwvcov-tm-tail.R`) estimates the
+  tail index and coverage for 300 to 4800 people.
+* `ipwtm()` results carry new attributes `"family"`, `"type"`, `"id"` and
+  `"sort.order"` (used by `ipwvcov()`); the list elements and weights are
+  unchanged.
+* `?ipwpoint` and `?ipwtm`: the "Standard errors" paragraphs list every case
+  that `ipwvcov()` supports.
 * `ipwpoint()`: `estimand = "ATC"` (effect in the untreated) for a binomial
   exposure: treated get weight (1 - p)/p, untreated 1.
 * `ipwpoint()`: `estimand = "ATT"` and `"ATO"` for `family = "multinomial"`

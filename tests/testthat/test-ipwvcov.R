@@ -179,7 +179,9 @@ test_that("ipwvcov gives clear errors for unsupported input", {
   long$x <- stats::rbinom(150, 1, stats::plogis(long$l))
   wtm <- ipwtm(exposure = x, family = "binomial", link = "logit", denominator = ~ l,
                id = id, timevar = time, type = "all", data = long)
-  expect_error(ipwvcov(wtm, msm), "does not support time-varying weights from ipwtm")
+  # ipwtm() weights are supported (test-ipwvcov-tm.R), but the MSM must be
+  # fitted on the rows of the long data
+  expect_error(ipwvcov(wtm, msm), "fitted on 300 rows but the long data have 150 rows")
 
   skip_if_not_installed("mgcv")
   wg <- ipwpoint(a, "binomial", "logit", denominator = ~ s(l), data = d)
