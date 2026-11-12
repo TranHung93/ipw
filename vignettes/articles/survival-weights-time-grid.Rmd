@@ -1,12 +1,12 @@
 ---
-title: "Survival weights with individual visit times: a bug in every version up to 1.3.2"
+title: "Survival weights and the time grid: a caution for ipw 1.3.2 and earlier"
 ---
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 library(ipw)
 library(survival)
-stored <- readRDS("survival-weights-bug.rds")
+stored <- readRDS("survival-weights-time-grid.rds")
 cases <- stored$cases
 data("haartdat", package = "ipw")
 cases$haartdat_first$data <- haartdat
@@ -18,26 +18,33 @@ fmt <- function(x, d = 2) trimws(formatC(x, format = "g", digits = d))
 
 ## Summary
 
-`ipwtm()` with `family = "survival"` and `type = "first"` (or `"cens"` for
-censoring weights) computed **wrong weights when subjects have their own
-visit times**, that is, when the rows of different subjects do not start and
-end at the same time points. The probability of each row used the increase
-in the baseline hazard since the previous time point *in the whole data
-set*, instead of since the start of the row.
+In ipw 1.3.2 and earlier, `ipwtm()` with `family = "survival"` and
+`type = "first"` (or `"cens"` for censoring weights) gives correct weights
+**only when the data are on a full time grid**: all follow-up is split at
+all times that occur in the data, so that the rows of all subjects start and
+end at the same time points. This is how the data are prepared in the
+examples of the JSS paper (van der Wal and Geskus, 2011), in `haartdat` and
+in Example 2 of `?ipwtm`.
 
-* The bug is in **every version on CRAN, from ipw 1.0 (2011) to ipw 1.3.2**.
-  All `r length(versions)` versions were installed and run on the same data
-  for this page; they give identical weights.
-* Data in which all subjects share the same time points, such as `haartdat`
-  or data prepared as in Example 2 of `?ipwtm`, were **not affected**.
-* With individual visit times the weights were far off: in the example below
-  some weights differ from the correct ones by a factor of more than 30.
-* In a simulation with a known answer (section 7), ipw 1.2.1.1 gave exactly
-  the same biased estimate as using no weights at all; the fixed version
-  removes the bias (completely with short rows; with long rows a small
-  approximation remains, which is the same in every version).
-* The development version fixes it: each row uses the baseline hazard over
-  its own interval `(tstart, timevar]`.
+* **Caution for older versions.** If the rows of different subjects end at
+  different times, for example one row per visit with each subject's own
+  visit dates, ipw 1.3.2 and earlier give incorrect weights. The probability
+  of each row uses the increase in the baseline hazard since the previous
+  time point *in the whole data set*, which is the start of the row only on
+  a full grid. All `r length(versions)` versions on CRAN, from ipw 1.0 (2011)
+  to 1.3.2, behave the same way.
+* **If you used an older version with data on the full grid, your weights
+  are correct.** To be sure, check your data with `rows_affected()`
+  (section 5), or rerun the analysis with the updated ipw, which gives the
+  same weights for such data (section 8).
+* **Improvement in this version.** Each row now uses the baseline hazard
+  over its own interval `(tstart, timevar]`, so data with individual visit
+  times can be used directly, without splitting them onto a grid.
+* With individual visit times the older versions' weights can be far off: in
+  the example in section 6 some differ from the correct ones by a factor of
+  more than 30, and in a simulation with a known answer (section 7) ipw
+  1.2.1.1 gave the same biased estimate as using no weights at all, while the
+  updated version gives the right answer.
 
 ## 1. Hazards in plain words
 
@@ -104,7 +111,7 @@ of the inverse probabilities of the rows of that subject so far (and the
 numerator model's probabilities, for stabilised weights). Censoring weights
 (`type = "cens"`) use the probability of remaining uncensored the same way.
 
-## 3. What older versions computed
+## 3. What older versions computed, and why the full grid matters
 
 Older versions computed the hazard of a row as
 
@@ -113,10 +120,11 @@ H_0(t) - H_0(t_\text{prev}),
 $$
 
 where $t_\text{prev}$ is the time point just before $t$ **among all times
-in the data**, of any subject. When every subject has rows at the same time
-points, $t_\text{prev}$ is the start of the row, and the two are the same.
-When subjects have their own visit times, $t_\text{prev}$ is usually later
-than $t_\text{start}$, so part of the hazard during the row is left out: the
+in the data**, of any subject. When the data are on a full grid (every subject has
+rows at the same time points), $t_\text{prev}$ is the start of the row, and
+the two are the same: the older versions are correct. When subjects have
+their own visit times, $t_\text{prev}$ is usually later than
+$t_\text{start}$, so part of the hazard during the row is left out: the
 probability of no exposure is too high and the probability of exposure too
 low. Weights of exposed rows come out too large, and weights of unexposed
 rows too small.
@@ -266,11 +274,13 @@ max(abs(old_res("1.0", "tiny")$weights - w_old))
 max(abs(w_dev - w_correct))
 ```
 
-## 5. Is my data affected?
+## 5. Were my data on the full grid?
 
-Only rows that enter the exposure (or censoring) model matter, and only if
-their `tstart` is not the time point just before their `timevar` among all
-times in the data. This function counts such rows:
+For the older versions, what matters is whether each row that enters the
+exposure (or censoring) model starts at the time point just before its
+`timevar` among all times in the data. This function counts the rows for
+which that is *not* the case; 0 means the data are on the full grid and the
+older versions gave correct weights:
 
 ```{r check-fun}
 rows_affected <- function(data, id, tstart, timevar, exposure) {
@@ -286,22 +296,65 @@ rows_affected(cases$own_first$data, "id", "tstart", "time", "a")
 nrow(cases$own_first$data)
 ```
 
-`haartdat` has no affected rows: all patients have rows every 100 days. In
-the data with individual visit times nearly every row is affected. If the
-count is 0 for your data, the old versions gave the correct weights.
+`haartdat` is on the full grid: all patients have rows every 100 days. In
+the data with individual visit times nearly every row is off the grid. Run
+`rows_affected()` on the data you gave to `ipwtm()`, with the names of your
+id, start time, end time and exposure (or censoring) columns.
+
+### The examples of the JSS paper
+
+The JSS paper's example on tuberculosis and mortality (Section 4.3, Example 2
+of `?ipwtm`) has CD4 measurements at irregular times, a different schedule
+for each patient (`timedat`). Those measurements are only used to fit a CD4
+model. The data given to `ipwtm()` are built on a full grid: every patient
+gets a row at every TB time and every end of follow-up of *all* patients.
+
+```{r jss-grid}
+data("basdat", package = "ipw")
+data("timedat", package = "ipw")
+# CD4 measurement times: each patient has their own
+head(timedat$fuptime[timedat$id == 2], 6)
+head(timedat$fuptime[timedat$id == 3], 6)
+
+# the data for ipwtm(), as in Example 2 of ?ipwtm
+times <- sort(unique(c(basdat$Ttb, basdat$Tend)))
+startstop <- data.frame(id = rep(basdat$id, each = length(times)),
+                        fuptime = rep(times, nrow(basdat)))
+startstop <- merge(startstop, basdat, by = "id", all.x = TRUE)
+startstop <- startstop[with(startstop, fuptime <= Tend), ]
+startstop$tstart <- tstartfun(id, fuptime, startstop)
+startstop$tb <- ifelse(with(startstop, !is.na(Ttb) & fuptime >= Ttb), 1, 0)
+head(startstop[startstop$id == 2, c("id", "tstart", "fuptime", "tb")], 6)
+head(startstop[startstop$id == 3, c("id", "tstart", "fuptime", "tb")], 6)
+rows_affected(startstop, "id", "tstart", "fuptime", "tb")
+```
+
+Patients 2 and 3 have identical rows, cut at other patients' TB and end
+times, and no row is off the grid: the older versions give correct weights
+for this example. Had the rows instead been cut at each patient's own CD4
+measurement times, almost every row would have been off the grid:
+
+```{r jss-visits}
+visits <- merge(timedat[, c("id", "fuptime")], basdat[, c("id", "Ttb")], by = "id")
+visits <- visits[order(visits$id, visits$fuptime), ]
+visits$tstart <- tstartfun(id, fuptime, visits)
+visits$tb <- ifelse(!is.na(visits$Ttb) & visits$fuptime >= visits$Ttb, 1, 0)
+rows_affected(visits, "id", "tstart", "fuptime", "tb")
+nrow(visits)
+```
 
 ## 6. All versions from 1.0 to 1.3.2
 
 The same cases were run in every version of ipw on CRAN (in separate R
-sessions, with the script `data-raw/make-survival-bug-article-data.R`) and
+sessions, with the script `data-raw/make-survival-time-grid-article-data.R`) and
 compared with the correct weights computed by hand as above:
 
 * **haartdat**: treatment weights (`type = "first"`) and censoring weights
-  (`type = "cens"`) from the `?ipwtm` example; common time grid.
+  (`type = "cens"`) from the `?ipwtm` example; on the full grid.
 * **own times**: 300 subjects, each with their own visit times, unstabilised
   (`numerator = NULL`) and stabilised (`numerator = ~ x`), and censoring
   weights.
-* **own times on a common grid**: the same data, with every row split at
+* **own times on the full grid**: the same data, with every row split at
   all times in the data (as in Example 2 of `?ipwtm`).
 
 ```{r correct-weights, include = FALSE}
@@ -348,11 +401,11 @@ status <- function(x, ref) {
   if (is.null(x)) return("not run")
   if (!is.na(x$error)) return(if (grepl("No type specified", x$error)) "no type = \"cens\"" else "error")
   d <- max(abs(x$weights / ref - 1))
-  if (d < 1e-8) "correct" else paste0("wrong (", fmt(d), ")")
+  if (d < 1e-8) "correct" else paste0("incorrect (", fmt(d), ")")
 }
 labels <- c(haartdat_first = "haartdat, first", haartdat_cens = "haartdat, cens",
             own_first = "own times, first", own_first_stab = "own times, first, stabilised",
-            own_cens = "own times, cens", common_grid_first = "own times on a common grid")
+            own_cens = "own times, cens", common_grid_first = "own times on the full grid")
 rows <- lapply(versions, function(v) {
   bv <- stored$by_version[[v]]
   st <- if (!isTRUE(bv$installed) || is.null(bv$results)) rep("could not be run", length(labels)) else
@@ -361,7 +414,7 @@ rows <- lapply(versions, function(v) {
 })
 rows[[length(rows) + 1]] <- c(paste0("this version (", utils::packageVersion("ipw"), ")"),
   vapply(names(labels), function(nm) {
-    d <- max(abs(now[[nm]] / refs[[nm]] - 1)); if (d < 1e-8) "correct" else paste0("wrong (", fmt(d), ")")
+    d <- max(abs(now[[nm]] / refs[[nm]] - 1)); if (d < 1e-8) "correct" else paste0("incorrect (", fmt(d), ")")
   }, ""))
 tab <- as.data.frame(do.call(rbind, rows), stringsAsFactors = FALSE)
 names(tab) <- c("Version", labels)
@@ -379,12 +432,14 @@ ok <- vapply(versions, function(v) {
 }, logical(1))
 ```
 
-All `r sum(ok)` versions give the same weights as ipw 1.0 for the
-individual visit times, to 1e-10. The calculation was the same from the
-first release; the rewrite in 1.3 kept it, and its comparison with 1.2.1.1
-used `haartdat`, where the two agree.
+All versions are correct for the data on the full grid (`haartdat`, and
+the visit-time data after splitting onto the full grid), and all
+`r sum(ok)` versions give the same weights as ipw 1.0 for the data with
+individual visit times, to 1e-10: the calculation was the same from the
+first release, and the rewrite in 1.3 kept it.
 
-How far off are the weights? For the unstabilised weights:
+How far off are the older versions' weights for the data with individual
+visit times? For the unstabilised weights:
 
 ```{r size}
 old_w <- old_res("1.3.2", "own_first")$weights
@@ -395,7 +450,7 @@ c(largest_weight_old = max(old_w), largest_weight_correct = max(refs$own_first))
 ## 7. What it does to an estimate: a simulation
 
 ```{r sim-setup, include = FALSE}
-sim <- readRDS("survival-weights-bug-sim.rds")
+sim <- readRDS("survival-weights-time-grid-sim.rds")
 sc <- sim$scenarios
 pct <- function(x, d = 1) paste0(formatC(100 * x, format = "f", digits = d), "%")
 sim_rows <- function(r, label) {
@@ -413,8 +468,10 @@ sim_rows <- function(r, label) {
 }
 ```
 
-This simulation has a known answer, so it shows what the wrong weights do
-to an estimate.
+This simulation has a known answer. It shows what happens to an estimate
+when data with individual visit times, *not* split onto the full grid, are
+used with an older version, and that the updated version handles such data
+directly.
 
 **The question.** What is the risk of death within one year *if nobody
 started treatment*? In the data, patients start treatment during
@@ -440,7 +497,7 @@ Kaplan-Meier estimate gives the risk.
   400,000 patients from the same process with treatment start switched off.
 
 The code that makes the data and runs the analysis is in
-`data-raw/make-survival-bug-simulation.R`. Each data set is analysed like
+`data-raw/make-survival-time-grid-simulation.R`. Each data set is analysed like
 this:
 
 ```{r sim-analysis, eval = FALSE}
@@ -476,19 +533,19 @@ than about two MCSE is within simulation noise.
 * **ipw 1.2.1.1 gives exactly the same answer as no weights.** Its weights
   hardly differ from 1: on average the largest weight in a data set is
   `r round(mean(sc$long$old$results[, "max_w"]), 2)`, against
-  `r round(mean(sc$long$dev$results[, "max_w"]), 1)` with the fixed version.
+  `r round(mean(sc$long$dev$results[, "max_w"]), 1)` with the updated version.
   With exact event times, almost every row ends at its own time, and the
   "previous time in the data" that the old code used is a moment before the
   end of the row. The hazard over that moment is almost zero, so the
   probability of staying untreated is almost 1 and the weight almost 1. The
   old weights therefore did not correct for the confounding at all.
-* **The fixed version removes the bias.** With visits 1 to 5 days apart its
+* **The updated version removes the bias.** With visits 1 to 5 days apart its
   estimate is within simulation noise of the true risk. With visits 3 to 20
   days apart a small bias remains
   (`r formatC(100 * (mean(sc$long$dev$results[, "weighted"]) - sc$long$truth), format = "f", digits = 1, flag = "+")`
   percentage points, against
   `r formatC(100 * (mean(sc$long$old$results[, "weighted"]) - sc$long$truth), format = "f", digits = 1, flag = "+")`
-  for the old version). That is not a bug: `ipwtm()` gives each row the
+  for the old version). That is not related to the time grid: `ipwtm()` gives each row the
   weight at the *end* of the row, and uses it for the whole row. Within a
   long row the weight should grow gradually, so patients who are still
   followed early in the row get a slightly too large weight. This
@@ -531,16 +588,30 @@ nrow(ex)
 
 ## 8. If you used an older version
 
-1. Check your data with `rows_affected()` above. If it returns 0, your
-   weights were correct.
-2. Otherwise, recompute the weights with the fixed version. With an older
-   version you can get correct weights by first splitting every row at all
-   times that occur in the data, so that all subjects share one time grid;
-   the last column of the table in section 6 shows that this gives the correct
-   weights in every version. For example:
+**If your data were on the full grid, your weights are correct.** This is
+the case if all follow-up was split at all times that occur in the data
+(for example, all event and end times of all subjects), as in the examples
+of the JSS paper and Example 2 of `?ipwtm`, or if all subjects simply have
+rows at the same time points, as in `haartdat`. The last column of the table
+in section 6 shows that every version gives correct weights for such data.
+
+**To be sure**, do one of these:
+
+1. Run `rows_affected()` (section 5) on the data you gave to `ipwtm()`. If
+   it returns 0, the data were on the full grid and the weights were
+   correct.
+2. Rerun the analysis with the updated ipw. For data on the full grid it
+   gives the same weights as the older versions; the package tests check this
+   against stored results of ipw 1.2.1.1. If the weights differ, the data
+   were not on the full grid, and the new weights are the correct ones.
+
+**If your data were not on the full grid**, recompute the weights with the
+updated ipw, which handles individual visit times directly. With an older
+version you can get correct weights by first splitting every row at all
+times that occur in the data. For example:
 
 ```{r split, eval = FALSE}
-split_common_grid <- function(d) {
+split_full_grid <- function(d) {
   grid <- sort(unique(c(d$tstart, d$time)))
   do.call(rbind, lapply(seq_len(nrow(d)), function(r) {
     cuts <- grid[grid > d$tstart[r] & grid < d$time[r]]
@@ -551,7 +622,10 @@ split_common_grid <- function(d) {
 }
 ```
 
-The weight at the end of an original row is the weight on its last piece.
+Covariates keep the value of the original row on every piece, and the
+exposure (or censoring) event goes on the last piece only. The weight at the
+end of an original row is the weight on its last piece; it equals the weight
+that the updated version gives for the original row.
 
 ## 9. The code: before and after
 
@@ -563,7 +637,7 @@ show_lines <- function(x, lines) {
 ```
 
 The code below is taken from the source packages on CRAN (stored with this
-article by `data-raw/make-survival-bug-article-data.R`); line numbers are
+article by `data-raw/make-survival-time-grid-article-data.R`); line numbers are
 those of `R/ipwtm.R` in each version. Only the denominator model is shown;
 the numerator model had the same code.
 
@@ -600,7 +674,7 @@ times (line 492), `step_haz` the increase between neighbouring times (line
 501), merged onto the rows by their end time and used as the hazard of the
 row (line 513).
 
-### The fix (this version)
+### This version
 
 ```{r code-now, echo = FALSE, comment = ""}
 src <- if (file.exists("../../R/ipwtm.R")) readLines("../../R/ipwtm.R") else character()
@@ -613,7 +687,7 @@ if (length(from) == 1 && length(to) == 1) show_lines(src, from:to) else
 The cumulative baseline hazard is now evaluated at both ends of each row's
 own interval, `timevar` and `tstart`, and the difference is the hazard of
 the row. This is the calculation that `type = "all"` (new in this version)
-already used. For data on a common time grid the weights are unchanged; the
+already used. For data on the full grid the weights are unchanged; the
 package tests check this against the stored results of ipw 1.2.1.1 for
 `haartdat` and other data.
 
@@ -638,7 +712,8 @@ if (length(from) == 1 && length(start) == 1 && !is.na(end)) {
 } else cat("(test file not found)\n")
 ```
 
-The same comparison fails for every version up to 1.3.2, as section 6 shows.
+For data with individual visit times, the same comparison fails for every
+version up to 1.3.2, as section 6 shows.
 Another test checks that `type = "first"` and `type = "all"` agree when every
 subject is exposed at most once (`tests/testthat/test-audit-ipwtm.R`). The
 tests run on Linux, macOS and Windows with every change to the package.

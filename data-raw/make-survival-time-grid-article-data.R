@@ -1,4 +1,4 @@
-# Data for vignettes/articles/survival-weights-bug.Rmd.
+# Data for vignettes/articles/survival-weights-time-grid.Rmd.
 #
 # Installs every version of ipw from the CRAN archive (plus the current CRAN
 # release), each into its own library, runs the same survival cases in each
@@ -10,7 +10,7 @@
 
 stopifnot(requireNamespace("callr"))
 suppressPackageStartupMessages(library(survival))
-out_file <- file.path("vignettes", "articles", "survival-weights-bug.rds")
+out_file <- file.path("vignettes", "articles", "survival-weights-time-grid.rds")
 cran <- "https://cloud.r-project.org"
 
 # ---- versions on CRAN -------------------------------------------------------
