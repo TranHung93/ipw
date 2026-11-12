@@ -70,10 +70,11 @@
 * New section "ipw or WeightIt?" in the README (with a comparison table) and a
   short version near the start of `vignette("ipw")`: when to use which
   package.
-* New article "ipw and WeightIt side by side": the same binary and
-  categorical point treatments in both packages (weights and standard
-  errors), and longitudinal data with individual visit times in `ipwtm()`
-  and `weightitMSM()`.
+* New article "ipw, WeightIt and PSweight side by side": the same binary
+  and categorical point treatments in all three packages (weights and
+  standard errors), and longitudinal data with individual visit times in
+  `ipwtm()` and `weightitMSM()`. The README section "ipw or WeightIt?" also
+  names PSweight as an option for point treatments.
 * `?ipwpoint` and `vignette("ipw")`, section 5: `ipwvcov()` is the
   recommended standard error for a binary point treatment; the bootstrap
   remains the advice otherwise. The methods article has new sections on
@@ -155,6 +156,14 @@
   invisibly).
 * The `ipwtm()` examples no longer call `graphics.off()`, which closed all of
   the user's open graphics devices.
+
+## Tests
+
+* New tests against PSweight (in Suggests) as a second independent check:
+  `ipwpoint()` weights for a binary exposure (ATE, ATT, ATC, ATO) and a
+  three-level multinomial exposure (ATE, ATT with a focal level, overlap
+  weights), and `ipwvcov()` standard errors against PSweight's sandwich
+  standard errors of the difference in means.
 
 ## License
 
