@@ -31,8 +31,12 @@ without any warning in 1.3.1 and 1.3.2:
 * local: Windows 11 x64, R 4.6.1 (2026-06-24 ucrt)
 * GitHub Actions: ubuntu-latest (R-devel, R-release, R-oldrel-1),
   macos-latest (R-release), windows-latest (R-release)
-* win-builder: R-devel  <!-- fill in from devtools::check_win_devel() -->
-* R-hub  <!-- fill in from rhub::rhub_check() -->
+* win-builder: R-release (R 4.6.2)
+  <!-- add R-devel from devtools::check_win_devel() -->
+* R-hub: linux (R-devel), macos-arm64 (R-devel), windows (R-devel).
+  The R-hub nosuggests container could not install the Suggests
+  (nloptr failed to load: libRlapack.so missing in the container); the
+  depends-only check below covers that case.
 
 ### R CMD check results
 
