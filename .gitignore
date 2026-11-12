@@ -9,3 +9,6 @@ docs/
 inst/doc
 vignettes/*.html
 vignettes/*.R
+
+# created by tests that plot to the default device
+tests/testthat/Rplots.pdf
