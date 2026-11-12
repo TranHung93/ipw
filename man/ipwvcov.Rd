@@ -10,9 +10,9 @@ ipwvcov(object, msm)
 \item{object}{Result of \code{\link{ipwpoint}} with \code{family = "binomial"}
 and \code{link = "logit"}.}
 
-\item{msm}{Marginal structural model: an \code{lm} or \code{glm} fit with
-prior weights equal to \code{object$ipw.weights}, on the same rows in the
-same order as the data given to \code{ipwpoint()}.}
+\item{msm}{Marginal structural model: an \code{lm}, \code{glm} or
+\code{coxph} fit with weights equal to \code{object$ipw.weights}, on the
+same rows in the same order as the data given to \code{ipwpoint()}.}
 }
 \value{
 Variance-covariance matrix of the coefficients of \code{msm}, with
@@ -21,7 +21,8 @@ Variance-covariance matrix of the coefficients of \code{msm}, with
 }
 \description{
 \strong{New, experimental.} Variance-covariance matrix of the coefficients
-of a marginal structural model fitted with \code{lm()} or \code{glm()} and
+of a marginal structural model fitted with \code{lm()}, \code{glm()} or
+\code{survival::coxph()} and
 weights from \code{\link{ipwpoint}} for a binary point treatment, taking the
 estimation of the weights into account. The marginal structural model and
 the exposure models are treated as one set of stacked estimating equations
@@ -56,21 +57,54 @@ asymptotically equivalent when the model is correctly specified.
 No small-sample correction is applied. Proportional rescaling of the
 weights does not change the result.
 
+\strong{Cox models.} For a \code{coxph()} marginal structural model the
+weighted partial likelihood score is used as the estimating equation
+(Binder 1992; Lin & Wei 1989), with the Breslow form for tied event
+times. Person \eqn{i}'s contribution is \eqn{w_i} times the score
+residual, \eqn{U_i = w_i [\delta_i (X_i - \bar X(t_i)) - \sum_k \delta_k
+w_k Y_i(t_k) e^{\beta' X_i} (X_i - \bar X(t_k)) / S_0(t_k)]}, with
+\eqn{S_0(t) = \sum_j w_j Y_j(t) e^{\beta' X_j}} and \eqn{\bar X(t)} the
+weighted mean of \eqn{X} in the risk set; \code{residuals(msm, type =
+"score")} returns the part in brackets (without the weight). The bread
+for \eqn{\beta} is the weighted information matrix (the inverse of
+\code{msm$naive.var}). The weights enter both each person's own term and
+the risk-set sums; differentiating the total score with respect to one
+weight gives exactly that person's score residual, so the cross block is
+\eqn{-\sum_i U_i d_i^T} with \eqn{d_i = \partial \log w_i / \partial
+\alpha}, as for \code{glm()}. It is computed analytically; the package
+tests check it against central finite differences of the stacked
+estimating equations. Without the exposure models, the sandwich reduces
+to \code{coxph()}'s robust variance (\code{msm$var}), which treats the
+weights as known.
+
 Supported: \code{object} from \code{ipwpoint(family = "binomial",
 link = "logit")} with denominator (and, if present, numerator) models
 fitted by \code{glm()} (no smooth terms) and any \code{estimand}; \code{msm} of class
 \code{"lm"} or \code{"glm"}, fitted on the same rows, in the same order, as
-the weights, with \code{weights = object$ipw.weights}.
+the weights, with \code{weights = object$ipw.weights}; or \code{msm} from
+\code{coxph()} with right-censored data \code{Surv(time, status)}, one row
+per person in the same order, and the same weights. For \code{coxph()},
+tied event times need \code{ties = "breslow"}; without tied event times
+all tie methods give the same result.
 
 Not supported, and an error: other exposure families or links, smooth terms
 (GAMs), truncated weights (truncation at estimated percentiles is not a
-smooth function of the model coefficients) and time-varying weights from
-\code{\link{ipwtm}}. Use the bootstrap there, re-estimating the weights in
+smooth function of the model coefficients), time-varying weights from
+\code{\link{ipwtm}}, and \code{coxph()} models with counting-process data,
+\code{strata()}, \code{cluster()}, \code{frailty()} or \code{tt()} terms, or
+Efron or exact ties with tied event times. Use the bootstrap there, re-estimating the weights in
 each bootstrap sample (see \code{\link{ipwpoint}} and \code{vignette("ipw")}).
 
 This is the same kind of standard error as \code{vcov = "asympt"} in
 \code{WeightIt::glm_weightit()}; in the package tests the two agree for
-binary treatments.
+binary treatments. For Cox models, \code{ipwvcov()} agrees with a
+numerical Jacobian of the stacked estimating equations to about
+\eqn{10^{-7}}. \code{WeightIt::coxph_weightit(vcov = "asympt")} gives
+slightly different values: for the ATE and overlap weights the relative
+difference was below 0.1\% and shrank with the sample size; for ATT and
+ATC weights its standard error was 1 to 4\% larger and the difference did
+not shrink. Its \code{vcov = "HC0"} equals \code{coxph()}'s robust
+variance exactly.
 }
 \examples{
 set.seed(16)
@@ -97,11 +131,27 @@ if (requireNamespace("lmtest", quietly = TRUE)) {
   print(lmtest::coeftest(msm, vcov. = ipwvcov(w, msm)))
   print(lmtest::coefci(msm, vcov. = ipwvcov(w, msm)))
 }
+
+# Cox marginal structural model for a survival outcome
+library(survival)
+simdat$time <- rexp(n, 0.1 * exp(-0.5 * simdat$a + 0.05 * simdat$l))
+simdat$status <- as.numeric(simdat$time < 10)
+simdat$time <- pmin(simdat$time, 10)
+msm.cox <- coxph(Surv(time, status) ~ a, data = simdat, weights = w$ipw.weights)
+cbind(robust = sqrt(diag(msm.cox$var)),          # weights treated as known
+      ipwvcov = sqrt(diag(ipwvcov(w, msm.cox))))  # weights estimated
 }
 \references{
 Lunceford, J.K. & Davidian, M. (2004). Stratification and weighting via the
 propensity score in estimation of causal treatment effects: a comparative
 study. \emph{Statistics in Medicine}, \bold{23}, 2937-2960. \doi{10.1002/sim.1903}.
+
+Binder, D.A. (1992). Fitting Cox's proportional hazards models from
+survey data. \emph{Biometrika}, \bold{79}, 139-147. \doi{10.1093/biomet/79.1.139}.
+
+Lin, D.Y. & Wei, L.J. (1989). The robust inference for the Cox proportional
+hazards model. \emph{Journal of the American Statistical Association},
+\bold{84}, 1074-1078. \doi{10.1080/01621459.1989.10478874}.
 
 Stefanski, L.A. & Boos, D.D. (2002). The calculus of M-estimation.
 \emph{The American Statistician}, \bold{56}, 29-38. \doi{10.1198/000313002753631330}.
