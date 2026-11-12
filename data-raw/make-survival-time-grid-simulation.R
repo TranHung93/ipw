@@ -1,4 +1,4 @@
-# Simulation for vignettes/articles/survival-weights-bug.Rmd, section 6.
+# Simulation for vignettes/articles/survival-weights-time-grid.Rmd, section 7.
 #
 # Target: the 1-year risk of death if nobody started treatment. Follow-up is
 # censored when a patient starts treatment; censoring weights from ipwtm()
@@ -20,7 +20,7 @@
 
 stopifnot(requireNamespace("callr"))
 suppressPackageStartupMessages(library(survival))
-out_file <- file.path("vignettes", "articles", "survival-weights-bug-sim.rds")
+out_file <- file.path("vignettes", "articles", "survival-weights-time-grid-sim.rds")
 
 gen <- function(n, with_treatment = TRUE, gap_range = c(3, 20)) {
   lam_c <- 0.003; lam_d <- 0.001   # baseline hazards per day: start of treatment, death
