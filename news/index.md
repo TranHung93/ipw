@@ -156,6 +156,23 @@
   weights: use the bootstrap there. Agrees with
   `WeightIt::glm_weightit(vcov = "asympt")` in the tests.
 
+- [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+  now also accepts a
+  [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) marginal
+  structural model with right-censored data (`Surv(time, status)`, one
+  row per person) and
+  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  weights: the weighted partial likelihood score is stacked with the
+  exposure models (Binder 1992; Lin & Wei 1989). Tied event times need
+  `ties = "breslow"`; counting-process data,
+  [`strata()`](https://rdrr.io/pkg/survival/man/strata.html),
+  [`cluster()`](https://rdrr.io/pkg/survival/man/cluster.html),
+  [`frailty()`](https://rdrr.io/pkg/survival/man/frailty.html) and
+  `tt()` are not supported. Checked against a numerical Jacobian of the
+  stacked equations and a coverage simulation. Results for
+  [`lm()`](https://rdrr.io/r/stats/lm.html) and
+  [`glm()`](https://rdrr.io/r/stats/glm.html) models are unchanged.
+
 - [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md):
   `estimand = "ATC"` (effect in the untreated) for a binomial exposure:
   treated get weight (1 - p)/p, untreated 1.

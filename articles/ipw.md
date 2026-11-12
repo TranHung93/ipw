@@ -607,8 +607,9 @@ therefore extreme weights. Check the weights and consider `trunc`.
 ### New: `ipwvcov()` for a binary point treatment
 
 For a binary point treatment and a marginal structural model fitted with
-[`lm()`](https://rdrr.io/r/stats/lm.html) or
-[`glm()`](https://rdrr.io/r/stats/glm.html),
+[`lm()`](https://rdrr.io/r/stats/lm.html),
+[`glm()`](https://rdrr.io/r/stats/glm.html) or
+[`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html),
 [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
 returns the variance-covariance matrix of the MSM coefficients with the
 estimation of the weights taken into account. The MSM and the exposure
@@ -632,10 +633,38 @@ se.mest
 `lmtest::coeftest(msm.lm, vcov. = ipwvcov(w, msm.lm))` gives Wald tests
 and [`lmtest::coefci()`](https://rdrr.io/pkg/lmtest/man/coeftest.html)
 confidence intervals.
+
+For a survival outcome, the MSM can be a weighted Cox model with one row
+per person and `Surv(time, status)`. Below, a time to event is simulated
+for `simdat` with a hazard ratio of exp(-0.5) for `a`. The robust
+standard error of
+[`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) treats the
+weights as known;
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+accounts for their estimation:
+
+``` r
+
+set.seed(5)
+simdat$time <- rexp(nrow(simdat), 0.1 * exp(-0.5 * simdat$a + 0.05 * simdat$l))
+simdat$status <- as.numeric(simdat$time < 10)
+simdat$time <- pmin(simdat$time, 10)
+msm.cox <- coxph(Surv(time, status) ~ a, data = simdat, weights = w$ipw.weights)
+c(log.hr = unname(coef(msm.cox)),
+  robust.se = sqrt(msm.cox$var[1, 1]),
+  ipwvcov.se = sqrt(ipwvcov(w, msm.cox)[1, 1]))
+#>     log.hr  robust.se ipwvcov.se 
+#> -0.3949927  0.1635881  0.1499562
+```
+
+With tied event times, fit the Cox model with `ties = "breslow"`.
 [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
 needs a logistic exposure model (`link = "logit"`), and does not handle
-truncated weights, smooth terms, other exposure families or time-varying
-weights from
+truncated weights, smooth terms, other exposure families, Cox models
+with counting-process data,
+[`strata()`](https://rdrr.io/pkg/survival/man/strata.html) or
+[`cluster()`](https://rdrr.io/pkg/survival/man/cluster.html), or
+time-varying weights from
 [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md); for
 these, use the bootstrap below.
 

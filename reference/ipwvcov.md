@@ -2,8 +2,10 @@
 
 **New, experimental.** Variance-covariance matrix of the coefficients of
 a marginal structural model fitted with
-[`lm()`](https://rdrr.io/r/stats/lm.html) or
-[`glm()`](https://rdrr.io/r/stats/glm.html) and weights from
+[`lm()`](https://rdrr.io/r/stats/lm.html),
+[`glm()`](https://rdrr.io/r/stats/glm.html) or
+[`survival::coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) and
+weights from
 [`ipwpoint`](https://tranhung93.github.io/ipw/reference/ipwpoint.md) for
 a binary point treatment, taking the estimation of the weights into
 account. The marginal structural model and the exposure models are
@@ -28,7 +30,7 @@ ipwvcov(object, msm)
 
 - msm:
 
-  Marginal structural model: an `lm` or `glm` fit with prior weights
+  Marginal structural model: an `lm`, `glm` or `coxph` fit with weights
   equal to `object$ipw.weights`, on the same rows in the same order as
   the data given to
   [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md).
@@ -69,24 +71,66 @@ asymptotically equivalent when the model is correctly specified. No
 small-sample correction is applied. Proportional rescaling of the
 weights does not change the result.
 
+**Cox models.** For a
+[`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) marginal
+structural model the weighted partial likelihood score is used as the
+estimating equation (Binder 1992; Lin & Wei 1989), with the Breslow form
+for tied event times. Person \\i\\'s contribution is \\w_i\\ times the
+score residual, \\U_i = w_i \[\delta_i (X_i - \bar X(t_i)) - \sum_k
+\delta_k w_k Y_i(t_k) e^{\beta' X_i} (X_i - \bar X(t_k)) / S_0(t_k)\]\\,
+with \\S_0(t) = \sum_j w_j Y_j(t) e^{\beta' X_j}\\ and \\\bar X(t)\\ the
+weighted mean of \\X\\ in the risk set; `residuals(msm, type = "score")`
+returns the part in brackets (without the weight). The bread for
+\\\beta\\ is the weighted information matrix (the inverse of
+`msm$naive.var`). The weights enter both each person's own term and the
+risk-set sums; differentiating the total score with respect to one
+weight gives exactly that person's score residual, so the cross block is
+\\-\sum_i U_i d_i^T\\ with \\d_i = \partial \log w_i / \partial
+\alpha\\, as for [`glm()`](https://rdrr.io/r/stats/glm.html). It is
+computed analytically; the package tests check it against central finite
+differences of the stacked estimating equations. Without the exposure
+models, the sandwich reduces to
+[`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html)'s robust
+variance (`msm$var`), which treats the weights as known.
+
 Supported: `object` from `ipwpoint(family = "binomial", link = "logit")`
 with denominator (and, if present, numerator) models fitted by
 [`glm()`](https://rdrr.io/r/stats/glm.html) (no smooth terms) and any
 `estimand`; `msm` of class `"lm"` or `"glm"`, fitted on the same rows,
-in the same order, as the weights, with `weights = object$ipw.weights`.
+in the same order, as the weights, with `weights = object$ipw.weights`;
+or `msm` from [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html)
+with right-censored data `Surv(time, status)`, one row per person in the
+same order, and the same weights. For
+[`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html), tied event
+times need `ties = "breslow"`; without tied event times all tie methods
+give the same result.
 
 Not supported, and an error: other exposure families or links, smooth
 terms (GAMs), truncated weights (truncation at estimated percentiles is
-not a smooth function of the model coefficients) and time-varying
-weights from
-[`ipwtm`](https://tranhung93.github.io/ipw/reference/ipwtm.md). Use the
-bootstrap there, re-estimating the weights in each bootstrap sample (see
+not a smooth function of the model coefficients), time-varying weights
+from [`ipwtm`](https://tranhung93.github.io/ipw/reference/ipwtm.md), and
+[`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) models with
+counting-process data,
+[`strata()`](https://rdrr.io/pkg/survival/man/strata.html),
+[`cluster()`](https://rdrr.io/pkg/survival/man/cluster.html),
+[`frailty()`](https://rdrr.io/pkg/survival/man/frailty.html) or `tt()`
+terms, or Efron or exact ties with tied event times. Use the bootstrap
+there, re-estimating the weights in each bootstrap sample (see
 [`ipwpoint`](https://tranhung93.github.io/ipw/reference/ipwpoint.md) and
 [`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md)).
 
 This is the same kind of standard error as `vcov = "asympt"` in
 [`WeightIt::glm_weightit()`](https://ngreifer.github.io/WeightIt/reference/glm_weightit.html);
-in the package tests the two agree for binary treatments.
+in the package tests the two agree for binary treatments. For Cox
+models, `ipwvcov()` agrees with a numerical Jacobian of the stacked
+estimating equations to about \\10^{-7}\\.
+`WeightIt::coxph_weightit(vcov = "asympt")` gives slightly different
+values: for the ATE and overlap weights the relative difference was
+below 0.1% and shrank with the sample size; for ATT and ATC weights its
+standard error was 1 to 4% larger and the difference did not shrink. Its
+`vcov = "HC0"` equals
+[`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html)'s robust
+variance exactly.
 
 ## References
 
@@ -94,6 +138,16 @@ Lunceford, J.K. & Davidian, M. (2004). Stratification and weighting via
 the propensity score in estimation of causal treatment effects: a
 comparative study. *Statistics in Medicine*, **23**, 2937-2960.
 [doi:10.1002/sim.1903](https://doi.org/10.1002/sim.1903) .
+
+Binder, D.A. (1992). Fitting Cox's proportional hazards models from
+survey data. *Biometrika*, **79**, 139-147.
+[doi:10.1093/biomet/79.1.139](https://doi.org/10.1093/biomet/79.1.139) .
+
+Lin, D.Y. & Wei, L.J. (1989). The robust inference for the Cox
+proportional hazards model. *Journal of the American Statistical
+Association*, **84**, 1074-1078.
+[doi:10.1080/01621459.1989.10478874](https://doi.org/10.1080/01621459.1989.10478874)
+.
 
 Stefanski, L.A. & Boos, D.D. (2002). The calculus of M-estimation. *The
 American Statistician*, **56**, 29-38.
@@ -152,4 +206,15 @@ if (requireNamespace("lmtest", quietly = TRUE)) {
 #>                 2.5 %   97.5 %
 #> (Intercept) -6.440496 -2.31046
 #> a            8.513571 12.77965
+
+# Cox marginal structural model for a survival outcome
+library(survival)
+simdat$time <- rexp(n, 0.1 * exp(-0.5 * simdat$a + 0.05 * simdat$l))
+simdat$status <- as.numeric(simdat$time < 10)
+simdat$time <- pmin(simdat$time, 10)
+msm.cox <- coxph(Surv(time, status) ~ a, data = simdat, weights = w$ipw.weights)
+cbind(robust = sqrt(diag(msm.cox$var)),          # weights treated as known
+      ipwvcov = sqrt(diag(ipwvcov(w, msm.cox))))  # weights estimated
+#>     robust   ipwvcov
+#> a 0.184859 0.1646684
 ```

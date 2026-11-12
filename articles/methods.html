@@ -624,10 +624,10 @@ estimated weights<a class="anchor" aria-label="anchor" href="#ipwvcov-standard-e
 </h2>
 <p><code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> (new, experimental) gives the variance of the
 coefficients of a marginal structural model fitted with
-<code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code> or <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> and weights from
-<code>ipwpoint(family = "binomial")</code>, with the estimation of the
-weights taken into account (M-estimation: Lunceford &amp; Davidian 2004;
-Stefanski &amp; Boos 2002).</p>
+<code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code>, <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> or <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code> and
+weights from <code>ipwpoint(family = "binomial")</code>, with the
+estimation of the weights taken into account (M-estimation: Lunceford
+&amp; Davidian 2004; Stefanski &amp; Boos 2002).</p>
 <p><strong>Formula.</strong> Stack the parameters
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>θ</mi><mo>=</mo><mo stretchy="false" form="prefix">(</mo><mi>β</mi><mo>,</mo><mi>α</mi><mo>,</mo><mi>γ</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\theta = (\beta, \alpha, \gamma)</annotation></semantics></math>
 of the MSM, the denominator model and the (optional) numerator model.
@@ -759,11 +759,89 @@ small-sample correction is applied. The package tests compare the result
 with a numerical Jacobian of the stacked equations and with
 <code>glm_weightit(vcov = "asympt")</code> from the WeightIt
 package.</p>
+<p><strong>Cox marginal structural models.</strong> For
+<code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code> with right-censored data, one row per person, the
+estimating equation for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>
+is the weighted partial likelihood score (Binder 1992; Lin &amp; Wei
+1989), with the Breslow form for tied event times. With
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>δ</mi><mi>i</mi></msub><annotation encoding="application/x-tex">\delta_i</annotation></semantics></math>
+the event indicator,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>Y</mi><mi>j</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">Y_j(t)</annotation></semantics></math>
+the at-risk indicator,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>S</mi><mn>0</mn></msub><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><msub><mo>∑</mo><mi>j</mi></msub><msub><mi>w</mi><mi>j</mi></msub><msub><mi>Y</mi><mi>j</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><msup><mi>e</mi><mrow><msup><mi>β</mi><mi>T</mi></msup><msub><mi>X</mi><mi>j</mi></msub></mrow></msup></mrow><annotation encoding="application/x-tex">S_0(t) = \sum_j w_j Y_j(t)
+e^{\beta^T X_j}</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>S</mi><mn>1</mn></msub><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><msub><mo>∑</mo><mi>j</mi></msub><msub><mi>w</mi><mi>j</mi></msub><msub><mi>Y</mi><mi>j</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><msup><mi>e</mi><mrow><msup><mi>β</mi><mi>T</mi></msup><msub><mi>X</mi><mi>j</mi></msub></mrow></msup><msub><mi>X</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">S_1(t) = \sum_j w_j Y_j(t) e^{\beta^T X_j} X_j</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>X</mi><mo accent="true">‾</mo></mover><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><msub><mi>S</mi><mn>1</mn></msub><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mi>/</mi><msub><mi>S</mi><mn>0</mn></msub><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\bar X(t) = S_1(t) / S_0(t)</annotation></semantics></math>,
+person
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>’s
+contribution is</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>U</mi><mi>i</mi></msub><mo>=</mo><msub><mi>w</mi><mi>i</mi></msub><mo minsize="180%" maxsize="180%" stretchy="true" form="prefix">[</mo><msub><mi>δ</mi><mi>i</mi></msub><mo minsize="120%" maxsize="120%" stretchy="true" form="prefix">(</mo><msub><mi>X</mi><mi>i</mi></msub><mo>−</mo><mover><mi>X</mi><mo accent="true">‾</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mo minsize="120%" maxsize="120%" stretchy="true" form="postfix">)</mo><mo>−</mo><munder><mo>∑</mo><mi>k</mi></munder><mfrac><mrow><msub><mi>δ</mi><mi>k</mi></msub><msub><mi>w</mi><mi>k</mi></msub><msub><mi>Y</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mi>k</mi></msub><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msup><mi>e</mi><mrow><msup><mi>β</mi><mi>T</mi></msup><msub><mi>X</mi><mi>i</mi></msub></mrow></msup><mo minsize="120%" maxsize="120%" stretchy="true" form="prefix">(</mo><msub><mi>X</mi><mi>i</mi></msub><mo>−</mo><mover><mi>X</mi><mo accent="true">‾</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mi>k</mi></msub><mo stretchy="false" form="postfix">)</mo><mo minsize="120%" maxsize="120%" stretchy="true" form="postfix">)</mo></mrow><mrow><msub><mi>S</mi><mn>0</mn></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mi>k</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow></mfrac><mo minsize="180%" maxsize="180%" stretchy="true" form="postfix">]</mo><mo>=</mo><msub><mi>w</mi><mi>i</mi></msub><mspace width="0.167em"></mspace><msub><mi>r</mi><mi>i</mi></msub><mo>,</mo></mrow><annotation encoding="application/x-tex">
+U_i = w_i \Big[ \delta_i \big(X_i - \bar X(t_i)\big) - \sum_k \frac{\delta_k w_k
+Y_i(t_k)\, e^{\beta^T X_i} \big(X_i - \bar X(t_k)\big)}{S_0(t_k)} \Big]
+= w_i\, r_i ,
+</annotation></semantics></math></p>
+<p>where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>r</mi><mi>i</mi></msub><annotation encoding="application/x-tex">r_i</annotation></semantics></math>,
+the score residual, is what <code>residuals(msm, type = "score")</code>
+returns (without the weight). The bread for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>
+is the weighted information
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>∑</mo><mi>k</mi></msub><msub><mi>δ</mi><mi>k</mi></msub><msub><mi>w</mi><mi>k</mi></msub><mo minsize="120%" maxsize="120%" stretchy="true" form="prefix">[</mo><msub><mi>S</mi><mn>2</mn></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mi>k</mi></msub><mo stretchy="false" form="postfix">)</mo><mi>/</mi><msub><mi>S</mi><mn>0</mn></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mi>k</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mover><mi>X</mi><mo accent="true">‾</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mi>k</mi></msub><mo stretchy="false" form="postfix">)</mo><mover><mi>X</mi><mo accent="true">‾</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mi>k</mi></msub><msup><mo stretchy="false" form="postfix">)</mo><mi>T</mi></msup><mo minsize="120%" maxsize="120%" stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">\sum_k \delta_k w_k \big[S_2(t_k)/S_0(t_k) - \bar X(t_k) \bar
+X(t_k)^T\big]</annotation></semantics></math>, the inverse of
+<code>msm$naive.var</code>.</p>
+<p>The weights appear in each person’s own term <em>and</em> in the
+risk-set sums
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>S</mi><mn>0</mn></msub><annotation encoding="application/x-tex">S_0</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>S</mi><mn>1</mn></msub><annotation encoding="application/x-tex">S_1</annotation></semantics></math>,
+so it is not obvious that the cross block keeps the glm form. It does.
+The total score is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>∑</mo><mi>k</mi></msub><msub><mi>δ</mi><mi>k</mi></msub><msub><mi>w</mi><mi>k</mi></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>X</mi><mi>k</mi></msub><mo>−</mo><mover><mi>X</mi><mo accent="true">‾</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mi>k</mi></msub><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\sum_k \delta_k w_k (X_k - \bar X(t_k))</annotation></semantics></math>,
+and its derivative with respect to one weight
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>w</mi><mi>j</mi></msub><annotation encoding="application/x-tex">w_j</annotation></semantics></math>
+is</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mi>∂</mi><mrow><mi>∂</mi><msub><mi>w</mi><mi>j</mi></msub></mrow></mfrac><munder><mo>∑</mo><mi>i</mi></munder><msub><mi>U</mi><mi>i</mi></msub><mo>=</mo><msub><mi>δ</mi><mi>j</mi></msub><mo minsize="120%" maxsize="120%" stretchy="true" form="prefix">(</mo><msub><mi>X</mi><mi>j</mi></msub><mo>−</mo><mover><mi>X</mi><mo accent="true">‾</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo><mo minsize="120%" maxsize="120%" stretchy="true" form="postfix">)</mo><mo>−</mo><munder><mo>∑</mo><mi>k</mi></munder><msub><mi>δ</mi><mi>k</mi></msub><msub><mi>w</mi><mi>k</mi></msub><mfrac><mrow><msub><mi>Y</mi><mi>j</mi></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mi>k</mi></msub><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msup><mi>e</mi><mrow><msup><mi>β</mi><mi>T</mi></msup><msub><mi>X</mi><mi>j</mi></msub></mrow></msup><mo minsize="120%" maxsize="120%" stretchy="true" form="prefix">(</mo><msub><mi>X</mi><mi>j</mi></msub><mo>−</mo><mover><mi>X</mi><mo accent="true">‾</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mi>k</mi></msub><mo stretchy="false" form="postfix">)</mo><mo minsize="120%" maxsize="120%" stretchy="true" form="postfix">)</mo></mrow><mrow><msub><mi>S</mi><mn>0</mn></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mi>k</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow></mfrac><mo>=</mo><msub><mi>r</mi><mi>j</mi></msub><mo>,</mo></mrow><annotation encoding="application/x-tex">
+\frac{\partial}{\partial w_j} \sum_i U_i = \delta_j \big(X_j - \bar X(t_j)\big) -
+\sum_k \delta_k w_k \frac{Y_j(t_k)\, e^{\beta^T X_j} \big(X_j - \bar X(t_k)\big)}{S_0(t_k)} = r_j ,
+</annotation></semantics></math></p>
+<p>because
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∂</mi><mover><mi>X</mi><mo accent="true">‾</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mi>k</mi></msub><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mi>∂</mi><msub><mi>w</mi><mi>j</mi></msub><mo>=</mo><msub><mi>Y</mi><mi>j</mi></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mi>k</mi></msub><mo stretchy="false" form="postfix">)</mo><msup><mi>e</mi><mrow><msup><mi>β</mi><mi>T</mi></msup><msub><mi>X</mi><mi>j</mi></msub></mrow></msup><mo stretchy="false" form="prefix">(</mo><msub><mi>X</mi><mi>j</mi></msub><mo>−</mo><mover><mi>X</mi><mo accent="true">‾</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mi>k</mi></msub><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo><mi>/</mi><msub><mi>S</mi><mn>0</mn></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mi>k</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\partial \bar X(t_k) / \partial w_j = Y_j(t_k) e^{\beta^T X_j}
+(X_j - \bar X(t_k)) / S_0(t_k)</annotation></semantics></math>. Hence
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∂</mi><msub><mo>∑</mo><mi>i</mi></msub><msub><mi>U</mi><mi>i</mi></msub><mi>/</mi><mi>∂</mi><mi>α</mi><mo>=</mo><msub><mo>∑</mo><mi>j</mi></msub><msub><mi>r</mi><mi>j</mi></msub><mspace width="0.167em"></mspace><mi>∂</mi><msub><mi>w</mi><mi>j</mi></msub><mi>/</mi><mi>∂</mi><msup><mi>α</mi><mi>T</mi></msup><mo>=</mo><msub><mo>∑</mo><mi>j</mi></msub><msub><mi>U</mi><mi>j</mi></msub><msubsup><mi>d</mi><mi>j</mi><mi>T</mi></msubsup></mrow><annotation encoding="application/x-tex">\partial \sum_i U_i / \partial
+\alpha = \sum_j r_j\, \partial w_j / \partial \alpha^T = \sum_j U_j d_j^T</annotation></semantics></math>,
+the same expression as for <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>, and
+<code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> computes it analytically. The tests compare the
+whole variance with central finite differences of the stacked equations,
+with risk sets computed by brute force; they agree to about
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>10</mn><mrow><mi>−</mi><mn>7</mn></mrow></msup><annotation encoding="application/x-tex">10^{-7}</annotation></semantics></math>.
+Without the exposure-model blocks the sandwich is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>I</mi><mrow><mi>−</mi><mn>1</mn></mrow></msup><msub><mo>∑</mo><mi>i</mi></msub><msub><mi>U</mi><mi>i</mi></msub><msubsup><mi>U</mi><mi>i</mi><mi>T</mi></msubsup><msup><mi>I</mi><mrow><mi>−</mi><mn>1</mn></mrow></msup></mrow><annotation encoding="application/x-tex">I^{-1} \sum_i U_i U_i^T I^{-1}</annotation></semantics></math>,
+which is exactly <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code>’s robust variance
+(<code>msm$var</code>): the standard error that treats the weights as
+known.</p>
+<p>With tied event times, Efron’s approximation changes the score and
+the information in a way that ipw does not reproduce, so
+<code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> requires <code>ties = "breslow"</code> when event
+times are tied. Without tied event times all tie methods give the same
+partial likelihood, and any <code>ties</code> is accepted.</p>
+<p><code>WeightIt::coxph_weightit(vcov = "asympt")</code> gives slightly
+different values. Its <code>vcov = "HC0"</code> equals
+<code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code>’s robust variance exactly, and the weights agree to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>10</mn><mrow><mi>−</mi><mn>14</mn></mrow></msup><annotation encoding="application/x-tex">10^{-14}</annotation></semantics></math>,
+so the difference lies in how the dependence of the Cox score on the
+propensity-model coefficients enters. In our checks the relative
+difference was below 0.1% for ATE and overlap weights and shrank with
+the sample size; for ATT and ATC weights WeightIt’s standard error was 1
+to 4% larger and the difference did not shrink (n from 600 to 38 400).
+<code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> matches the numerical Jacobian of the exact
+stacked equations in all cases.</p>
 <p><strong>Caveats.</strong> Only binary point treatments with logistic
 <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> exposure models; truncated weights (truncation at
 estimated percentiles is not a smooth function of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>),
-smooth terms, other families and time-varying weights from
+smooth terms, other families, Cox models with counting-process data,
+strata, clusters or frailties, and time-varying weights from
 <code><a href="../reference/ipwtm.html">ipwtm()</a></code> are not covered, and the bootstrap remains the
 advice there.</p>
 </div>
@@ -771,6 +849,8 @@ advice there.</p>
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
 <ul>
+<li>Binder DA (1992). Fitting Cox’s proportional hazards models from
+survey data. <em>Biometrika</em> 79, 139–147.</li>
 <li>Cole SR, Hernán MA (2008). Constructing inverse probability weights
 for marginal structural models. <em>American Journal of
 Epidemiology</em> 168, 656–664.</li>
@@ -789,6 +869,9 @@ with multiple treatments. <em>Annals of Applied Statistics</em> 13,
 <li>Li F, Morgan KL, Zaslavsky AM (2018). Balancing covariates via
 propensity score weighting. <em>Journal of the American Statistical
 Association</em> 113, 390–400.</li>
+<li>Lin DY, Wei LJ (1989). The robust inference for the Cox proportional
+hazards model. <em>Journal of the American Statistical Association</em>
+84, 1074–1078.</li>
 <li>Lunceford JK, Davidian M (2004). Stratification and weighting via
 the propensity score in estimation of causal treatment effects: a
 comparative study. <em>Statistics in Medicine</em> 23, 2937–2960.</li>

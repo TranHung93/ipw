@@ -208,11 +208,131 @@ the usual direction (estimating the weights reduces the variance); for
 the ATT, ATC and ATO the robust standard error is not guaranteed to be
 conservative and can also be too small. The M-estimation or bootstrap
 standard error is therefore preferred.</p>
+</div>
+<div class="section level3">
+<h3 id="a-cox-outcome-model">A Cox outcome model<a class="anchor" aria-label="anchor" href="#a-cox-outcome-model"></a>
+</h3>
+<p>For a time-to-event outcome the MSM is a weighted Cox model. We add a
+survival time to the same data (hazard ratio exp(-0.5) for
+<code>a</code>, administrative censoring at 5) and compare
+<code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> with <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code>’s robust standard
+error, which treats the weights as known, and with
+<code>coxph_weightit(vcov = "asympt")</code>:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">8</span><span class="op">)</span></span>
+<span><span class="va">t_ev</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Exponential.html" class="external-link">rexp</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span>, <span class="fl">0.2</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.5</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">a</span> <span class="op">+</span> <span class="fl">0.5</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">l</span> <span class="op">+</span> <span class="fl">0.3</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">x</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">d</span><span class="op">$</span><span class="va">status</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">t_ev</span> <span class="op">&lt;</span> <span class="fl">5</span><span class="op">)</span></span>
+<span><span class="va">d</span><span class="op">$</span><span class="va">time</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmin</a></span><span class="op">(</span><span class="va">t_ev</span>, <span class="fl">5</span><span class="op">)</span></span>
+<span><span class="va">cox_table</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">estimands</span>, <span class="kw">function</span><span class="op">(</span><span class="va">est</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">msm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">time</span>, <span class="va">status</span><span class="op">)</span> <span class="op">~</span> <span class="va">a</span>, data <span class="op">=</span> <span class="va">d</span>, weights <span class="op">=</span> <span class="va">w_ipw</span><span class="op">[[</span><span class="va">est</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">ipw.weights</span><span class="op">)</span></span>
+<span>  <span class="va">fit_w</span> <span class="op">&lt;-</span> <span class="fu">WeightIt</span><span class="fu">::</span><span class="fu"><a href="https://ngreifer.github.io/WeightIt/reference/coxph_weightit.html" class="external-link">coxph_weightit</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">time</span>, <span class="va">status</span><span class="op">)</span> <span class="op">~</span> <span class="va">a</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
+<span>                                    weightit <span class="op">=</span> <span class="va">w_wit</span><span class="op">[[</span><span class="va">est</span><span class="op">]</span><span class="op">]</span>, vcov <span class="op">=</span> <span class="st">"asympt"</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>log.hr <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">msm</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>    ipwvcov <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="../reference/ipwvcov.html">ipwvcov</a></span><span class="op">(</span><span class="va">w_ipw</span><span class="op">[[</span><span class="va">est</span><span class="op">]</span><span class="op">]</span>, <span class="va">msm</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>    coxph_weightit.asympt <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov</a></span><span class="op">(</span><span class="va">fit_w</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>    robust.coxph <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="va">msm</span><span class="op">$</span><span class="va">var</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">cox_table</span>, <span class="fl">4</span><span class="op">)</span></span>
+<span><span class="co">#&gt;      log.hr ipwvcov coxph_weightit.asympt robust.coxph</span></span>
+<span><span class="co">#&gt; ATE -0.4718  0.0833                0.0835       0.0941</span></span>
+<span><span class="co">#&gt; ATT -0.4120  0.0826                0.0832       0.0884</span></span>
+<span><span class="co">#&gt; ATC -0.5458  0.1058                0.1105       0.1145</span></span>
+<span><span class="co">#&gt; ATO -0.4637  0.0844                0.0844       0.0896</span></span></code></pre></div>
+<p><code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> uses the weighted partial likelihood score as
+the estimating equation and accounts for the weights in both each
+person’s own term and the risk-set sums; the package tests check it
+against central finite differences of the stacked estimating equations
+(agreement about 1e-7). WeightIt’s values are close but not identical:
+its <code>vcov = "HC0"</code> equals <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code>’s robust
+variance exactly, so the difference lies in how the estimated weights
+enter. In our checks the relative difference was below 0.1% for ATE and
+overlap weights and shrank with the sample size; for ATT and ATC weights
+WeightIt’s standard error was 1 to 4% larger and the difference did not
+shrink (ATC in the table above). <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> equals the
+finite-difference reference on these data too. The <a href="methods.html">methods article</a> gives details.</p>
+<p>The table below summarises a simulation (500 people per data set,
+treatment depending on a confounder, conditional hazard ratio exp(-0.5),
+administrative censoring) of 95% Wald intervals for the marginal log
+hazard ratio. The truth is the marginal log hazard ratio in the target
+population, computed from both potential outcomes of a very large
+sample. The bootstrap (200 samples, weights re-estimated in each) was
+run on a subset of the data sets.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="va">cox_sim</span><span class="op">$</span><span class="va">summary</span>, digits <span class="op">=</span> <span class="fl">3</span>, row.names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+<table style="width:100%;" class="table">
+<colgroup>
+<col width="5%">
+<col width="3%">
+<col width="7%">
+<col width="7%">
+<col width="8%">
+<col width="8%">
+<col width="10%">
+<col width="9%">
+<col width="8%">
+<col width="10%">
+<col width="7%">
+<col width="12%">
+</colgroup>
+<thead><tr class="header">
+<th align="left">estimand</th>
+<th align="right">truth</th>
+<th align="right">mean.estimate</th>
+<th align="right">empirical.sd</th>
+<th align="right">mean.se.ipwvcov</th>
+<th align="right">mean.se.robust</th>
+<th align="right">mean.se.bootstrap</th>
+<th align="right">coverage.ipwvcov</th>
+<th align="right">coverage.robust</th>
+<th align="right">coverage.bootstrap</th>
+<th align="right">replications</th>
+<th align="right">bootstrap.replications</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td align="left">ATE</td>
+<td align="right">-0.450</td>
+<td align="right">-0.447</td>
+<td align="right">0.128</td>
+<td align="right">0.128</td>
+<td align="right">0.14</td>
+<td align="right">0.128</td>
+<td align="right">0.956</td>
+<td align="right">0.969</td>
+<td align="right">0.95</td>
+<td align="right">1000</td>
+<td align="right">300</td>
+</tr>
+<tr class="even">
+<td align="left">ATO</td>
+<td align="right">-0.461</td>
+<td align="right">-0.460</td>
+<td align="right">0.133</td>
+<td align="right">0.132</td>
+<td align="right">0.14</td>
+<td align="right">0.133</td>
+<td align="right">0.956</td>
+<td align="right">0.961</td>
+<td align="right">0.95</td>
+<td align="right">1000</td>
+<td align="right">300</td>
+</tr>
+</tbody>
+</table>
+<p>The mean <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> standard error is within 1% of the
+empirical standard deviation of the estimates for both estimands, and so
+is the bootstrap’s. The robust standard error, which treats the weights
+as known, is about 10% (ATE) and 6% (ATO) too large here, so its
+intervals cover more often than 95%: conservative, but wider than
+needed. The coverages of <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> (1000 data sets) and of
+the bootstrap (300 data sets) are both within simulation error of
+95%.</p>
 <p><code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> covers binary point treatments with
-<code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code> or <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> outcome models. WeightIt’s
-outcome-model functions cover more: multi-category and continuous
-treatments, many weighting methods, Cox, ordinal and multinomial outcome
-models, and longitudinal weights from <code>weightitMSM()</code>.</p>
+<code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code>, <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> or <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code> outcome
+models. WeightIt’s outcome-model functions cover more: multi-category
+and continuous treatments, many weighting methods, ordinal and
+multinomial outcome models, and longitudinal weights from
+<code>weightitMSM()</code>.</p>
 </div>
 </div>
 <div class="section level2">
@@ -223,7 +343,7 @@ models, and longitudinal weights from <code>weightitMSM()</code>.</p>
 at that level keep weight 1 and the others are reweighted to resemble
 them; <code>estimand = "ATO"</code> gives generalized overlap weights
 (Li &amp; Li 2019).</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">31</span><span class="op">)</span></span>
 <span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">1000</span></span>
 <span><span class="va">dc</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>l <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span>, z <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span><span class="op">)</span></span>
@@ -234,7 +354,7 @@ them; <code>estimand = "ATO"</code> gives generalized overlap weights
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;   A   B   C </span></span>
 <span><span class="co">#&gt; 251 510 239</span></span></code></pre></div>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">compare</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">estimand</span>, <span class="va">focal</span> <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">wi</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwpoint.html">ipwpoint</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">m</span>, family <span class="op">=</span> <span class="st">"multinomial"</span>, denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l</span> <span class="op">+</span> <span class="va">z</span>, data <span class="op">=</span> <span class="va">dc</span>,</span>
 <span>                 estimand <span class="op">=</span> <span class="va">estimand</span>, focal <span class="op">=</span> <span class="va">focal</span>, <span class="va">...</span><span class="op">)</span><span class="op">$</span><span class="va">ipw.weights</span></span>
@@ -260,7 +380,7 @@ weights agree to about 1e-8: the formulas are the same.</p>
 <code><a href="https://rdrr.io/pkg/nnet/man/multinom.html" class="external-link">nnet::multinom()</a></code>, so its weights (scaled to sum to 1 within
 each level) agree with ipw’s default fit to rounding error; its
 <code>trtgrp</code> is ipw’s <code>focal</code>:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">compare_psw</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">estimand</span>, <span class="va">weight</span>, <span class="va">focal</span> <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">wi</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwpoint.html">ipwpoint</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">m</span>, family <span class="op">=</span> <span class="st">"multinomial"</span>, denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l</span> <span class="op">+</span> <span class="va">z</span>, data <span class="op">=</span> <span class="va">dc</span>,</span>
 <span>                 estimand <span class="op">=</span> <span class="va">estimand</span>, focal <span class="op">=</span> <span class="va">focal</span><span class="op">)</span><span class="op">$</span><span class="va">ipw.weights</span></span>
@@ -274,7 +394,7 @@ each level) agree with ipw’s default fit to rounding error; its
 <span><span class="co">#&gt; 0.000000e+00 0.000000e+00 2.220446e-16</span></span></code></pre></div>
 <p>Within each level, the ATT weights make the covariate means resemble
 those of the focal group:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">w_att</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwpoint.html">ipwpoint</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">m</span>, family <span class="op">=</span> <span class="st">"multinomial"</span>, denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l</span> <span class="op">+</span> <span class="va">z</span>,</span>
 <span>                  data <span class="op">=</span> <span class="va">dc</span>, estimand <span class="op">=</span> <span class="st">"ATT"</span>, focal <span class="op">=</span> <span class="st">"A"</span><span class="op">)</span><span class="op">$</span><span class="va">ipw.weights</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>unweighted <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="va">dc</span><span class="op">$</span><span class="va">l</span>, <span class="va">dc</span><span class="op">$</span><span class="va">m</span>, <span class="va">mean</span><span class="op">)</span>,</span>
@@ -319,7 +439,7 @@ visit a confounder <code>l</code> is measured; it depends on its
 previous value and on treatment. People not yet treated may start
 treatment at a visit, more likely when <code>l</code> is low. Once
 started, treatment continues.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">11</span><span class="op">)</span></span>
 <span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">1000</span></span>
 <span><span class="va">sim_person</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">i</span><span class="op">)</span> <span class="op">{</span></span>
@@ -358,7 +478,7 @@ started, treatment continues.</p>
 treatment on the intervals between each person’s own visits; with
 <code>type = "first"</code> the rows after the start are not used for
 the model and keep the weight reached at the start.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">w_tm</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwtm.html">ipwtm</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">a</span>, family <span class="op">=</span> <span class="st">"survival"</span>, numerator <span class="op">=</span> <span class="op">~</span> <span class="va">l0</span>,</span>
 <span>              denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l0</span> <span class="op">+</span> <span class="va">l</span>, id <span class="op">=</span> <span class="va">id</span>, tstart <span class="op">=</span> <span class="va">tstart</span>, timevar <span class="op">=</span> <span class="va">time</span>,</span>
 <span>              type <span class="op">=</span> <span class="st">"first"</span>, data <span class="op">=</span> <span class="va">long</span><span class="op">)</span></span>
@@ -379,7 +499,7 @@ time point <code>k</code>, the analyst has to choose a value of
 <code>l</code> and of the treatment. A common choice is the last value
 observed up to <code>k</code> (the baseline value if there was no visit
 yet) and “started by <code>k</code>”:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">grid</span> <span class="op">&lt;-</span> <span class="fl">1</span><span class="op">:</span><span class="fl">5</span></span>
 <span><span class="va">last_before</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">k</span>, <span class="va">column</span>, <span class="va">default</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">sub</span> <span class="op">&lt;-</span> <span class="va">long</span><span class="op">[</span><span class="va">long</span><span class="op">$</span><span class="va">time</span> <span class="op">&lt;=</span> <span class="va">k</span>, <span class="op">]</span></span>
@@ -407,7 +527,7 @@ yet) and “started by <code>k</code>”:</p>
 confounder history up to then (here the previous treatment and current
 <code>l</code>), and a numerator model with the treatment history and
 baseline <code>l0</code>:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">formulas</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">grid</span>, <span class="kw">function</span><span class="op">(</span><span class="va">k</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/stats/formula.html" class="external-link">as.formula</a></span><span class="op">(</span><span class="kw">if</span> <span class="op">(</span><span class="va">k</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span> <span class="st">"A1 ~ l0 + L1"</span> <span class="kw">else</span></span>
 <span>               <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"A%d ~ A%d + l0 + L%d"</span>, <span class="va">k</span>, <span class="va">k</span> <span class="op">-</span> <span class="fl">1</span>, <span class="va">k</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
@@ -431,7 +551,7 @@ model.</p>
 </h3>
 <p>The grid analysis uses the data in a coarser form. How much is lost
 depends on how far the visit times are from the grid:</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">starts</span> <span class="op">&lt;-</span> <span class="va">long</span><span class="op">[</span><span class="va">long</span><span class="op">$</span><span class="va">start</span> <span class="op">==</span> <span class="fl">1</span>, <span class="op">]</span></span>
 <span><span class="va">grid_k</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">ceiling</a></span><span class="op">(</span><span class="va">starts</span><span class="op">$</span><span class="va">time</span><span class="op">)</span>                     <span class="co"># grid point at which the start is seen</span></span>
 <span><span class="va">l_at_grid</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mapply.html" class="external-link">mapply</a></span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">i</span>, <span class="va">k</span><span class="op">)</span> <span class="va">wide</span><span class="op">[</span><span class="va">i</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"L"</span>, <span class="va">k</span><span class="op">)</span><span class="op">]</span>, <span class="va">starts</span><span class="op">$</span><span class="va">id</span>, <span class="va">grid_k</span><span class="op">)</span></span>

@@ -150,13 +150,93 @@ reduces the variance); for the ATT, ATC and ATO the robust standard
 error is not guaranteed to be conservative and can also be too small.
 The M-estimation or bootstrap standard error is therefore preferred.
 
+### A Cox outcome model
+
+For a time-to-event outcome the MSM is a weighted Cox model. We add a
+survival time to the same data (hazard ratio exp(-0.5) for `a`,
+administrative censoring at 5) and compare
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+with [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html)’s robust
+standard error, which treats the weights as known, and with
+`coxph_weightit(vcov = "asympt")`:
+
+``` r
+
+set.seed(8)
+t_ev <- rexp(nrow(d), 0.2 * exp(-0.5 * d$a + 0.5 * d$l + 0.3 * d$x))
+d$status <- as.numeric(t_ev < 5)
+d$time <- pmin(t_ev, 5)
+cox_table <- t(sapply(estimands, function(est) {
+  msm <- coxph(Surv(time, status) ~ a, data = d, weights = w_ipw[[est]]$ipw.weights)
+  fit_w <- WeightIt::coxph_weightit(Surv(time, status) ~ a, data = d,
+                                    weightit = w_wit[[est]], vcov = "asympt")
+  c(log.hr = unname(coef(msm)),
+    ipwvcov = sqrt(ipwvcov(w_ipw[[est]], msm)[1, 1]),
+    coxph_weightit.asympt = sqrt(vcov(fit_w)[1, 1]),
+    robust.coxph = sqrt(msm$var[1, 1]))
+}))
+round(cox_table, 4)
+#>      log.hr ipwvcov coxph_weightit.asympt robust.coxph
+#> ATE -0.4718  0.0833                0.0835       0.0941
+#> ATT -0.4120  0.0826                0.0832       0.0884
+#> ATC -0.5458  0.1058                0.1105       0.1145
+#> ATO -0.4637  0.0844                0.0844       0.0896
+```
+
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+uses the weighted partial likelihood score as the estimating equation
+and accounts for the weights in both each person’s own term and the
+risk-set sums; the package tests check it against central finite
+differences of the stacked estimating equations (agreement about 1e-7).
+WeightIt’s values are close but not identical: its `vcov = "HC0"` equals
+[`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html)’s robust
+variance exactly, so the difference lies in how the estimated weights
+enter. In our checks the relative difference was below 0.1% for ATE and
+overlap weights and shrank with the sample size; for ATT and ATC weights
+WeightIt’s standard error was 1 to 4% larger and the difference did not
+shrink (ATC in the table above).
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+equals the finite-difference reference on these data too. The [methods
+article](https://tranhung93.github.io/ipw/articles/methods.md) gives
+details.
+
+The table below summarises a simulation (500 people per data set,
+treatment depending on a confounder, conditional hazard ratio exp(-0.5),
+administrative censoring) of 95% Wald intervals for the marginal log
+hazard ratio. The truth is the marginal log hazard ratio in the target
+population, computed from both potential outcomes of a very large
+sample. The bootstrap (200 samples, weights re-estimated in each) was
+run on a subset of the data sets.
+
+``` r
+
+knitr::kable(cox_sim$summary, digits = 3, row.names = FALSE)
+```
+
+| estimand | truth | mean.estimate | empirical.sd | mean.se.ipwvcov | mean.se.robust | mean.se.bootstrap | coverage.ipwvcov | coverage.robust | coverage.bootstrap | replications | bootstrap.replications |
+|:---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| ATE | -0.450 | -0.447 | 0.128 | 0.128 | 0.14 | 0.128 | 0.956 | 0.969 | 0.95 | 1000 | 300 |
+| ATO | -0.461 | -0.460 | 0.133 | 0.132 | 0.14 | 0.133 | 0.956 | 0.961 | 0.95 | 1000 | 300 |
+
+The mean
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+standard error is within 1% of the empirical standard deviation of the
+estimates for both estimands, and so is the bootstrap’s. The robust
+standard error, which treats the weights as known, is about 10% (ATE)
+and 6% (ATO) too large here, so its intervals cover more often than 95%:
+conservative, but wider than needed. The coverages of
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+(1000 data sets) and of the bootstrap (300 data sets) are both within
+simulation error of 95%.
+
 [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
 covers binary point treatments with
-[`lm()`](https://rdrr.io/r/stats/lm.html) or
-[`glm()`](https://rdrr.io/r/stats/glm.html) outcome models. WeightIt’s
-outcome-model functions cover more: multi-category and continuous
-treatments, many weighting methods, Cox, ordinal and multinomial outcome
-models, and longitudinal weights from `weightitMSM()`.
+[`lm()`](https://rdrr.io/r/stats/lm.html),
+[`glm()`](https://rdrr.io/r/stats/glm.html) or
+[`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) outcome models.
+WeightIt’s outcome-model functions cover more: multi-category and
+continuous treatments, many weighting methods, ordinal and multinomial
+outcome models, and longitudinal weights from `weightitMSM()`.
 
 ## 2. Categorical point treatment
 
