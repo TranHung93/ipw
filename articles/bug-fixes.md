@@ -73,7 +73,7 @@ ref_offset <- unname(1 / ifelse(d$a == 1, p, 1 - p))
 
 | Version | Result | Largest relative difference from the correct weights |
 |:---|:---|:---|
-| 1.2.1.1 | Weights | 4.4e-16 |
+| 1.2.1.1 | Weights | 0 |
 | 1.3.2 (CRAN) | Weights | 1.1 |
 | this version (1.3.2.9000) | Weights | 0 |
 
@@ -102,7 +102,7 @@ ref_dot <- unname(1 / ifelse(d$a == 1, p, 1 - p))
 
 | Version | Result | Largest relative difference from the correct weights |
 |:---|:---|:---|
-| 1.2.1.1 | Weights | 8.9e-16 |
+| 1.2.1.1 | Weights | 0 |
 | 1.3.2 (CRAN) | Error: Variables not found in data: . |  |
 | this version (1.3.2.9000) | Weights | 0 |
 
@@ -291,7 +291,7 @@ ref_selvar <- unname(ave(1 / p_obs, d$id, FUN = cumprod))
 
 | Version | Result | Largest relative difference from the correct weights |
 |:---|:---|:---|
-| 1.2.1.1 | Weights | 1.2e-15 |
+| 1.2.1.1 | Weights | 4.4e-16 |
 | 1.3.2 (CRAN) | Weights | 3.6 |
 | this version (1.3.2.9000) | Weights | 4.4e-16 |
 

@@ -20,6 +20,10 @@ whole data set*, instead of since the start of the row.
 - With individual visit times the weights were far off: in the example
   below some weights differ from the correct ones by a factor of more
   than 30.
+- In a simulation with a known answer (section 7), ipw 1.2.1.1 gave
+  exactly the same biased estimate as using no weights at all; the fixed
+  version removes the bias (completely with short rows; with long rows a
+  small approximation remains, which is the same in every version).
 - The development version fixes it: each row uses the baseline hazard
   over its own interval `(tstart, timevar]`.
 
@@ -362,7 +366,115 @@ c(largest_weight_old = max(old_w), largest_weight_correct = max(refs$own_first))
 #>               245.2007               117.2714
 ```
 
-## 7. If you used an older version
+## 7. What it does to an estimate: a simulation
+
+This simulation has a known answer, so it shows what the wrong weights
+do to an estimate.
+
+**The question.** What is the risk of death within one year *if nobody
+started treatment*? In the data, patients start treatment during
+follow-up, and their follow-up is stopped (censored) at that moment.
+Censoring weights from
+[`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
+(`type = "cens"`) make the patients who are still untreated stand in for
+those who started, and a weighted Kaplan-Meier estimate gives the risk.
+
+**The data.** 1000 patients per data set, followed for one year.
+
+- Each patient has their **own visit times**. At each visit a covariate
+  `l` (think of a marker of disease severity) is measured; it changes
+  from visit to visit and stays fixed between visits.
+- Patients with a higher `l` are **more likely to start treatment**
+  (hazard ratio 2.2 per unit of `l`) and **more likely to die** (hazard
+  ratio 2.2 per unit).
+- So the patients who stay untreated are the healthier ones, and simply
+  censoring at treatment start without weights gives a risk that is
+  **too low**.
+- Treatment start and death happen at exact times between visits, so the
+  Cox model that
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) fits
+  for treatment start (`~ l`) is correct.
+- The true risk without treatment is computed by simulating 400,000
+  patients from the same process with treatment start switched off.
+
+The code that makes the data and runs the analysis is in
+`data-raw/make-survival-bug-simulation.R`. Each data set is analysed
+like this:
+
+``` r
+
+w <- ipwtm(exposure = start_trt, family = "survival", denominator = ~ l,
+           id = id, tstart = tstart, timevar = time, type = "cens", data = d)
+fit <- survfit(Surv(tstart, time, death) ~ 1, data = d, weights = w$ipw.weights)
+1 - summary(fit, times = 365)$surv        # estimated 1-year risk
+```
+
+There are 500 data sets in each of two scenarios: visits 3 to 20 days
+apart, and visits 1 to 5 days apart. The same data sets are analysed
+with ipw 1.2.1.1 and with this version.
+
+| Visits | True 1-year risk without treatment | Rows per data set (average) |
+|:---|---:|---:|
+| 3 to 20 days apart | 38.28% | 15461 |
+| 1 to 5 days apart | 39.02% | 54654 |
+
+| Visits | Method | Mean estimate | Bias | MCSE | Empirical SD |
+|:---|:---|:---|:---|:---|:---|
+| 3 to 20 days apart | No weights | 35.1% | -3.1% | 0.10% | 2.3% |
+| 3 to 20 days apart | Weights from ipw 1.2.1.1 | 35.1% | -3.1% | 0.10% | 2.3% |
+| 3 to 20 days apart | Weights from this version (1.3.2.9000) | 37.5% | -0.8% | 0.12% | 2.7% |
+| 1 to 5 days apart | No weights | 38.0% | -1.0% | 0.11% | 2.4% |
+| 1 to 5 days apart | Weights from ipw 1.2.1.1 | 38.0% | -1.0% | 0.11% | 2.4% |
+| 1 to 5 days apart | Weights from this version (1.3.2.9000) | 38.9% | -0.1% | 0.12% | 2.6% |
+
+MCSE is the Monte Carlo standard error of the mean estimate: a bias
+smaller than about two MCSE is within simulation noise.
+
+**What the table shows.**
+
+- **ipw 1.2.1.1 gives exactly the same answer as no weights.** Its
+  weights hardly differ from 1: on average the largest weight in a data
+  set is 1.04, against 22.7 with the fixed version. With exact event
+  times, almost every row ends at its own time, and the “previous time
+  in the data” that the old code used is a moment before the end of the
+  row. The hazard over that moment is almost zero, so the probability of
+  staying untreated is almost 1 and the weight almost 1. The old weights
+  therefore did not correct for the confounding at all.
+- **The fixed version removes the bias.** With visits 1 to 5 days apart
+  its estimate is within simulation noise of the true risk. With visits
+  3 to 20 days apart a small bias remains (-0.8 percentage points,
+  against -3.1 for the old version). That is not a bug:
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) gives
+  each row the weight at the *end* of the row, and uses it for the whole
+  row. Within a long row the weight should grow gradually, so patients
+  who are still followed early in the row get a slightly too large
+  weight. This approximation is the same in every version, and it
+  shrinks as rows get shorter, while the old version’s bias does not.
+
+**One data set.** The cumulative risk of death in the first data set
+(visits 3 to 20 days apart), without weights, with the weights of ipw
+1.2.1.1 (dashed), and with the weights of this version. The dotted line
+is the true risk at one year.
+
+![](survival-weights-bug_files/figure-html/sim-plot-1.png)
+
+The curve with the old weights lies on top of the unweighted curve.
+
+``` r
+
+summary(sim$example$old_w)   # ipw 1.2.1.1
+#>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#>   1.000   1.000   1.000   1.000   1.000   1.033
+summary(w_new)               # this version
+#>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#>   1.001   1.160   1.423   1.768   1.947  17.363
+rows_affected(ex, "id", "tstart", "time", "start_trt")
+#> [1] 15114
+nrow(ex)
+#> [1] 15118
+```
+
+## 8. If you used an older version
 
 1.  Check your data with `rows_affected()` above. If it returns 0, your
     weights were correct.
@@ -388,7 +500,7 @@ split_common_grid <- function(d) {
 The weight at the end of an original row is the weight on its last
 piece.
 
-## 8. The code: before and after
+## 9. The code: before and after
 
 The code below is taken from the source packages on CRAN (stored with
 this article by `data-raw/make-survival-bug-article-data.R`); line

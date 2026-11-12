@@ -90,6 +90,10 @@ data for this page; they give identical weights.</li>
 <li>With individual visit times the weights were far off: in the example
 below some weights differ from the correct ones by a factor of more than
 30.</li>
+<li>In a simulation with a known answer (section 7), ipw 1.2.1.1 gave
+exactly the same biased estimate as using no weights at all; the fixed
+version removes the bias (completely with short rows; with long rows a
+small approximation remains, which is the same in every version).</li>
 <li>The development version fixes it: each row uses the baseline hazard
 over its own interval <code>(tstart, timevar]</code>.</li>
 </ul>
@@ -709,7 +713,187 @@ used <code>haartdat</code>, where the two agree.</p>
 <span><span class="co">#&gt;               245.2007               117.2714</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="if-you-used-an-older-version">7. If you used an older version<a class="anchor" aria-label="anchor" href="#if-you-used-an-older-version"></a>
+<h2 id="what-it-does-to-an-estimate-a-simulation">7. What it does to an estimate: a simulation<a class="anchor" aria-label="anchor" href="#what-it-does-to-an-estimate-a-simulation"></a>
+</h2>
+<p>This simulation has a known answer, so it shows what the wrong
+weights do to an estimate.</p>
+<p><strong>The question.</strong> What is the risk of death within one
+year <em>if nobody started treatment</em>? In the data, patients start
+treatment during follow-up, and their follow-up is stopped (censored) at
+that moment. Censoring weights from <code><a href="../reference/ipwtm.html">ipwtm()</a></code>
+(<code>type = "cens"</code>) make the patients who are still untreated
+stand in for those who started, and a weighted Kaplan-Meier estimate
+gives the risk.</p>
+<p><strong>The data.</strong> 1000 patients per data set, followed for
+one year.</p>
+<ul>
+<li>Each patient has their <strong>own visit times</strong>. At each
+visit a covariate <code>l</code> (think of a marker of disease severity)
+is measured; it changes from visit to visit and stays fixed between
+visits.</li>
+<li>Patients with a higher <code>l</code> are <strong>more likely to
+start treatment</strong> (hazard ratio 2.2 per unit of <code>l</code>)
+and <strong>more likely to die</strong> (hazard ratio 2.2 per
+unit).</li>
+<li>So the patients who stay untreated are the healthier ones, and
+simply censoring at treatment start without weights gives a risk that is
+<strong>too low</strong>.</li>
+<li>Treatment start and death happen at exact times between visits, so
+the Cox model that <code><a href="../reference/ipwtm.html">ipwtm()</a></code> fits for treatment start
+(<code>~ l</code>) is correct.</li>
+<li>The true risk without treatment is computed by simulating 400,000
+patients from the same process with treatment start switched off.</li>
+</ul>
+<p>The code that makes the data and runs the analysis is in
+<code>data-raw/make-survival-bug-simulation.R</code>. Each data set is
+analysed like this:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">w</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwtm.html">ipwtm</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">start_trt</span>, family <span class="op">=</span> <span class="st">"survival"</span>, denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l</span>,</span>
+<span>           id <span class="op">=</span> <span class="va">id</span>, tstart <span class="op">=</span> <span class="va">tstart</span>, timevar <span class="op">=</span> <span class="va">time</span>, type <span class="op">=</span> <span class="st">"cens"</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">)</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/survival/man/survfit.html" class="external-link">survfit</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">tstart</span>, <span class="va">time</span>, <span class="va">death</span><span class="op">)</span> <span class="op">~</span> <span class="fl">1</span>, data <span class="op">=</span> <span class="va">d</span>, weights <span class="op">=</span> <span class="va">w</span><span class="op">$</span><span class="va">ipw.weights</span><span class="op">)</span></span>
+<span><span class="fl">1</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span>, times <span class="op">=</span> <span class="fl">365</span><span class="op">)</span><span class="op">$</span><span class="va">surv</span>        <span class="co"># estimated 1-year risk</span></span></code></pre></div>
+<p>There are 500 data sets in each of two scenarios: visits 3 to 20 days
+apart, and visits 1 to 5 days apart. The same data sets are analysed
+with ipw 1.2.1.1 and with this version.</p>
+<table class="table">
+<colgroup>
+<col width="23%">
+<col width="42%">
+<col width="34%">
+</colgroup>
+<thead><tr class="header">
+<th align="left">Visits</th>
+<th align="right">True 1-year risk without treatment</th>
+<th align="right">Rows per data set (average)</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td align="left">3 to 20 days apart</td>
+<td align="right">38.28%</td>
+<td align="right">15461</td>
+</tr>
+<tr class="even">
+<td align="left">1 to 5 days apart</td>
+<td align="right">39.02%</td>
+<td align="right">54654</td>
+</tr>
+</tbody>
+</table>
+<table class="table">
+<colgroup>
+<col width="19%">
+<col width="40%">
+<col width="14%">
+<col width="6%">
+<col width="6%">
+<col width="13%">
+</colgroup>
+<thead><tr class="header">
+<th align="left">Visits</th>
+<th align="left">Method</th>
+<th align="left">Mean estimate</th>
+<th align="left">Bias</th>
+<th align="left">MCSE</th>
+<th align="left">Empirical SD</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td align="left">3 to 20 days apart</td>
+<td align="left">No weights</td>
+<td align="left">35.1%</td>
+<td align="left">-3.1%</td>
+<td align="left">0.10%</td>
+<td align="left">2.3%</td>
+</tr>
+<tr class="even">
+<td align="left">3 to 20 days apart</td>
+<td align="left">Weights from ipw 1.2.1.1</td>
+<td align="left">35.1%</td>
+<td align="left">-3.1%</td>
+<td align="left">0.10%</td>
+<td align="left">2.3%</td>
+</tr>
+<tr class="odd">
+<td align="left">3 to 20 days apart</td>
+<td align="left">Weights from this version (1.3.2.9000)</td>
+<td align="left">37.5%</td>
+<td align="left">-0.8%</td>
+<td align="left">0.12%</td>
+<td align="left">2.7%</td>
+</tr>
+<tr class="even">
+<td align="left">1 to 5 days apart</td>
+<td align="left">No weights</td>
+<td align="left">38.0%</td>
+<td align="left">-1.0%</td>
+<td align="left">0.11%</td>
+<td align="left">2.4%</td>
+</tr>
+<tr class="odd">
+<td align="left">1 to 5 days apart</td>
+<td align="left">Weights from ipw 1.2.1.1</td>
+<td align="left">38.0%</td>
+<td align="left">-1.0%</td>
+<td align="left">0.11%</td>
+<td align="left">2.4%</td>
+</tr>
+<tr class="even">
+<td align="left">1 to 5 days apart</td>
+<td align="left">Weights from this version (1.3.2.9000)</td>
+<td align="left">38.9%</td>
+<td align="left">-0.1%</td>
+<td align="left">0.12%</td>
+<td align="left">2.6%</td>
+</tr>
+</tbody>
+</table>
+<p>MCSE is the Monte Carlo standard error of the mean estimate: a bias
+smaller than about two MCSE is within simulation noise.</p>
+<p><strong>What the table shows.</strong></p>
+<ul>
+<li>
+<strong>ipw 1.2.1.1 gives exactly the same answer as no
+weights.</strong> Its weights hardly differ from 1: on average the
+largest weight in a data set is 1.04, against 22.7 with the fixed
+version. With exact event times, almost every row ends at its own time,
+and the “previous time in the data” that the old code used is a moment
+before the end of the row. The hazard over that moment is almost zero,
+so the probability of staying untreated is almost 1 and the weight
+almost 1. The old weights therefore did not correct for the confounding
+at all.</li>
+<li>
+<strong>The fixed version removes the bias.</strong> With visits 1
+to 5 days apart its estimate is within simulation noise of the true
+risk. With visits 3 to 20 days apart a small bias remains (-0.8
+percentage points, against -3.1 for the old version). That is not a bug:
+<code><a href="../reference/ipwtm.html">ipwtm()</a></code> gives each row the weight at the <em>end</em> of
+the row, and uses it for the whole row. Within a long row the weight
+should grow gradually, so patients who are still followed early in the
+row get a slightly too large weight. This approximation is the same in
+every version, and it shrinks as rows get shorter, while the old
+version’s bias does not.</li>
+</ul>
+<p><strong>One data set.</strong> The cumulative risk of death in the
+first data set (visits 3 to 20 days apart), without weights, with the
+weights of ipw 1.2.1.1 (dashed), and with the weights of this version.
+The dotted line is the true risk at one year.</p>
+<p><img src="survival-weights-bug_files/figure-html/sim-plot-1.png" class="r-plt" alt="" width="672"></p>
+<p>The curve with the old weights lies on top of the unweighted
+curve.</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">sim</span><span class="op">$</span><span class="va">example</span><span class="op">$</span><span class="va">old_w</span><span class="op">)</span>   <span class="co"># ipw 1.2.1.1</span></span>
+<span><span class="co">#&gt;    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. </span></span>
+<span><span class="co">#&gt;   1.000   1.000   1.000   1.000   1.000   1.033</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">w_new</span><span class="op">)</span>               <span class="co"># this version</span></span>
+<span><span class="co">#&gt;    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. </span></span>
+<span><span class="co">#&gt;   1.001   1.160   1.423   1.768   1.947  17.363</span></span>
+<span><span class="fu">rows_affected</span><span class="op">(</span><span class="va">ex</span>, <span class="st">"id"</span>, <span class="st">"tstart"</span>, <span class="st">"time"</span>, <span class="st">"start_trt"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 15114</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">ex</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 15118</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="if-you-used-an-older-version">8. If you used an older version<a class="anchor" aria-label="anchor" href="#if-you-used-an-older-version"></a>
 </h2>
 <ol style="list-style-type: decimal">
 <li>Check your data with <code>rows_affected()</code> above. If it
@@ -720,7 +904,7 @@ at all times that occur in the data, so that all subjects share one time
 grid; the last column of the table in section 6 shows that this gives
 the correct weights in every version. For example:</li>
 </ol>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">split_common_grid</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">d</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">grid</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">tstart</span>, <span class="va">d</span><span class="op">$</span><span class="va">time</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">r</span><span class="op">)</span> <span class="op">{</span></span>
@@ -734,7 +918,7 @@ the correct weights in every version. For example:</li>
 piece.</p>
 </div>
 <div class="section level2">
-<h2 id="the-code-before-and-after">8. The code: before and after<a class="anchor" aria-label="anchor" href="#the-code-before-and-after"></a>
+<h2 id="the-code-before-and-after">9. The code: before and after<a class="anchor" aria-label="anchor" href="#the-code-before-and-after"></a>
 </h2>
 <p>The code below is taken from the source packages on CRAN (stored with
 this article by <code>data-raw/make-survival-bug-article-data.R</code>);

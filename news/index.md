@@ -95,7 +95,10 @@
   [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
   survival bug in detail, with a worked example, a check of whether your
   data are affected, the results of every ipw version on CRAN (1.0 to
-  1.3.2, all affected), the old and the new code, and the tests.
+  1.3.2, all affected), the old and the new code, and the tests. It
+  includes a simulation with a known answer in which ipw 1.2.1.1 gives
+  the same biased estimate as no weights at all, and the fixed version
+  removes the bias.
 
 ### New features
 
