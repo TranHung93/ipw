@@ -21,6 +21,7 @@ Suggests:
     data.table,
     tibble,
     WeightIt,
+    lmtest,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr
 Description: Functions to estimate the probability to receive the observed treatment, based on

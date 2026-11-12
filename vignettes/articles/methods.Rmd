@@ -7,8 +7,9 @@ same step: estimate the probability, or density, of the exposure each person
 actually received, then take a ratio. This article gives, for each new
 feature, the formula, the code in the package and why that approach was
 chosen. Section 6 covers recurrent exposure events (Graffeo et al. 2018),
-and section 7 `ipwprobtm()`, which turns probabilities you estimated
-yourself into time-varying weights. How to use the features is shown in the
+section 7 `ipwprobtm()`, which turns probabilities you estimated
+yourself into time-varying weights, and section 8 the standard errors of
+`ipwvcov()`. How to use the features is shown in the
 [main vignette](ipw.html); whether they recover known effects is
 checked in the [simulation study](simulations.html).
 
@@ -504,6 +505,89 @@ responsible for setting probabilities to 1 after the first switch for
 `type = "first"` or `"cens"`. Standard errors that ignore the estimation of
 the probabilities are only approximate.
 
+# 8. `ipwvcov()`: standard errors that account for the estimated weights
+
+`ipwvcov()` (new, experimental) gives the variance of the coefficients of a
+marginal structural model fitted with `lm()` or `glm()` and weights from
+`ipwpoint(family = "binomial")`, with the estimation of the weights taken
+into account (M-estimation: Lunceford & Davidian 2004; Stefanski & Boos
+2002).
+
+**Formula.** Stack the parameters $\theta = (\beta, \alpha, \gamma)$ of the
+MSM, the denominator model and the (optional) numerator model. For person
+*i*, with MSM design row $X_i$, mean $\mu_i$, variance function $V$, and
+exposure-model design rows $Z_i$ (denominator, fitted $p_i$) and
+$Z^{num}_i$ (numerator, fitted $q_i$):
+
+$$
+\psi_i(\theta) = \begin{pmatrix}
+U_i \\ S_i \\ R_i
+\end{pmatrix} = \begin{pmatrix}
+w_i X_i (y_i - \mu_i)\, \frac{d\mu_i/d\eta_i}{V(\mu_i)} \\
+Z_i (a_i - p_i)\, \frac{dp_i/d\eta_i}{p_i(1-p_i)} \\
+Z^{num}_i (a_i - q_i)\, \frac{dq_i/d\eta_i}{q_i(1-q_i)}
+\end{pmatrix}
+$$
+
+Because $U_i$ is proportional to $w_i$, $\partial U_i / \partial \alpha =
+U_i d_i^T$ with $d_i = \partial \log w_i / \partial \alpha = g(a_i, p_i)\,
+(dp_i/d\eta_i)\, Z_i$, where
+
+| estimand | $g(1, p)$ | $g(0, p)$ |
+|---|---|---|
+| ATE | $-1/p$ | $1/(1-p)$ |
+| ATT | $0$ | $1/(p(1-p))$ |
+| ATC | $-1/(p(1-p))$ | $0$ |
+| ATO | $-1/(1-p)$ | $1/p$ |
+
+and, for stabilized ATE weights, $e_i = \partial \log w_i / \partial \gamma
+= (a_i/q_i - (1-a_i)/(1-q_i))\, (dq_i/d\eta_i)\, Z^{num}_i$. The bread
+$A = -\sum_i \partial \psi_i / \partial \theta$ is block upper-triangular:
+
+$$
+A = \begin{pmatrix}
+\sum_i w_i \frac{(d\mu_i/d\eta_i)^2}{V(\mu_i)} X_i X_i^T & -\sum_i U_i d_i^T & -\sum_i U_i e_i^T \\
+0 & \sum_i \frac{(dp_i/d\eta_i)^2}{p_i(1-p_i)} Z_i Z_i^T & 0 \\
+0 & 0 & \sum_i \frac{(dq_i/d\eta_i)^2}{q_i(1-q_i)} Z^{num}_i Z^{num\,T}_i
+\end{pmatrix}
+$$
+
+the meat is $B = \sum_i \psi_i \psi_i^T$, and the variance is
+$A^{-1} B A^{-T}$; `ipwvcov()` returns its $\beta$ block.
+
+**Code.** Each block is a cross-product computed in base R; for example, for
+the denominator model and the $\beta$-$\alpha$ block:
+
+```r
+g <- switch(estimand,
+  ATE = ifelse(a == 1, -1 / p, 1 / (1 - p)),
+  ATT = ifelse(a == 1, 0, 1 / (p * (1 - p))),
+  ATC = ifelse(a == 1, -1 / (p * (1 - p)), 0),
+  ATO = ifelse(a == 1, -1 / (1 - p), 1 / p))
+D <- den$Z * (g * den$dp)          # rows d_i
+A[beta, alpha] <- -crossprod(U, D)
+V <- solve(A) %*% crossprod(Psi) %*% t(solve(A))
+```
+
+**Why this approach.** Robust standard errors of the weighted MSM treat the
+weights as known. Estimating the weights usually *reduces* the variance of
+an ATE estimate, so these standard errors are conservative for the ATE, but
+for the ATT, ATC and ATO they can be too small. The stacked estimating
+equations account for this exactly (asymptotically) and need no
+resampling. The link function of each model enters only through
+$d\mu/d\eta$, so any binomial link works. The bread uses expected (Fisher)
+information; for canonical links (logit, gaussian identity) this equals the
+observed information, for other links the two are asymptotically
+equivalent. Dispersion parameters cancel. No small-sample correction is
+applied. The package tests compare the result with a numerical Jacobian of
+the stacked equations and with `glm_weightit(vcov = "asympt")` from the
+WeightIt package.
+
+**Caveats.** Only binary point treatments with `glm()` exposure models;
+truncated weights (truncation at estimated percentiles is not a smooth
+function of $\alpha$), smooth terms, other families and time-varying weights
+from `ipwtm()` are not covered, and the bootstrap remains the advice there.
+
 # References
 
 * Cole SR, Hernán MA (2008). Constructing inverse probability weights for
@@ -523,8 +607,13 @@ the probabilities are only approximate.
 * Li F, Morgan KL, Zaslavsky AM (2018). Balancing covariates via propensity
   score weighting. *Journal of the American Statistical Association* 113,
   390–400.
+* Lunceford JK, Davidian M (2004). Stratification and weighting via the
+  propensity score in estimation of causal treatment effects: a comparative
+  study. *Statistics in Medicine* 23, 2937–2960.
 * Robins JM, Hernán MA, Brumback B (2000). Marginal structural models and
   causal inference in epidemiology. *Epidemiology* 11, 550–560.
+* Stefanski LA, Boos DD (2002). The calculus of M-estimation. *The
+  American Statistician* 56, 29–38.
 * van der Laan MJ, Polley EC, Hubbard AE (2007). Super learner.
   *Statistical Applications in Genetics and Molecular Biology* 6(1).
 * van der Wal WM, Geskus RB (2011). ipw: An R package for inverse

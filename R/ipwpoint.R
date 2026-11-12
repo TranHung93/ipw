@@ -15,6 +15,12 @@
 #' @details
 #' Standard errors: \code{ipwpoint} only estimates the weights. Standard errors
 #' for the marginal structural model have to be obtained when that model is fitted.
+#' For a binomial exposure (any \code{estimand}, exposure models without smooth
+#' terms, no truncation) and a marginal structural model fitted with \code{lm()}
+#' or \code{glm()}, \code{\link{ipwvcov}} (new, experimental) gives standard errors
+#' that take the estimation of the weights into account (M-estimation); this is
+#' the recommended option there. For all other cases use the bootstrap described
+#' below.
 #' Robust (sandwich) standard errors, for example from \code{svyglm()} in the survey
 #' package as in Van der Wal and Geskus (2011), treat the weights as known. For a
 #' binary point treatment with good overlap they were conservative (too large) in
@@ -103,7 +109,7 @@
 #'
 #' Austin, P.C. (2016). Variance estimation when using inverse probability of treatment weighting (IPTW) with survival analysis. \emph{Statistics in Medicine}, \bold{35}, 5642-5655. \doi{10.1002/sim.7084}.
 #' @export
-#' @seealso \code{\link{basdat}}, \code{\link{haartdat}}, \code{\link{ipwplot}}, \code{\link{ipwpoint}}, \code{\link{ipwtm}}, \code{\link{timedat}}, \code{\link{tstartfun}}.
+#' @seealso \code{\link{ipwvcov}}, \code{\link{basdat}}, \code{\link{haartdat}}, \code{\link{ipwplot}}, \code{\link{ipwpoint}}, \code{\link{ipwtm}}, \code{\link{timedat}}, \code{\link{tstartfun}}.
 #'
 #' @examples
 #' # Simulate data with continuous confounder and outcome, binomial exposure.
@@ -147,6 +153,11 @@
 #'                 data = simdat))
 #'   summary(msm)
 #' }
+#'
+#' # Standard errors that take the estimation of the weights into account
+#' # (M-estimation; binomial exposure, lm() or glm() MSM)
+#' msm.lm <- lm(y ~ a, data = simdat, weights = temp$ipw.weights)
+#' sqrt(diag(ipwvcov(temp, msm.lm)))
 #'
 #' # Bootstrap standard error and percentile confidence interval for the MSM.
 #' # The robust standard error from svyglm() treats the weights as known and

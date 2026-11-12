@@ -98,6 +98,12 @@ generalized additive models with \pkg{mgcv}.
 \details{
 Standard errors: \code{ipwpoint} only estimates the weights. Standard errors
 for the marginal structural model have to be obtained when that model is fitted.
+For a binomial exposure (any \code{estimand}, exposure models without smooth
+terms, no truncation) and a marginal structural model fitted with \code{lm()}
+or \code{glm()}, \code{\link{ipwvcov}} (new, experimental) gives standard errors
+that take the estimation of the weights into account (M-estimation); this is
+the recommended option there. For all other cases use the bootstrap described
+below.
 Robust (sandwich) standard errors, for example from \code{svyglm()} in the survey
 package as in Van der Wal and Geskus (2011), treat the weights as known. For a
 binary point treatment with good overlap they were conservative (too large) in
@@ -158,6 +164,11 @@ if (requireNamespace("survey", quietly = TRUE)) {
   summary(msm)
 }
 
+# Standard errors that take the estimation of the weights into account
+# (M-estimation; binomial exposure, lm() or glm() MSM)
+msm.lm <- lm(y ~ a, data = simdat, weights = temp$ipw.weights)
+sqrt(diag(ipwvcov(temp, msm.lm)))
+
 # Bootstrap standard error and percentile confidence interval for the MSM.
 # The robust standard error from svyglm() treats the weights as known and
 # can be too large or too small (simulation study, scenarios 7a and 7b).
@@ -203,7 +214,7 @@ Li, F. & Li, F. (2019). Propensity score weighting for causal inference with mul
 Austin, P.C. (2016). Variance estimation when using inverse probability of treatment weighting (IPTW) with survival analysis. \emph{Statistics in Medicine}, \bold{35}, 5642-5655. \doi{10.1002/sim.7084}.
 }
 \seealso{
-\code{\link{basdat}}, \code{\link{haartdat}}, \code{\link{ipwplot}}, \code{\link{ipwpoint}}, \code{\link{ipwtm}}, \code{\link{timedat}}, \code{\link{tstartfun}}.
+\code{\link{ipwvcov}}, \code{\link{basdat}}, \code{\link{haartdat}}, \code{\link{ipwplot}}, \code{\link{ipwpoint}}, \code{\link{ipwtm}}, \code{\link{timedat}}, \code{\link{tstartfun}}.
 }
 \author{
 Willem M. van der Wal \email{willem@vanderwalresearch.com}, Ronald B. Geskus \email{rgeskus@oucru.org},
