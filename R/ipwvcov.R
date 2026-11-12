@@ -25,10 +25,15 @@
 #' ATC, ATO). The exposure models must use the logit link: the information
 #' matrices use the expected (Fisher) information, which equals the observed
 #' information, and so gives the exact sandwich, only for canonical links. For
-#' the marginal structural model any \code{glm()} link is accepted; with a
-#' non-canonical link (for example a log link for risk ratios) the expected
-#' information is asymptotically equivalent when the model is correctly
-#' specified, which a saturated model such as \code{y ~ a} always is.
+#' the marginal structural model any \code{glm()} link is accepted. With a
+#' non-canonical link (for example a log link for risk ratios) and a
+#' saturated model such as \code{y ~ a} for the binary exposure, the expected
+#' and observed information are exactly equal in any sample: the fitted mean
+#' in each exposure group is that group's weighted mean of \code{y}, so the
+#' extra term of the observed information, a weighted sum of residuals times
+#' a factor that is constant within each group, sums to zero within each
+#' group. For other models with a non-canonical link the two are
+#' asymptotically equivalent when the model is correctly specified.
 #' No small-sample correction is applied. Proportional rescaling of the
 #' weights does not change the result.
 #'

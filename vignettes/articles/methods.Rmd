@@ -580,9 +580,16 @@ the sandwich is exact; for other links the two are only asymptotically
 equivalent, and in the tests a probit or cloglog exposure model gave
 standard errors up to 2% away from the exact (numerical-Jacobian) sandwich.
 `ipwvcov()` therefore requires logistic exposure models. For the marginal
-structural model any `glm()` link is accepted, since a saturated model such
-as `y ~ a` is always correctly specified and the difference then vanishes in
-large samples. Dispersion parameters cancel. No small-sample correction is
+structural model any `glm()` link is accepted. For a saturated model such
+as `y ~ a` with a binary exposure, the expected and observed information
+are exactly equal in any sample, whatever the link: the fitted mean in each
+exposure group is that group's weighted mean of `y`, so the extra term of
+the observed information, $\sum_i w_i X_i X_i^T (y_i - \mu_i)\, c(\eta_i)$
+with $c$ the derivative of $(d\mu/d\eta)/V(\mu)$ with respect to $\eta$,
+sums to zero within each group, where $\eta_i$ and hence $c(\eta_i)$ are
+constant. For other MSMs with a non-canonical link (for example a log link
+with covariates) the two are asymptotically equivalent when the model is
+correctly specified. Dispersion parameters cancel. No small-sample correction is
 applied. The package tests compare the result with a numerical Jacobian of
 the stacked equations and with `glm_weightit(vcov = "asympt")` from the
 WeightIt package.

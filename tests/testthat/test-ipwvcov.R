@@ -132,6 +132,25 @@ test_that("ipwvcov agrees with WeightIt::glm_weightit(vcov = 'asympt')", {
   }
 })
 
+test_that("a log-link MSM (risk ratio) agrees with WeightIt::glm_weightit(vcov = 'asympt')", {
+  # Non-canonical MSM link: for the saturated model yb ~ a the expected and
+  # observed information are exactly equal, so the two must agree closely.
+  skip_if_not_installed("WeightIt")
+  d <- vc_data()
+  for (est in c("ATE", "ATT", "ATC", "ATO")) {
+    w <- ipwpoint(a, "binomial", "logit", denominator = ~ l + v, data = d, estimand = est)
+    W <- WeightIt::weightit(a ~ l + v, data = d, method = "glm", estimand = est)
+    fit_wit <- WeightIt::glm_weightit(yb ~ a, data = d, weightit = W,
+                                      family = stats::binomial(link = "log"), vcov = "asympt")
+    msm <- stats::glm(yb ~ a, data = d, weights = w$ipw.weights,
+                      family = stats::quasibinomial(link = "log"))
+    expect_equal(unname(stats::coef(msm)), unname(stats::coef(fit_wit)), tolerance = 1e-6,
+                 label = paste(est, "log-link coefficients"))
+    expect_equal(unname(ipwvcov(w, msm)), unname(stats::vcov(fit_wit)), tolerance = 1e-6,
+                 label = paste(est, "log-link vcov"))
+  }
+})
+
 test_that("ipwvcov gives clear errors for unsupported input", {
   d <- vc_data(300)
   d$m <- factor(sample(c("x", "y", "z"), 300, replace = TRUE))
