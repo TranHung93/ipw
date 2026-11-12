@@ -23,8 +23,7 @@ without any warning in 1.3.1 and 1.3.2:
   and `ipwprobtm()`. Existing calls give the same weights as before, checked
   by regression tests against ipw 1.2.1.1.
 * License changed back to GPL (>= 2), the license of ipw before 1.3.0
-  (1.3.0 to 1.3.2 were MIT).
-  <!-- CONFIRM before submitting: the authors agree to the change. -->
+  (1.3.0 to 1.3.2 were MIT). All authors agree to the change.
 * A new vignette.
 
 ### Test environments
