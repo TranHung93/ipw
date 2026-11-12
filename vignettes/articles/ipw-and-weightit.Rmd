@@ -12,6 +12,9 @@ stored <- readRDS("ipw-and-weightit.rds")
 # Coverage simulation for a Cox MSM (section 1), made once with
 # data-raw/make-ipwvcov-cox-simulation.R
 cox_sim <- readRDS("ipwvcov-cox-simulation.rds")
+# Coverage simulation for ipwtm() weights (section 3), made once with
+# data-raw/make-ipwvcov-tm-simulation.R
+tm_sim <- readRDS("ipwvcov-tm-simulation.rds")
 ```
 
 ```{r packages, message = FALSE}
@@ -203,11 +206,11 @@ The robust standard error, which treats the weights as known, is about 10%
 (1000 data sets) and of the bootstrap (300 data sets) are both within
 simulation error of 95%.
 
-`ipwvcov()` covers binary point treatments with `lm()`, `glm()` or
-`coxph()` outcome models. WeightIt's outcome-model functions cover more:
-multi-category and continuous treatments, many weighting methods, ordinal
-and multinomial outcome models, and longitudinal weights from
-`weightitMSM()`.
+`ipwvcov()` covers binary exposures with logistic exposure models: point
+treatments with `lm()`, `glm()` or `coxph()` outcome models, and
+time-varying weights from `ipwtm()` (section 3). WeightIt's outcome-model
+functions cover more: multi-category and continuous treatments, many
+weighting methods, and ordinal and multinomial outcome models.
 
 # 2. Categorical point treatment
 
@@ -434,6 +437,58 @@ the grid is the design, and `weightitMSM()` offers the full range of
 WeightIt methods at each time point. With visit times that differ between
 people, `ipwtm()` uses each person's own intervals directly.
 
+## Standard errors on long data
+
+With pooled logistic models (`ipwtm(family = "binomial", link = "logit")`,
+any `type`), `ipwvcov()` gives M-estimation standard errors for an MSM
+fitted on the long data with `lm()`, `glm()` or a Cox model on
+counting-process data, summing all scores within each person; a list of
+weight objects, such as treatment and censoring weights, can be passed. For
+the Cox exposure models used above (`family = "survival"`) it is not
+available, and the cluster bootstrap remains the option.
+
+When the visits are at the same times for everyone, the two packages can be
+compared exactly: with time-specific columns in the pooled model the
+weights equal those of `weightitMSM()`, and the package tests show that
+`ipwvcov()` then reproduces `glm_weightit(vcov = "asympt")` for a
+person-level outcome to about 1e-6.
+
+The table summarises a simulation with individual visit times
+(`r tm_sim$n` people with 3 to 7 visits; a confounder that changes over
+time; a treatment that switches back and forth and depends on the
+confounder and on the previous treatment; an outcome at every visit with an
+effect of current treatment of 1). In the "moderate" scenario treatment
+depends moderately on the confounder and on the previous treatment; in the
+"strong" scenario twice as strongly, which gives cumulative weights with a
+heavy right tail (see the median of the largest weight). The weights are
+`ipwtm(type = "all", numerator = ~ blag, denominator = ~ blag + l)` and the
+MSM is `lm(y ~ b)` on all rows. The robust standard error is clustered by
+person (HC0) and treats the weights as known; the cluster bootstrap
+(`r tm_sim$B` samples of persons, weights re-estimated in each) was run on
+a subset of the data sets.
+
+```{r tm-sim}
+knitr::kable(tm_sim$summary, digits = 3, row.names = FALSE)
+```
+
+With moderate weights, `ipwvcov()` and the cluster bootstrap agree with
+each other and with the empirical standard deviation of the estimates, and
+their intervals cover about 95%. The robust standard error, which treats the
+weights as known, is about 40% too large here, so its intervals are much
+wider than needed. With strongly dependent treatment, `ipwvcov()` and the
+bootstrap give almost the same standard error, but both are about 17%
+smaller than the empirical standard deviation, and coverage drops to about
+93% (the bootstrap's 94.5% is based on 200 data sets). In further runs this
+gap did not shrink when the number of people was quadrupled: the cumulative
+weights have such a heavy tail that the normal approximation behind both
+methods is poor. This is a property of such weights, not of the variance
+formula, which matches the numerical Jacobian of the estimating equations
+exactly. The robust standard error is conservative in both scenarios here,
+but that is not guaranteed; the package's simulation study found settings
+where it was too small as well. When cumulative weights are this variable,
+consider truncation, a less extreme weight model, or a different estimand,
+and treat every standard error with caution.
+
 # 4. Which to use
 
 * **WeightIt** for point treatments when you want machine-learning or
@@ -447,7 +502,8 @@ people, `ipwtm()` uses each person's own intervals directly.
   first switch or to censoring (`ipwtm(family = "survival")`); exposures
   that switch back and forth or recur (`type = "all"`); count and skewed
   continuous exposures (Poisson, negative binomial, gamma, log-normal); and
-  analyses with few dependencies.
+  analyses with few dependencies. With pooled logistic exposure models,
+  `ipwvcov()` gives M-estimation standard errors on the long data.
 * **PSweight** for point treatments when you want overlap, matching or
   entropy weights with built-in sandwich standard errors, augmented
   (doubly robust) estimators, ratio estimands for binary outcomes, or

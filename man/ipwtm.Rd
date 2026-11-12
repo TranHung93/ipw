@@ -66,6 +66,10 @@ A list of class \code{"ipwtm"} containing:
 \item{selvar}{Selection indicator vector (1 = active observation, 0 = post-switch).}
 \item{num.mod}{Numerator model object.}
 \item{den.mod}{Denominator model object.}
+The result also has the attributes \code{"family"}, \code{"type"},
+\code{"id"} (the subject identifier, in original row order) and
+\code{"sort.order"} (the order of the rows of \code{data} used to fit the
+models), which \code{\link{ipwvcov}} uses.
 }
 \description{
 Estimates inverse probability weights to fit marginal structural models with
@@ -75,6 +79,14 @@ Supports binomial, survival, multinomial, ordinal, and gaussian families.
 \details{
 Standard errors: \code{ipwtm} only estimates the weights. Standard errors
 for the marginal structural model have to be obtained when that model is fitted.
+For \code{family = "binomial"} with \code{link = "logit"} (any \code{type}, no
+smooth terms, no truncation) and a marginal structural model fitted on the
+long data with \code{lm()}, \code{glm()} or \code{coxph()} on counting-process
+data, \code{\link{ipwvcov}} (new, experimental) gives standard errors that take
+the estimation of the weights into account, with the scores summed within
+subject; pass a list to combine, for example, treatment and censoring weights.
+For Cox (\code{family = "survival"}), multinomial, ordinal and gaussian
+exposure models, and for truncated weights, use the bootstrap described below.
 Robust standard errors, for example from \code{coxph()} with \code{cluster(id)}
 as in Van der Wal and Geskus (2011), treat the weights as known. They are often
 conservative (too large) for a binary point treatment with good overlap, but

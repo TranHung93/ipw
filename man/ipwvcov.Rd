@@ -8,11 +8,15 @@ ipwvcov(object, msm)
 }
 \arguments{
 \item{object}{Result of \code{\link{ipwpoint}} with \code{family = "binomial"}
-and \code{link = "logit"}.}
+and \code{link = "logit"}; or result of \code{\link{ipwtm}} with
+\code{family = "binomial"} and \code{link = "logit"}; or a list of
+\code{ipwtm()} (and \code{ipwpoint()}) results whose weights multiply to
+the weights of \code{msm}.}
 
 \item{msm}{Marginal structural model: an \code{lm}, \code{glm} or
-\code{coxph} fit with weights equal to \code{object$ipw.weights}, on the
-same rows in the same order as the data given to \code{ipwpoint()}.}
+\code{coxph} fit with weights equal to \code{object$ipw.weights} (or their
+product for a list), on the same rows in the same order as the data given
+to \code{ipwpoint()} or \code{ipwtm()}.}
 }
 \value{
 Variance-covariance matrix of the coefficients of \code{msm}, with
@@ -23,7 +27,8 @@ Variance-covariance matrix of the coefficients of \code{msm}, with
 \strong{New, experimental.} Variance-covariance matrix of the coefficients
 of a marginal structural model fitted with \code{lm()}, \code{glm()} or
 \code{survival::coxph()} and
-weights from \code{\link{ipwpoint}} for a binary point treatment, taking the
+weights from \code{\link{ipwpoint}} for a binary point treatment, or with
+time-varying weights from \code{\link{ipwtm}}, taking the
 estimation of the weights into account. The marginal structural model and
 the exposure models are treated as one set of stacked estimating equations
 (M-estimation; Lunceford & Davidian 2004), and the sandwich variance of all
@@ -87,13 +92,54 @@ per person in the same order, and the same weights. For \code{coxph()},
 tied event times need \code{ties = "breslow"}; without tied event times
 all tie methods give the same result.
 
+\strong{Time-varying weights.} \code{object} can be an \code{ipwtm()}
+result, or a list of \code{ipwtm()} (and \code{ipwpoint()}) results whose
+\code{ipw.weights} multiply to the weights of \code{msm}, typically
+treatment weights times censoring weights. Each model is a separate
+parameter block. The unit of independence is the subject (the \code{id}
+of \code{ipwtm()}): all scores are summed within subject before the meat
+\eqn{B = \sum_{subjects} \psi_p \psi_p^T} is formed. The weight of row
+\eqn{r} is the product, over the rows \eqn{s \le r} of the same subject,
+of numerator over denominator factors \eqn{f_s}, as defined by
+\code{ipwtm()}: \eqn{P(A_s = a_s)} for \code{type = "first"} and
+\code{"all"}, \eqn{1 - p_s} for \code{type = "cens"} (the censoring row
+included), and 1 after the first switch. With logistic models,
+\eqn{\partial \log f_s / \partial \alpha} is \eqn{(a_s - p_s) Z_s}
+(\code{"first"}, \code{"all"}) or \eqn{-p_s Z_s} (\code{"cens"}), so
+\eqn{d_r = \partial \log w_r / \partial \alpha} is minus the cumulative
+sum of these over the rows used by the model, within subject in time
+order (plus, for the numerator). The cross block is
+\eqn{-\sum_r U_r d_r^T} for \code{lm()}, \code{glm()} and Cox models; for a
+Cox model on counting-process data \code{Surv(tstart, time, event)} the
+identity above holds row by row, because each row enters the risk sets
+with its own weight. Without the exposure models the sandwich reduces to
+the cluster-robust variance that treats the weights as known (for a Cox
+model, \code{coxph()} with \code{cluster(id)}).
+
+Supported for time-varying weights: \code{ipwtm(family = "binomial",
+link = "logit")} with any \code{type}, glm models without smooth terms, no
+truncation, made with this version of ipw; \code{msm} fitted with
+\code{lm()}, \code{glm()} or \code{coxph()} (counting-process data;
+\code{cluster()} is allowed, \code{ties = "breslow"} when event times are
+tied) on all rows of the long data, in the same order, with weights equal
+to the product of the weights in \code{object}. Cumulative weights can have
+a heavy right tail; in simulations, \code{ipwvcov()} and the cluster
+bootstrap then both underestimated the standard error (by about 17\% when
+treatment depended strongly on the confounder and on past treatment), while
+with moderately variable weights both were accurate. Check the weights with
+\code{summary()} and \code{\link{ipwplot}}.
+
 Not supported, and an error: other exposure families or links, smooth terms
 (GAMs), truncated weights (truncation at estimated percentiles is not a
-smooth function of the model coefficients), time-varying weights from
-\code{\link{ipwtm}}, and \code{coxph()} models with counting-process data,
-\code{strata()}, \code{cluster()}, \code{frailty()} or \code{tt()} terms, or
-Efron or exact ties with tied event times. Use the bootstrap there, re-estimating the weights in
-each bootstrap sample (see \code{\link{ipwpoint}} and \code{vignette("ipw")}).
+smooth function of the model coefficients), \code{ipwtm()} weights from Cox
+(\code{family = "survival"}), multinomial, ordinal or gaussian models, and
+\code{coxph()} models with \code{strata()}, \code{frailty()} or \code{tt()}
+terms, or Efron or exact ties with tied event times. With \code{ipwpoint()}
+weights the \code{coxph()} model must have right-censored data (one row per
+person) and no \code{cluster()}; with \code{ipwtm()} weights it must have
+counting-process data. Use the bootstrap there, re-estimating the weights in
+each bootstrap sample (see \code{\link{ipwpoint}} and \code{vignette("ipw")};
+for long data, the cluster bootstrap that resamples subjects).
 
 This is the same kind of standard error as \code{vcov = "asympt"} in
 \code{WeightIt::glm_weightit()}; in the package tests the two agree for
@@ -140,6 +186,22 @@ simdat$time <- pmin(simdat$time, 10)
 msm.cox <- coxph(Surv(time, status) ~ a, data = simdat, weights = w$ipw.weights)
 cbind(robust = sqrt(diag(msm.cox$var)),          # weights treated as known
       ipwvcov = sqrt(diag(ipwvcov(w, msm.cox))))  # weights estimated
+
+# Time-varying weights: treatment (type = "first") times censoring
+# (type = "cens") weights from pooled logistic models, and a Cox MSM on
+# the long data
+data(haartdat)
+w.haart <- ipwtm(exposure = haartind, family = "binomial", link = "logit",
+                 numerator = ~ sex + age, denominator = ~ sex + age + cd4.sqrt,
+                 id = patient, timevar = fuptime, type = "first", data = haartdat)
+w.cens <- ipwtm(exposure = dropout, family = "binomial", link = "logit",
+                numerator = ~ sex + age, denominator = ~ sex + age + cd4.sqrt,
+                id = patient, timevar = fuptime, type = "cens", data = haartdat)
+msm.haart <- coxph(Surv(tstart, fuptime, event) ~ haartind + cluster(patient),
+                   data = haartdat, ties = "breslow",
+                   weights = w.haart$ipw.weights * w.cens$ipw.weights)
+cbind(robust.cluster = sqrt(diag(msm.haart$var)),
+      ipwvcov = sqrt(diag(ipwvcov(list(w.haart, w.cens), msm.haart))))
 }
 \references{
 Lunceford, J.K. & Davidian, M. (2004). Stratification and weighting via the
@@ -162,5 +224,5 @@ Studies. R package, \url{https://ngreifer.github.io/WeightIt/}. (Its
 independent comparison.)
 }
 \seealso{
-\code{\link{ipwpoint}}
+\code{\link{ipwpoint}}, \code{\link{ipwtm}}
 }
