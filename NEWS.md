@@ -96,9 +96,10 @@
   model fitted with `lm()` or `glm()` and `ipwpoint()` weights for a binary
   exposure, taking the estimation of the weights into account (M-estimation
   with stacked estimating equations, Lunceford & Davidian 2004). Works for
-  `estimand = "ATE"` (stabilized or not), `"ATT"`, `"ATC"` and `"ATO"` and
-  any binomial link. Not for truncated weights, smooth terms, other families
-  or `ipwtm()` weights: use the bootstrap there. Agrees with
+  `estimand = "ATE"` (stabilized or not), `"ATT"`, `"ATC"` and `"ATO"`, with
+  logistic exposure models (`link = "logit"`). Not for other links, truncated
+  weights, smooth terms, other families or `ipwtm()` weights: use the
+  bootstrap there. Agrees with
   `WeightIt::glm_weightit(vcov = "asympt")` in the tests.
 * `ipwpoint()`: `estimand = "ATC"` (effect in the untreated) for a binomial
   exposure: treated get weight (1 - p)/p, untreated 1.

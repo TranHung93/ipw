@@ -7,7 +7,8 @@
 ipwvcov(object, msm)
 }
 \arguments{
-\item{object}{Result of \code{\link{ipwpoint}} with \code{family = "binomial"}.}
+\item{object}{Result of \code{\link{ipwpoint}} with \code{family = "binomial"}
+and \code{link = "logit"}.}
 
 \item{msm}{Marginal structural model: an \code{lm} or \code{glm} fit with
 prior weights equal to \code{object$ipw.weights}, on the same rows in the
@@ -40,20 +41,23 @@ the variance is \eqn{A^{-1} B A^{-T}} with \eqn{A = -\sum_i \partial
 \psi_i / \partial \theta} and \eqn{B = \sum_i \psi_i \psi_i^T}, evaluated
 at the estimates. The derivative of each weight with respect to the
 exposure-model coefficients is worked out for each estimand (ATE, ATT,
-ATC, ATO), and the link function of each model is used, so links other
-than the logit work. The information matrices of the models use the
-expected (Fisher) information, which equals the observed information for
-canonical links (identity for a gaussian, logit for a binomial outcome).
+ATC, ATO). The exposure models must use the logit link: the information
+matrices use the expected (Fisher) information, which equals the observed
+information, and so gives the exact sandwich, only for canonical links. For
+the marginal structural model any \code{glm()} link is accepted; with a
+non-canonical link (for example a log link for risk ratios) the expected
+information is asymptotically equivalent when the model is correctly
+specified, which a saturated model such as \code{y ~ a} always is.
 No small-sample correction is applied. Proportional rescaling of the
 weights does not change the result.
 
-Supported: \code{object} from \code{ipwpoint(family = "binomial")} with
-denominator (and, if present, numerator) models fitted by \code{glm()}
-(no smooth terms) and any \code{estimand}; \code{msm} of class
+Supported: \code{object} from \code{ipwpoint(family = "binomial",
+link = "logit")} with denominator (and, if present, numerator) models
+fitted by \code{glm()} (no smooth terms) and any \code{estimand}; \code{msm} of class
 \code{"lm"} or \code{"glm"}, fitted on the same rows, in the same order, as
 the weights, with \code{weights = object$ipw.weights}.
 
-Not supported, and an error: other exposure families, smooth terms
+Not supported, and an error: other exposure families or links, smooth terms
 (GAMs), truncated weights (truncation at estimated percentiles is not a
 smooth function of the model coefficients) and time-varying weights from
 \code{\link{ipwtm}}. Use the bootstrap there, re-estimating the weights in

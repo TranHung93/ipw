@@ -98,8 +98,8 @@ generalized additive models with \pkg{mgcv}.
 \details{
 Standard errors: \code{ipwpoint} only estimates the weights. Standard errors
 for the marginal structural model have to be obtained when that model is fitted.
-For a binomial exposure (any \code{estimand}, exposure models without smooth
-terms, no truncation) and a marginal structural model fitted with \code{lm()}
+For a binomial exposure (any \code{estimand}, logit link, exposure models without
+smooth terms, no truncation) and a marginal structural model fitted with \code{lm()}
 or \code{glm()}, \code{\link{ipwvcov}} (new, experimental) gives standard errors
 that take the estimation of the weights into account (M-estimation); this is
 the recommended option there. For all other cases use the bootstrap described

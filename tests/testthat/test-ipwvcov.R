@@ -101,16 +101,16 @@ test_that("for a saturated MSM, stabilized and unstabilized ATE weights give the
   expect_equal(vs, vu, tolerance = 1e-8)
 })
 
-test_that("non-logit links are close to the numerical Jacobian (expected vs observed information)", {
-  d <- vc_data(3000, 8)
+test_that("non-logit exposure models are refused (expected information is not exact)", {
+  d <- vc_data()
   for (lk in c("probit", "cloglog")) {
     w <- ipwpoint(a, "binomial", lk, denominator = ~ l + v, data = d)
     msm <- stats::lm(y ~ a, data = d, weights = w$ipw.weights)
-    ref <- numerical_vcov(d, "y", "ATE", lk, ~ a, "gaussian", ~ l + v,
-                          msm = msm, den = w$den.mod)
-    expect_equal(sqrt(diag(unname(ipwvcov(w, msm)))), sqrt(diag(unname(ref))),
-                 tolerance = 0.02, label = lk)
+    expect_error(ipwvcov(w, msm), "link = 'logit'", label = lk)
   }
+  wn <- ipwpoint(a, "binomial", "probit", numerator = ~ v, denominator = ~ l + v, data = d)
+  expect_error(ipwvcov(wn, stats::lm(y ~ a, data = d, weights = wn$ipw.weights)),
+               "link = 'logit'")
 })
 
 test_that("ipwvcov agrees with WeightIt::glm_weightit(vcov = 'asympt')", {

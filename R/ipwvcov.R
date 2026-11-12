@@ -22,20 +22,23 @@
 #' \psi_i / \partial \theta} and \eqn{B = \sum_i \psi_i \psi_i^T}, evaluated
 #' at the estimates. The derivative of each weight with respect to the
 #' exposure-model coefficients is worked out for each estimand (ATE, ATT,
-#' ATC, ATO), and the link function of each model is used, so links other
-#' than the logit work. The information matrices of the models use the
-#' expected (Fisher) information, which equals the observed information for
-#' canonical links (identity for a gaussian, logit for a binomial outcome).
+#' ATC, ATO). The exposure models must use the logit link: the information
+#' matrices use the expected (Fisher) information, which equals the observed
+#' information, and so gives the exact sandwich, only for canonical links. For
+#' the marginal structural model any \code{glm()} link is accepted; with a
+#' non-canonical link (for example a log link for risk ratios) the expected
+#' information is asymptotically equivalent when the model is correctly
+#' specified, which a saturated model such as \code{y ~ a} always is.
 #' No small-sample correction is applied. Proportional rescaling of the
 #' weights does not change the result.
 #'
-#' Supported: \code{object} from \code{ipwpoint(family = "binomial")} with
-#' denominator (and, if present, numerator) models fitted by \code{glm()}
-#' (no smooth terms) and any \code{estimand}; \code{msm} of class
+#' Supported: \code{object} from \code{ipwpoint(family = "binomial",
+#' link = "logit")} with denominator (and, if present, numerator) models
+#' fitted by \code{glm()} (no smooth terms) and any \code{estimand}; \code{msm} of class
 #' \code{"lm"} or \code{"glm"}, fitted on the same rows, in the same order, as
 #' the weights, with \code{weights = object$ipw.weights}.
 #'
-#' Not supported, and an error: other exposure families, smooth terms
+#' Not supported, and an error: other exposure families or links, smooth terms
 #' (GAMs), truncated weights (truncation at estimated percentiles is not a
 #' smooth function of the model coefficients) and time-varying weights from
 #' \code{\link{ipwtm}}. Use the bootstrap there, re-estimating the weights in
@@ -45,7 +48,8 @@
 #' \code{WeightIt::glm_weightit()}; in the package tests the two agree for
 #' binary treatments.
 #'
-#' @param object Result of \code{\link{ipwpoint}} with \code{family = "binomial"}.
+#' @param object Result of \code{\link{ipwpoint}} with \code{family = "binomial"}
+#'   and \code{link = "logit"}.
 #' @param msm Marginal structural model: an \code{lm} or \code{glm} fit with
 #'   prior weights equal to \code{object$ipw.weights}, on the same rows in the
 #'   same order as the data given to \code{ipwpoint()}.
@@ -200,7 +204,7 @@ ipwvcov <- function(object, msm) {
   V
 }
 
-# An exposure model that ipwvcov() can handle: a binomial glm (not a GAM),
+# An exposure model that ipwvcov() can handle: a logistic glm (not a GAM),
 # unweighted, without aliased coefficients.
 .check_vcov_model <- function(mod, which) {
   if (inherits(mod, "gam")) {
@@ -210,6 +214,11 @@ ipwvcov <- function(object, msm) {
   if (!inherits(mod, "glm") || !identical(mod$family$family, "binomial")) {
     stop("ipwvcov() is only available for ipwpoint() with family = 'binomial'. ",
          "Use the bootstrap for other exposures.", call. = FALSE)
+  }
+  if (!identical(mod$family$link, "logit")) {
+    stop("ipwvcov() needs link = 'logit' for the ", which, " model (it has '",
+         mod$family$link, "'). With other links the result is only approximate; ",
+         "use the bootstrap.", call. = FALSE)
   }
   if (any(mod$prior.weights != 1)) {
     stop("ipwvcov() does not support prior weights in the ", which, " model.",

@@ -516,8 +516,8 @@ se.mest
 ```
 
 `lmtest::coeftest(msm.lm, vcov. = ipwvcov(w, msm.lm))` gives Wald tests and
-`lmtest::coefci()` confidence intervals. `ipwvcov()` does not handle
-truncated weights, smooth terms, other exposure families or time-varying
+`lmtest::coefci()` confidence intervals. `ipwvcov()` needs a logistic
+exposure model (`link = "logit"`), and does not handle truncated weights, smooth terms, other exposure families or time-varying
 weights from `ipwtm()`; for these, use the bootstrap below.
 
 ## Robust and bootstrap standard errors
@@ -664,6 +664,8 @@ cobalt::bal.tab(haartind ~ cd4.sqrt + sex + age, data = haart.sub,
                 s.d.denom = "pooled", un = TRUE, cluster = "fuptime")
 ```
 
+We show this example as it is, rather than picking a time point where the
+weights look good, because a balance check is only useful if it can fail.
 The result is mixed, and that is useful to know. At 500 days, weighting
 halves the imbalance in CD4 count (SMD from about -0.8 to -0.4) but does not
 remove it; at 100 days, where the few people starting HAART happened to have
