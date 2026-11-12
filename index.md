@@ -143,6 +143,12 @@ standard errors account for the estimation of the weights
 (`glm_weightit()`, `coxph_weightit()`, also for ordinal and multinomial
 outcomes).
 
+[PSweight](https://CRAN.R-project.org/package=PSweight) is another
+option for point treatments, binary or with several levels: especially
+for overlap (and matching or entropy) weights with built-in sandwich
+standard errors that account for the estimated propensity score,
+augmented (doubly robust) estimators, and survey or clustered data.
+
 **Use ipw** for
 
 - exposures that change over time in **long (counting-process) data**,
@@ -204,8 +210,10 @@ summary(msm.cox)$conf.int
 
 A side-by-side comparison on the same data, including the standard
 errors and what longitudinal data with individual visit times mean for
-each package, is in the article [ipw and
-WeightIt](https://tranhung93.github.io/ipw/articles/ipw-and-weightit.html).
+each package, is in the article [ipw, WeightIt and PSweight side by
+side](https://tranhung93.github.io/ipw/articles/ipw-and-weightit.html),
+which also shows that PSweight gives the same weights and standard
+errors as ipw for binary and categorical point treatments.
 
 ## Authors
 
@@ -223,3 +231,7 @@ WeightIt](https://tranhung93.github.io/ipw/articles/ipw-and-weightit.html).
   550-560.
 - Greifer N. WeightIt: Weighting for Covariate Balance in Observational
   Studies. R package, <https://ngreifer.github.io/WeightIt/>.
+- Zhou T., Tong G., Li F., Thomas L. & Li F. PSweight: Propensity Score
+  Weighting for Causal Inference with Observational Studies and
+  Randomized Trials. R package,
+  <https://CRAN.R-project.org/package=PSweight>.

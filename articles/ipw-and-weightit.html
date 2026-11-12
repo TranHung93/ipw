@@ -5,12 +5,12 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>ipw and WeightIt side by side • ipw</title>
+<title>ipw, WeightIt and PSweight side by side • ipw</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="ipw and WeightIt side by side">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="ipw, WeightIt and PSweight side by side">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -35,7 +35,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/bug-fixes.html">Bugs fixed after ipw 1.3.2</a></li>
-    <li><a class="dropdown-item" href="../articles/ipw-and-weightit.html">ipw and WeightIt side by side</a></li>
+    <li><a class="dropdown-item" href="../articles/ipw-and-weightit.html">ipw, WeightIt and PSweight side by side</a></li>
     <li><a class="dropdown-item" href="../articles/methods.html">Methods behind the new features: formulas, code and rationale</a></li>
     <li><a class="dropdown-item" href="../articles/simulations.html">Simulation study: do the weights recover known effects?</a></li>
     <li><a class="dropdown-item" href="../articles/survival-weights-time-grid.html">Survival weights and the time grid: a caution for ipw 1.3.2 and earlier</a></li>
@@ -61,7 +61,7 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
 
-      <h1>ipw and WeightIt side by side</h1>
+      <h1>ipw, WeightIt and PSweight side by side</h1>
             
       
       <small class="dont-index">Source: <a href="https://github.com/TranHung93/ipw/blob/main/vignettes/articles/ipw-and-weightit.Rmd" class="external-link"><code>vignettes/articles/ipw-and-weightit.Rmd</code></a></small>
@@ -74,12 +74,26 @@
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://tranhung93.github.io/ipw/">ipw</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/therneau/survival" class="external-link">survival</a></span><span class="op">)</span></span></code></pre></div>
 <p><a href="https://ngreifer.github.io/WeightIt/" class="external-link">WeightIt</a> (Greifer)
-and ipw both estimate weights for marginal structural models. This
-article runs the two packages on the same data: a binary and a
-categorical point treatment, where both apply and should give the same
-answer, and longitudinal data with individual visit times, where they
-work differently. WeightIt is used only through its exported functions.
-This page was built with ipw 1.3.2.9000 and WeightIt 2.1.0.</p>
+and ipw both estimate weights for marginal structural models; <a href="https://CRAN.R-project.org/package=PSweight" class="external-link">PSweight</a> (Zhou,
+Tong, Li, Thomas &amp; Li) estimates propensity score weighted treatment
+effects for point treatments. This article runs the packages on the same
+data: a binary and a categorical point treatment, where all three apply
+and should give the same answer, and longitudinal data with individual
+visit times, where ipw and WeightIt work differently. WeightIt and
+PSweight are used only through their exported functions. This page was
+built with ipw 1.3.2.9000, WeightIt 2.1.0 and PSweight 2.1.2.</p>
+<p><strong>What PSweight offers.</strong> PSweight is designed for point
+treatments, binary or with several levels. It offers inverse
+probability, ATT, overlap, matching and entropy weights, propensity
+score trimming, and augmented (doubly robust) estimators that add an
+outcome model. The propensity score can be fitted by logistic or
+multinomial regression, generalized boosted models or SuperLearner.
+Inference uses sandwich (M-estimation) variances that account for the
+estimated propensity score, or the bootstrap, for differences in means
+and, for binary or count outcomes, risk ratios and odds ratios. It also
+has functions for survey data with survey weights and for clustered
+data, both mainly for binary treatments, and covariate balance summaries
+and plots. It does not handle time-varying treatments.</p>
 <div class="section level2">
 <h2 id="binary-point-treatment">1. Binary point treatment<a class="anchor" aria-label="anchor" href="#binary-point-treatment"></a>
 </h2>
@@ -93,7 +107,8 @@ estimands are 2 in truth.</p>
 <span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>l <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span>, x <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n</span>, <span class="fl">1</span>, <span class="fl">0.4</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">d</span><span class="op">$</span><span class="va">a</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n</span>, <span class="fl">1</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Logistic.html" class="external-link">plogis</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.3</span> <span class="op">+</span> <span class="fl">0.8</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">l</span> <span class="op">+</span> <span class="fl">0.5</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">x</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">d</span><span class="op">$</span><span class="va">y</span> <span class="op">&lt;-</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">a</span> <span class="op">+</span> <span class="va">d</span><span class="op">$</span><span class="va">l</span> <span class="op">+</span> <span class="va">d</span><span class="op">$</span><span class="va">x</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/Matrix/man/all.equal-methods.html" class="external-link">all.equal</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">y</span><span class="op">)</span>, <span class="va">stored</span><span class="op">$</span><span class="va">data_check</span><span class="op">)</span><span class="op">)</span>   <span class="co"># same data as the bootstrap</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/Matrix/man/all.equal-methods.html" class="external-link">all.equal</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">y</span><span class="op">)</span>, <span class="va">stored</span><span class="op">$</span><span class="va">data_check</span><span class="op">)</span><span class="op">)</span>   <span class="co"># same data as the bootstrap</span></span>
+<span><span class="va">estimands</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ATE"</span>, <span class="st">"ATT"</span>, <span class="st">"ATC"</span>, <span class="st">"ATO"</span><span class="op">)</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="the-weights">The weights<a class="anchor" aria-label="anchor" href="#the-weights"></a>
 </h3>
@@ -101,8 +116,7 @@ estimands are 2 in truth.</p>
 with <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> and apply the same formulas, so the weights
 should agree up to rounding:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">estimands</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ATE"</span>, <span class="st">"ATT"</span>, <span class="st">"ATC"</span>, <span class="st">"ATO"</span><span class="op">)</span></span>
-<span><span class="va">w_ipw</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="va">estimands</span>, <span class="va">estimands</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">est</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">w_ipw</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="va">estimands</span>, <span class="va">estimands</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">est</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="../reference/ipwpoint.html">ipwpoint</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">a</span>, family <span class="op">=</span> <span class="st">"binomial"</span>, link <span class="op">=</span> <span class="st">"logit"</span>,</span>
 <span>           denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l</span> <span class="op">+</span> <span class="va">x</span>, data <span class="op">=</span> <span class="va">d</span>, estimand <span class="op">=</span> <span class="va">est</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">w_wit</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="va">estimands</span>, <span class="va">estimands</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">est</span><span class="op">)</span></span>
@@ -111,17 +125,37 @@ should agree up to rounding:</p>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>max.abs.difference <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">w_ipw</span><span class="op">[[</span><span class="va">est</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">ipw.weights</span> <span class="op">-</span> <span class="va">w_wit</span><span class="op">[[</span><span class="va">est</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">weights</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>    max.weight <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">w_ipw</span><span class="op">[[</span><span class="va">est</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">ipw.weights</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                             ATE          ATT          ATC          ATO</span></span>
-<span><span class="co">#&gt; max.abs.difference 1.065814e-14 1.065814e-14 7.105427e-15 3.330669e-16</span></span>
+<span><span class="co">#&gt; max.abs.difference 1.065814e-14 2.220446e-15 8.881784e-15 2.220446e-16</span></span>
 <span><span class="co">#&gt; max.weight         1.180340e+01 8.832774e+00 1.080340e+01 9.152786e-01</span></span></code></pre></div>
 <p>The largest difference is at the level of floating-point rounding.
 Stabilized ATE weights agree too: <code>numerator = ~ 1</code> in ipw
 and <code>stabilize = TRUE</code> in WeightIt.</p>
+<p>PSweight scales the weights to sum to 1 within each treatment group,
+which changes no weighted group mean or effect estimate, so the weights
+are compared after the same scaling. PSweight has no “ATC” option, but
+its ATT weights with the untreated as the “treated” group
+(<code>trtgrp = "0"</code>) are the ATC weights.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">psw_args</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>ATE <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>weight <span class="op">=</span> <span class="st">"IPW"</span><span class="op">)</span>, ATT <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>weight <span class="op">=</span> <span class="st">"treated"</span><span class="op">)</span>,</span>
+<span>                 ATC <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>weight <span class="op">=</span> <span class="st">"treated"</span>, trtgrp <span class="op">=</span> <span class="st">"0"</span><span class="op">)</span>,</span>
+<span>                 ATO <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>weight <span class="op">=</span> <span class="st">"overlap"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">norm_by_group</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">w</span>, <span class="va">g</span><span class="op">)</span> <span class="va">w</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/stats/ave.html" class="external-link">ave</a></span><span class="op">(</span><span class="va">w</span>, <span class="va">g</span>, FUN <span class="op">=</span> <span class="va">sum</span><span class="op">)</span></span>
+<span><span class="va">w_ipw_bin</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="va">estimands</span>, <span class="va">estimands</span><span class="op">)</span>,</span>
+<span>  <span class="kw">function</span><span class="op">(</span><span class="va">est</span><span class="op">)</span> <span class="fu"><a href="../reference/ipwpoint.html">ipwpoint</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">a</span>, family <span class="op">=</span> <span class="st">"binomial"</span>, link <span class="op">=</span> <span class="st">"logit"</span>,</span>
+<span>                         denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l</span> <span class="op">+</span> <span class="va">x</span>, data <span class="op">=</span> <span class="va">d</span>, estimand <span class="op">=</span> <span class="va">est</span><span class="op">)</span><span class="op">$</span><span class="va">ipw.weights</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">estimands</span>, <span class="kw">function</span><span class="op">(</span><span class="va">est</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">ss</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="fu">PSweight</span><span class="fu">::</span><span class="va"><a href="https://rdrr.io/pkg/PSweight/man/SumStat.html" class="external-link">SumStat</a></span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>ps.formula <span class="op">=</span> <span class="va">a</span> <span class="op">~</span> <span class="va">l</span> <span class="op">+</span> <span class="va">x</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">)</span>, <span class="va">psw_args</span><span class="op">[[</span><span class="va">est</span><span class="op">]</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="fu">norm_by_group</span><span class="op">(</span><span class="va">w_ipw_bin</span><span class="op">[[</span><span class="va">est</span><span class="op">]</span><span class="op">]</span>, <span class="va">d</span><span class="op">$</span><span class="va">a</span><span class="op">)</span> <span class="op">-</span></span>
+<span>          <span class="fu">norm_by_group</span><span class="op">(</span><span class="va">ss</span><span class="op">$</span><span class="va">ps.weights</span><span class="op">[[</span><span class="va">psw_args</span><span class="op">[[</span><span class="va">est</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">weight</span><span class="op">]</span><span class="op">]</span>, <span class="va">d</span><span class="op">$</span><span class="va">a</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span><span class="op">)</span></span>
+<span><span class="co">#&gt;          ATE          ATT          ATC          ATO </span></span>
+<span><span class="co">#&gt; 1.734723e-18 4.336809e-19 0.000000e+00 1.734723e-18</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="standard-errors">Standard errors<a class="anchor" aria-label="anchor" href="#standard-errors"></a>
 </h3>
 <p>The marginal structural model is the weighted regression of
-<code>y</code> on <code>a</code>. Four standard errors of the
+<code>y</code> on <code>a</code>. Five standard errors of the
 coefficient of <code>a</code>:</p>
 <ul>
 <li>
@@ -131,6 +165,11 @@ which accounts for the estimation of the weights;</li>
 <strong>glm_weightit(vcov = “asympt”)</strong>: WeightIt’s
 M-estimation standard error;</li>
 <li>
+<strong>PSweight</strong>: the sandwich standard error of the
+weighted difference in means from <code>PSweight()</code> and
+<code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, which for the saturated model <code>y ~ a</code>
+is the same quantity;</li>
+<li>
 <strong>robust (HC0)</strong>: the sandwich standard error that
 treats the weights as known, as <code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">svyglm()</a></code> or
 <code>glm_weightit(vcov = "HC0")</code> give it;</li>
@@ -138,7 +177,7 @@ treats the weights as known, as <code><a href="https://rdrr.io/pkg/survey/man/sv
 <strong>bootstrap</strong>: 2000 bootstrap samples, re-estimating
 the weights in each (computed once, see the setup chunk).</li>
 </ul>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">se_table</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">estimands</span>, <span class="kw">function</span><span class="op">(</span><span class="va">est</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">msm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">a</span>, data <span class="op">=</span> <span class="va">d</span>, weights <span class="op">=</span> <span class="va">w_ipw</span><span class="op">[[</span><span class="va">est</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">ipw.weights</span><span class="op">)</span></span>
 <span>  <span class="va">fit_m</span> <span class="op">&lt;-</span> <span class="fu">WeightIt</span><span class="fu">::</span><span class="fu"><a href="https://ngreifer.github.io/WeightIt/reference/glm_weightit.html" class="external-link">glm_weightit</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">a</span>, data <span class="op">=</span> <span class="va">d</span>, weightit <span class="op">=</span> <span class="va">w_wit</span><span class="op">[[</span><span class="va">est</span><span class="op">]</span><span class="op">]</span>, vcov <span class="op">=</span> <span class="st">"asympt"</span><span class="op">)</span></span>
@@ -146,25 +185,29 @@ the weights in each (computed once, see the setup chunk).</li>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>estimate <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">msm</span><span class="op">)</span><span class="op">[</span><span class="st">"a"</span><span class="op">]</span><span class="op">)</span>,</span>
 <span>    ipwvcov <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="../reference/ipwvcov.html">ipwvcov</a></span><span class="op">(</span><span class="va">w_ipw</span><span class="op">[[</span><span class="va">est</span><span class="op">]</span><span class="op">]</span>, <span class="va">msm</span><span class="op">)</span><span class="op">[</span><span class="st">"a"</span>, <span class="st">"a"</span><span class="op">]</span><span class="op">)</span>,</span>
 <span>    glm_weightit.asympt <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov</a></span><span class="op">(</span><span class="va">fit_m</span><span class="op">)</span><span class="op">[</span><span class="st">"a"</span>, <span class="st">"a"</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>    PSweight <span class="op">=</span> <span class="kw">if</span> <span class="op">(</span><span class="va">has_psweight</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="fu">PSweight</span><span class="fu">::</span><span class="va"><a href="https://rdrr.io/pkg/PSweight/man/PSweight.html" class="external-link">PSweight</a></span>,</span>
+<span>      <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>ps.formula <span class="op">=</span> <span class="va">a</span> <span class="op">~</span> <span class="va">l</span> <span class="op">+</span> <span class="va">x</span>, yname <span class="op">=</span> <span class="st">"y"</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">)</span>, <span class="va">psw_args</span><span class="op">[[</span><span class="va">est</span><span class="op">]</span><span class="op">]</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">estimates</span><span class="op">[</span><span class="fl">1</span>, <span class="st">"Std.Error"</span><span class="op">]</span><span class="op">)</span></span>
+<span>      <span class="kw">else</span> <span class="cn">NA</span>,</span>
 <span>    robust.HC0 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov</a></span><span class="op">(</span><span class="va">fit_r</span><span class="op">)</span><span class="op">[</span><span class="st">"a"</span>, <span class="st">"a"</span><span class="op">]</span><span class="op">)</span>,</span>
 <span>    bootstrap <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="va">stored</span><span class="op">$</span><span class="va">boot_se</span><span class="op">[</span><span class="va">est</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">se_table</span>, <span class="fl">4</span><span class="op">)</span></span>
-<span><span class="co">#&gt;     estimate ipwvcov glm_weightit.asympt robust.HC0 bootstrap</span></span>
-<span><span class="co">#&gt; ATE   2.0259  0.0804              0.0804     0.1234    0.0836</span></span>
-<span><span class="co">#&gt; ATT   2.1543  0.0862              0.0862     0.1134    0.0878</span></span>
-<span><span class="co">#&gt; ATC   1.9160  0.1094              0.1094     0.1380    0.1131</span></span>
-<span><span class="co">#&gt; ATO   2.0807  0.0684              0.0684     0.0962    0.0703</span></span></code></pre></div>
-<p><code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> and <code>glm_weightit(vcov = "asympt")</code>
-agree to many decimals: they solve the same stacked estimating equations
-(Lunceford &amp; Davidian 2004). Both are close to the bootstrap. The
-robust standard error, which ignores that the weights were estimated, is
-larger for all four estimands here, so confidence intervals based on it
-would be wider than needed. For the ATE this is the usual direction
-(estimating the weights reduces the variance); for the ATT, ATC and ATO
-the robust standard error is not guaranteed to be conservative and can
-also be too small. The M-estimation or bootstrap standard error is
-therefore preferred.</p>
+<span><span class="co">#&gt;     estimate ipwvcov glm_weightit.asympt PSweight robust.HC0 bootstrap</span></span>
+<span><span class="co">#&gt; ATE   2.0259  0.0804              0.0804   0.0804     0.1234    0.0836</span></span>
+<span><span class="co">#&gt; ATT   2.1543  0.0862              0.0862   0.0862     0.1134    0.0878</span></span>
+<span><span class="co">#&gt; ATC   1.9160  0.1094              0.1094   0.1094     0.1380    0.1131</span></span>
+<span><span class="co">#&gt; ATO   2.0807  0.0684              0.0684   0.0684     0.0962    0.0703</span></span></code></pre></div>
+<p><code><a href="../reference/ipwvcov.html">ipwvcov()</a></code>, <code>glm_weightit(vcov = "asympt")</code>
+and PSweight agree to many decimals: they solve the same stacked
+estimating equations (Lunceford &amp; Davidian 2004), and in the package
+tests they agree to about 1e-9 or better. All three are close to the
+bootstrap. The robust standard error, which ignores that the weights
+were estimated, is larger for all four estimands here, so confidence
+intervals based on it would be wider than needed. For the ATE this is
+the usual direction (estimating the weights reduces the variance); for
+the ATT, ATC and ATO the robust standard error is not guaranteed to be
+conservative and can also be too small. The M-estimation or bootstrap
+standard error is therefore preferred.</p>
 <p><code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> covers binary point treatments with
 <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code> or <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> outcome models. WeightIt’s
 outcome-model functions cover more: multi-category and continuous
@@ -180,7 +223,7 @@ models, and longitudinal weights from <code>weightitMSM()</code>.</p>
 at that level keep weight 1 and the others are reweighted to resemble
 them; <code>estimand = "ATO"</code> gives generalized overlap weights
 (Li &amp; Li 2019).</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">31</span><span class="op">)</span></span>
 <span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">1000</span></span>
 <span><span class="va">dc</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>l <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span>, z <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span><span class="op">)</span></span>
@@ -191,7 +234,7 @@ them; <code>estimand = "ATO"</code> gives generalized overlap weights
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;   A   B   C </span></span>
 <span><span class="co">#&gt; 251 510 239</span></span></code></pre></div>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">compare</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">estimand</span>, <span class="va">focal</span> <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">wi</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwpoint.html">ipwpoint</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">m</span>, family <span class="op">=</span> <span class="st">"multinomial"</span>, denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l</span> <span class="op">+</span> <span class="va">z</span>, data <span class="op">=</span> <span class="va">dc</span>,</span>
 <span>                 estimand <span class="op">=</span> <span class="va">estimand</span>, focal <span class="op">=</span> <span class="va">focal</span>, <span class="va">...</span><span class="op">)</span><span class="op">$</span><span class="va">ipw.weights</span></span>
@@ -212,10 +255,26 @@ by default stops when the relative change in the fit criterion falls
 below <code>1e-8</code>; that leaves relative differences of up to about
 1e-3 from WeightIt, whose own fitter converges further. With a tighter
 tolerance (<code>reltol</code>, passed on through <code>...</code>), the
-weights agree to about 1e-8: the formulas are the same. Within each
-level, the ATT weights make the covariate means resemble those of the
-focal group:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+weights agree to about 1e-8: the formulas are the same.</p>
+<p>PSweight fits the multinomial model with the same defaults as
+<code><a href="https://rdrr.io/pkg/nnet/man/multinom.html" class="external-link">nnet::multinom()</a></code>, so its weights (scaled to sum to 1 within
+each level) agree with ipw’s default fit to rounding error; its
+<code>trtgrp</code> is ipw’s <code>focal</code>:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">compare_psw</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">estimand</span>, <span class="va">weight</span>, <span class="va">focal</span> <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">wi</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwpoint.html">ipwpoint</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">m</span>, family <span class="op">=</span> <span class="st">"multinomial"</span>, denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l</span> <span class="op">+</span> <span class="va">z</span>, data <span class="op">=</span> <span class="va">dc</span>,</span>
+<span>                 estimand <span class="op">=</span> <span class="va">estimand</span>, focal <span class="op">=</span> <span class="va">focal</span><span class="op">)</span><span class="op">$</span><span class="va">ipw.weights</span></span>
+<span>  <span class="va">wp</span> <span class="op">&lt;-</span> <span class="fu">PSweight</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/PSweight/man/SumStat.html" class="external-link">SumStat</a></span><span class="op">(</span>ps.formula <span class="op">=</span> <span class="va">m</span> <span class="op">~</span> <span class="va">l</span> <span class="op">+</span> <span class="va">z</span>, data <span class="op">=</span> <span class="va">dc</span>, weight <span class="op">=</span> <span class="va">weight</span>,</span>
+<span>                          trtgrp <span class="op">=</span> <span class="va">focal</span><span class="op">)</span><span class="op">$</span><span class="va">ps.weights</span><span class="op">[[</span><span class="va">weight</span><span class="op">]</span><span class="op">]</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">wi</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/stats/ave.html" class="external-link">ave</a></span><span class="op">(</span><span class="va">wi</span>, <span class="va">dc</span><span class="op">$</span><span class="va">m</span>, FUN <span class="op">=</span> <span class="va">sum</span><span class="op">)</span> <span class="op">/</span> <span class="op">(</span><span class="va">wp</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/stats/ave.html" class="external-link">ave</a></span><span class="op">(</span><span class="va">wp</span>, <span class="va">dc</span><span class="op">$</span><span class="va">m</span>, FUN <span class="op">=</span> <span class="va">sum</span><span class="op">)</span><span class="op">)</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>ATE <span class="op">=</span> <span class="fu">compare_psw</span><span class="op">(</span><span class="st">"ATE"</span>, <span class="st">"IPW"</span><span class="op">)</span>, ATT.focal.A <span class="op">=</span> <span class="fu">compare_psw</span><span class="op">(</span><span class="st">"ATT"</span>, <span class="st">"treated"</span>, <span class="st">"A"</span><span class="op">)</span>,</span>
+<span>  ATO <span class="op">=</span> <span class="fu">compare_psw</span><span class="op">(</span><span class="st">"ATO"</span>, <span class="st">"overlap"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;          ATE  ATT.focal.A          ATO </span></span>
+<span><span class="co">#&gt; 0.000000e+00 0.000000e+00 2.220446e-16</span></span></code></pre></div>
+<p>Within each level, the ATT weights make the covariate means resemble
+those of the focal group:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">w_att</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwpoint.html">ipwpoint</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">m</span>, family <span class="op">=</span> <span class="st">"multinomial"</span>, denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l</span> <span class="op">+</span> <span class="va">z</span>,</span>
 <span>                  data <span class="op">=</span> <span class="va">dc</span>, estimand <span class="op">=</span> <span class="st">"ATT"</span>, focal <span class="op">=</span> <span class="st">"A"</span><span class="op">)</span><span class="op">$</span><span class="va">ipw.weights</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>unweighted <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="va">dc</span><span class="op">$</span><span class="va">l</span>, <span class="va">dc</span><span class="op">$</span><span class="va">m</span>, <span class="va">mean</span><span class="op">)</span>,</span>
@@ -260,7 +319,7 @@ visit a confounder <code>l</code> is measured; it depends on its
 previous value and on treatment. People not yet treated may start
 treatment at a visit, more likely when <code>l</code> is low. Once
 started, treatment continues.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">11</span><span class="op">)</span></span>
 <span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">1000</span></span>
 <span><span class="va">sim_person</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">i</span><span class="op">)</span> <span class="op">{</span></span>
@@ -299,7 +358,7 @@ started, treatment continues.</p>
 treatment on the intervals between each person’s own visits; with
 <code>type = "first"</code> the rows after the start are not used for
 the model and keep the weight reached at the start.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">w_tm</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwtm.html">ipwtm</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">a</span>, family <span class="op">=</span> <span class="st">"survival"</span>, numerator <span class="op">=</span> <span class="op">~</span> <span class="va">l0</span>,</span>
 <span>              denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l0</span> <span class="op">+</span> <span class="va">l</span>, id <span class="op">=</span> <span class="va">id</span>, tstart <span class="op">=</span> <span class="va">tstart</span>, timevar <span class="op">=</span> <span class="va">time</span>,</span>
 <span>              type <span class="op">=</span> <span class="st">"first"</span>, data <span class="op">=</span> <span class="va">long</span><span class="op">)</span></span>
@@ -320,7 +379,7 @@ time point <code>k</code>, the analyst has to choose a value of
 <code>l</code> and of the treatment. A common choice is the last value
 observed up to <code>k</code> (the baseline value if there was no visit
 yet) and “started by <code>k</code>”:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">grid</span> <span class="op">&lt;-</span> <span class="fl">1</span><span class="op">:</span><span class="fl">5</span></span>
 <span><span class="va">last_before</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">k</span>, <span class="va">column</span>, <span class="va">default</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">sub</span> <span class="op">&lt;-</span> <span class="va">long</span><span class="op">[</span><span class="va">long</span><span class="op">$</span><span class="va">time</span> <span class="op">&lt;=</span> <span class="va">k</span>, <span class="op">]</span></span>
@@ -348,7 +407,7 @@ yet) and “started by <code>k</code>”:</p>
 confounder history up to then (here the previous treatment and current
 <code>l</code>), and a numerator model with the treatment history and
 baseline <code>l0</code>:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">formulas</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">grid</span>, <span class="kw">function</span><span class="op">(</span><span class="va">k</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/stats/formula.html" class="external-link">as.formula</a></span><span class="op">(</span><span class="kw">if</span> <span class="op">(</span><span class="va">k</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span> <span class="st">"A1 ~ l0 + L1"</span> <span class="kw">else</span></span>
 <span>               <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"A%d ~ A%d + l0 + L%d"</span>, <span class="va">k</span>, <span class="va">k</span> <span class="op">-</span> <span class="fl">1</span>, <span class="va">k</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
@@ -372,7 +431,7 @@ model.</p>
 </h3>
 <p>The grid analysis uses the data in a coarser form. How much is lost
 depends on how far the visit times are from the grid:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">starts</span> <span class="op">&lt;-</span> <span class="va">long</span><span class="op">[</span><span class="va">long</span><span class="op">$</span><span class="va">start</span> <span class="op">==</span> <span class="fl">1</span>, <span class="op">]</span></span>
 <span><span class="va">grid_k</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">ceiling</a></span><span class="op">(</span><span class="va">starts</span><span class="op">$</span><span class="va">time</span><span class="op">)</span>                     <span class="co"># grid point at which the start is seen</span></span>
 <span><span class="va">l_at_grid</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mapply.html" class="external-link">mapply</a></span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">i</span>, <span class="va">k</span><span class="op">)</span> <span class="va">wide</span><span class="op">[</span><span class="va">i</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"L"</span>, <span class="va">k</span><span class="op">)</span><span class="op">]</span>, <span class="va">starts</span><span class="op">$</span><span class="va">id</span>, <span class="va">grid_k</span><span class="op">)</span></span>
@@ -440,10 +499,15 @@ for the time to the first switch or to censoring
 and forth or recur (<code>type = "all"</code>); count and skewed
 continuous exposures (Poisson, negative binomial, gamma, log-normal);
 and analyses with few dependencies.</li>
+<li>
+<strong>PSweight</strong> for point treatments when you want
+overlap, matching or entropy weights with built-in sandwich standard
+errors, augmented (doubly robust) estimators, ratio estimands for binary
+outcomes, or survey or clustered data.</li>
 <li>For a binary or categorical point treatment with a logistic model,
-the two give the same weights; for a binary one, <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code>
-and <code>glm_weightit(vcov = "asympt")</code> give the same standard
-errors.</li>
+the three give the same weights; for a binary one,
+<code><a href="../reference/ipwvcov.html">ipwvcov()</a></code>, <code>glm_weightit(vcov = "asympt")</code> and
+PSweight give the same standard errors.</li>
 </ul>
 <p>The <a href="https://tranhung93.github.io/ipw/index.html#ipw-or-weightit">README</a>
 has a comparison table.</p>
@@ -460,6 +524,9 @@ with multiple treatments. <em>Annals of Applied Statistics</em> 13,
 <li>Lunceford JK, Davidian M (2004). Stratification and weighting via
 the propensity score in estimation of causal treatment effects: a
 comparative study. <em>Statistics in Medicine</em> 23, 2937–2960.</li>
+<li>Zhou T, Tong G, Li F, Thomas L, Li F. PSweight: Propensity Score
+Weighting for Causal Inference with Observational Studies and Randomized
+Trials. R package, <a href="https://CRAN.R-project.org/package=PSweight" class="external-link uri">https://CRAN.R-project.org/package=PSweight</a>.</li>
 </ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

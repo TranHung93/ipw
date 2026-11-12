@@ -20,7 +20,7 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/bug-fixes.html">Bugs fixed after ipw 1.3.2</a></li>
-    <li><a class="dropdown-item" href="../articles/ipw-and-weightit.html">ipw and WeightIt side by side</a></li>
+    <li><a class="dropdown-item" href="../articles/ipw-and-weightit.html">ipw, WeightIt and PSweight side by side</a></li>
     <li><a class="dropdown-item" href="../articles/methods.html">Methods behind the new features: formulas, code and rationale</a></li>
     <li><a class="dropdown-item" href="../articles/simulations.html">Simulation study: do the weights recover known effects?</a></li>
     <li><a class="dropdown-item" href="../articles/survival-weights-time-grid.html">Survival weights and the time grid: a caution for ipw 1.3.2 and earlier</a></li>
@@ -86,7 +86,7 @@
 <h3 id="documentation-development-version">Documentation<a class="anchor" aria-label="anchor" href="#documentation-development-version"></a></h3>
 <ul><li><p><code><a href="../articles/ipw.html">vignette("ipw")</a></code>, section 6: covariate balance with <code><a href="https://ngreifer.github.io/cobalt/reference/bal.tab.html" class="external-link">cobalt::bal.tab()</a></code> and <code>love.plot()</code> (ipw weights passed as a vector), for the binary point treatment and for the HAART example at two time points, and the Kish effective sample size overall and by exposure group.</p></li>
 <li><p>New section “ipw or WeightIt?” in the README (with a comparison table) and a short version near the start of <code><a href="../articles/ipw.html">vignette("ipw")</a></code>: when to use which package.</p></li>
-<li><p>New article “ipw and WeightIt side by side”: the same binary and categorical point treatments in both packages (weights and standard errors), and longitudinal data with individual visit times in <code><a href="../reference/ipwtm.html">ipwtm()</a></code> and <code>weightitMSM()</code>.</p></li>
+<li><p>New article “ipw, WeightIt and PSweight side by side”: the same binary and categorical point treatments in all three packages (weights and standard errors), and longitudinal data with individual visit times in <code><a href="../reference/ipwtm.html">ipwtm()</a></code> and <code>weightitMSM()</code>. The README section “ipw or WeightIt?” also names PSweight as an option for point treatments.</p></li>
 <li><p><code><a href="../reference/ipwpoint.html">?ipwpoint</a></code> and <code><a href="../articles/ipw.html">vignette("ipw")</a></code>, section 5: <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> is the recommended standard error for a binary point treatment; the bootstrap remains the advice otherwise. The methods article has new sections on ATC, categorical ATT/ATO weights and <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code>.</p></li>
 <li><p>New article “Bugs fixed after ipw 1.3.2” on the package website: for each bug above, an example run in ipw 1.2.1.1, ipw 1.3.2 and this version, with the weights compared with weights computed by hand.</p></li>
 <li><p>New article “Survival weights and the time grid”: why <code><a href="../reference/ipwtm.html">ipwtm()</a></code> survival weights in ipw 1.3.2 and earlier need the data on a full time grid (as in the JSS paper), a worked example, <code>rows_affected()</code> to check whether your data were on the full grid, the results of every ipw version on CRAN (1.0 to 1.3.2), a simulation with a known answer, the old and the new code, and the tests.</p></li>
@@ -112,6 +112,10 @@
 <li>
 <code><a href="../reference/ipwplot.html">ipwplot()</a></code>: the help page now documents the return value (<code>NULL</code>, invisibly).</li>
 <li>The <code><a href="../reference/ipwtm.html">ipwtm()</a></code> examples no longer call <code><a href="https://rdrr.io/r/grDevices/dev.html" class="external-link">graphics.off()</a></code>, which closed all of the user’s open graphics devices.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="tests-development-version">Tests<a class="anchor" aria-label="anchor" href="#tests-development-version"></a></h3>
+<ul><li>New tests against PSweight (in Suggests) as a second independent check: <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> weights for a binary exposure (ATE, ATT, ATC, ATO) and a three-level multinomial exposure (ATE, ATT with a focal level, overlap weights), and <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> standard errors against PSweight’s sandwich standard errors of the difference in means.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="license-development-version">License<a class="anchor" aria-label="anchor" href="#license-development-version"></a></h3>

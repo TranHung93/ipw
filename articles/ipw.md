@@ -61,9 +61,9 @@ with M-estimation standard errors. ipw is designed for exposures that
 change over time in long data with each person’s own visit times, Cox
 models for the time to the first switch or to censoring, exposures that
 switch back and forth or recur, count and skewed continuous exposures,
-and analyses with few dependencies. See the README and the article [ipw
-and
-WeightIt](https://tranhung93.github.io/ipw/articles/ipw-and-weightit.html)
+and analyses with few dependencies. See the README and the article [ipw,
+WeightIt and PSweight side by
+side](https://tranhung93.github.io/ipw/articles/ipw-and-weightit.html)
 for a side-by-side comparison.
 
 ## 1. Point treatment: a binary exposure

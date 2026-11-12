@@ -1,4 +1,4 @@
-# ipw and WeightIt side by side
+# ipw, WeightIt and PSweight side by side
 
 ``` r
 
@@ -7,12 +7,28 @@ library(survival)
 ```
 
 [WeightIt](https://ngreifer.github.io/WeightIt/) (Greifer) and ipw both
-estimate weights for marginal structural models. This article runs the
-two packages on the same data: a binary and a categorical point
-treatment, where both apply and should give the same answer, and
-longitudinal data with individual visit times, where they work
-differently. WeightIt is used only through its exported functions. This
-page was built with ipw 1.3.2.9000 and WeightIt 2.1.0.
+estimate weights for marginal structural models;
+[PSweight](https://CRAN.R-project.org/package=PSweight) (Zhou, Tong, Li,
+Thomas & Li) estimates propensity score weighted treatment effects for
+point treatments. This article runs the packages on the same data: a
+binary and a categorical point treatment, where all three apply and
+should give the same answer, and longitudinal data with individual visit
+times, where ipw and WeightIt work differently. WeightIt and PSweight
+are used only through their exported functions. This page was built with
+ipw 1.3.2.9000, WeightIt 2.1.0 and PSweight 2.1.2.
+
+**What PSweight offers.** PSweight is designed for point treatments,
+binary or with several levels. It offers inverse probability, ATT,
+overlap, matching and entropy weights, propensity score trimming, and
+augmented (doubly robust) estimators that add an outcome model. The
+propensity score can be fitted by logistic or multinomial regression,
+generalized boosted models or SuperLearner. Inference uses sandwich
+(M-estimation) variances that account for the estimated propensity
+score, or the bootstrap, for differences in means and, for binary or
+count outcomes, risk ratios and odds ratios. It also has functions for
+survey data with survey weights and for clustered data, both mainly for
+binary treatments, and covariate balance summaries and plots. It does
+not handle time-varying treatments.
 
 ## 1. Binary point treatment
 
@@ -28,6 +44,7 @@ d <- data.frame(l = rnorm(n), x = rbinom(n, 1, 0.4))
 d$a <- rbinom(n, 1, plogis(-0.3 + 0.8 * d$l + 0.5 * d$x))
 d$y <- 2 * d$a + d$l + d$x + rnorm(n)
 stopifnot(all.equal(sum(d$y), stored$data_check))   # same data as the bootstrap
+estimands <- c("ATE", "ATT", "ATC", "ATO")
 ```
 
 ### The weights
@@ -38,7 +55,6 @@ so the weights should agree up to rounding:
 
 ``` r
 
-estimands <- c("ATE", "ATT", "ATC", "ATO")
 w_ipw <- lapply(setNames(estimands, estimands), function(est)
   ipwpoint(exposure = a, family = "binomial", link = "logit",
            denominator = ~ l + x, data = d, estimand = est))
@@ -48,7 +64,7 @@ sapply(estimands, function(est)
   c(max.abs.difference = max(abs(w_ipw[[est]]$ipw.weights - w_wit[[est]]$weights)),
     max.weight = max(w_ipw[[est]]$ipw.weights)))
 #>                             ATE          ATT          ATC          ATO
-#> max.abs.difference 1.065814e-14 1.065814e-14 7.105427e-15 3.330669e-16
+#> max.abs.difference 1.065814e-14 2.220446e-15 8.881784e-15 2.220446e-16
 #> max.weight         1.180340e+01 8.832774e+00 1.080340e+01 9.152786e-01
 ```
 
@@ -56,15 +72,43 @@ The largest difference is at the level of floating-point rounding.
 Stabilized ATE weights agree too: `numerator = ~ 1` in ipw and
 `stabilize = TRUE` in WeightIt.
 
+PSweight scales the weights to sum to 1 within each treatment group,
+which changes no weighted group mean or effect estimate, so the weights
+are compared after the same scaling. PSweight has no “ATC” option, but
+its ATT weights with the untreated as the “treated” group
+(`trtgrp = "0"`) are the ATC weights.
+
+``` r
+
+psw_args <- list(ATE = list(weight = "IPW"), ATT = list(weight = "treated"),
+                 ATC = list(weight = "treated", trtgrp = "0"),
+                 ATO = list(weight = "overlap"))
+norm_by_group <- function(w, g) w / ave(w, g, FUN = sum)
+w_ipw_bin <- lapply(setNames(estimands, estimands),
+  function(est) ipwpoint(exposure = a, family = "binomial", link = "logit",
+                         denominator = ~ l + x, data = d, estimand = est)$ipw.weights)
+sapply(estimands, function(est) {
+  ss <- do.call(PSweight::SumStat, c(list(ps.formula = a ~ l + x, data = d), psw_args[[est]]))
+  max(abs(norm_by_group(w_ipw_bin[[est]], d$a) -
+          norm_by_group(ss$ps.weights[[psw_args[[est]]$weight]], d$a)))
+})
+#>          ATE          ATT          ATC          ATO 
+#> 1.734723e-18 4.336809e-19 0.000000e+00 1.734723e-18
+```
+
 ### Standard errors
 
 The marginal structural model is the weighted regression of `y` on `a`.
-Four standard errors of the coefficient of `a`:
+Five standard errors of the coefficient of `a`:
 
 - **ipwvcov()**: ipw’s M-estimation standard error (new), which accounts
   for the estimation of the weights;
 - **glm_weightit(vcov = “asympt”)**: WeightIt’s M-estimation standard
   error;
+- **PSweight**: the sandwich standard error of the weighted difference
+  in means from `PSweight()` and
+  [`summary()`](https://rdrr.io/r/base/summary.html), which for the
+  saturated model `y ~ a` is the same quantity;
 - **robust (HC0)**: the sandwich standard error that treats the weights
   as known, as [`svyglm()`](https://rdrr.io/pkg/survey/man/svyglm.html)
   or `glm_weightit(vcov = "HC0")` give it;
@@ -80,27 +124,31 @@ se_table <- t(sapply(estimands, function(est) {
   c(estimate = unname(coef(msm)["a"]),
     ipwvcov = sqrt(ipwvcov(w_ipw[[est]], msm)["a", "a"]),
     glm_weightit.asympt = sqrt(vcov(fit_m)["a", "a"]),
+    PSweight = if (has_psweight) unname(summary(do.call(PSweight::PSweight,
+      c(list(ps.formula = a ~ l + x, yname = "y", data = d), psw_args[[est]])))$estimates[1, "Std.Error"])
+      else NA,
     robust.HC0 = sqrt(vcov(fit_r)["a", "a"]),
     bootstrap = unname(stored$boot_se[est]))
 }))
 round(se_table, 4)
-#>     estimate ipwvcov glm_weightit.asympt robust.HC0 bootstrap
-#> ATE   2.0259  0.0804              0.0804     0.1234    0.0836
-#> ATT   2.1543  0.0862              0.0862     0.1134    0.0878
-#> ATC   1.9160  0.1094              0.1094     0.1380    0.1131
-#> ATO   2.0807  0.0684              0.0684     0.0962    0.0703
+#>     estimate ipwvcov glm_weightit.asympt PSweight robust.HC0 bootstrap
+#> ATE   2.0259  0.0804              0.0804   0.0804     0.1234    0.0836
+#> ATT   2.1543  0.0862              0.0862   0.0862     0.1134    0.0878
+#> ATC   1.9160  0.1094              0.1094   0.1094     0.1380    0.1131
+#> ATO   2.0807  0.0684              0.0684   0.0684     0.0962    0.0703
 ```
 
-[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) and
-`glm_weightit(vcov = "asympt")` agree to many decimals: they solve the
-same stacked estimating equations (Lunceford & Davidian 2004). Both are
-close to the bootstrap. The robust standard error, which ignores that
-the weights were estimated, is larger for all four estimands here, so
-confidence intervals based on it would be wider than needed. For the ATE
-this is the usual direction (estimating the weights reduces the
-variance); for the ATT, ATC and ATO the robust standard error is not
-guaranteed to be conservative and can also be too small. The
-M-estimation or bootstrap standard error is therefore preferred.
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md),
+`glm_weightit(vcov = "asympt")` and PSweight agree to many decimals:
+they solve the same stacked estimating equations (Lunceford & Davidian
+2004), and in the package tests they agree to about 1e-9 or better. All
+three are close to the bootstrap. The robust standard error, which
+ignores that the weights were estimated, is larger for all four
+estimands here, so confidence intervals based on it would be wider than
+needed. For the ATE this is the usual direction (estimating the weights
+reduces the variance); for the ATT, ATC and ATO the robust standard
+error is not guaranteed to be conservative and can also be too small.
+The M-estimation or bootstrap standard error is therefore preferred.
 
 [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
 covers binary point treatments with
@@ -156,8 +204,30 @@ by default stops when the relative change in the fit criterion falls
 below `1e-8`; that leaves relative differences of up to about 1e-3 from
 WeightIt, whose own fitter converges further. With a tighter tolerance
 (`reltol`, passed on through `...`), the weights agree to about 1e-8:
-the formulas are the same. Within each level, the ATT weights make the
-covariate means resemble those of the focal group:
+the formulas are the same.
+
+PSweight fits the multinomial model with the same defaults as
+[`nnet::multinom()`](https://rdrr.io/pkg/nnet/man/multinom.html), so its
+weights (scaled to sum to 1 within each level) agree with ipw’s default
+fit to rounding error; its `trtgrp` is ipw’s `focal`:
+
+``` r
+
+compare_psw <- function(estimand, weight, focal = NULL) {
+  wi <- ipwpoint(exposure = m, family = "multinomial", denominator = ~ l + z, data = dc,
+                 estimand = estimand, focal = focal)$ipw.weights
+  wp <- PSweight::SumStat(ps.formula = m ~ l + z, data = dc, weight = weight,
+                          trtgrp = focal)$ps.weights[[weight]]
+  max(abs(wi / ave(wi, dc$m, FUN = sum) / (wp / ave(wp, dc$m, FUN = sum)) - 1))
+}
+c(ATE = compare_psw("ATE", "IPW"), ATT.focal.A = compare_psw("ATT", "treated", "A"),
+  ATO = compare_psw("ATO", "overlap"))
+#>          ATE  ATT.focal.A          ATO 
+#> 0.000000e+00 0.000000e+00 2.220446e-16
+```
+
+Within each level, the ATT weights make the covariate means resemble
+those of the focal group:
 
 ``` r
 
@@ -385,10 +455,15 @@ each person’s own intervals directly.
   exposures that switch back and forth or recur (`type = "all"`); count
   and skewed continuous exposures (Poisson, negative binomial, gamma,
   log-normal); and analyses with few dependencies.
+- **PSweight** for point treatments when you want overlap, matching or
+  entropy weights with built-in sandwich standard errors, augmented
+  (doubly robust) estimators, ratio estimands for binary outcomes, or
+  survey or clustered data.
 - For a binary or categorical point treatment with a logistic model, the
-  two give the same weights; for a binary one,
-  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
-  and `glm_weightit(vcov = "asympt")` give the same standard errors.
+  three give the same weights; for a binary one,
+  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md),
+  `glm_weightit(vcov = "asympt")` and PSweight give the same standard
+  errors.
 
 The
 [README](https://tranhung93.github.io/ipw/index.html#ipw-or-weightit)
@@ -404,3 +479,7 @@ has a comparison table.
 - Lunceford JK, Davidian M (2004). Stratification and weighting via the
   propensity score in estimation of causal treatment effects: a
   comparative study. *Statistics in Medicine* 23, 2937–2960.
+- Zhou T, Tong G, Li F, Thomas L, Li F. PSweight: Propensity Score
+  Weighting for Causal Inference with Observational Studies and
+  Randomized Trials. R package,
+  <https://CRAN.R-project.org/package=PSweight>.

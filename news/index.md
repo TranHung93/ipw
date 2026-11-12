@@ -108,11 +108,12 @@
   [`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md):
   when to use which package.
 
-- New article “ipw and WeightIt side by side”: the same binary and
-  categorical point treatments in both packages (weights and standard
-  errors), and longitudinal data with individual visit times in
+- New article “ipw, WeightIt and PSweight side by side”: the same binary
+  and categorical point treatments in all three packages (weights and
+  standard errors), and longitudinal data with individual visit times in
   [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) and
-  `weightitMSM()`.
+  `weightitMSM()`. The README section “ipw or WeightIt?” also names
+  PSweight as an option for point treatments.
 
 - [`?ipwpoint`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
   and
@@ -243,6 +244,18 @@
   examples no longer call
   [`graphics.off()`](https://rdrr.io/r/grDevices/dev.html), which closed
   all of the user’s open graphics devices.
+
+### Tests
+
+- New tests against PSweight (in Suggests) as a second independent
+  check:
+  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  weights for a binary exposure (ATE, ATT, ATC, ATO) and a three-level
+  multinomial exposure (ATE, ATT with a focal level, overlap weights),
+  and
+  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+  standard errors against PSweight’s sandwich standard errors of the
+  difference in means.
 
 ### License
 
