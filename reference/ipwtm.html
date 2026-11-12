@@ -159,11 +159,23 @@ stopping (on the rows on treatment).</p></dd>
 <dt>den.mod</dt>
 <dd><p>Denominator model object.</p></dd>
 
-</dl></div>
+</dl><p>The result also has the attributes <code>"family"</code>, <code>"type"</code>,
+<code>"id"</code> (the subject identifier, in original row order) and
+<code>"sort.order"</code> (the order of the rows of <code>data</code> used to fit the
+models), which <code><a href="ipwvcov.html">ipwvcov</a></code> uses.</p>
+    </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Standard errors: <code>ipwtm</code> only estimates the weights. Standard errors
 for the marginal structural model have to be obtained when that model is fitted.
+For <code>family = "binomial"</code> with <code>link = "logit"</code> (any <code>type</code>, no
+smooth terms, no truncation) and a marginal structural model fitted on the
+long data with <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code>, <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> or <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code> on counting-process
+data, <code><a href="ipwvcov.html">ipwvcov</a></code> (new, experimental) gives standard errors that take
+the estimation of the weights into account, with the scores summed within
+subject; pass a list to combine, for example, treatment and censoring weights.
+For Cox (<code>family = "survival"</code>), multinomial, ordinal and gaussian
+exposure models, and for truncated weights, use the bootstrap described below.
 Robust standard errors, for example from <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code> with <code>cluster(id)</code>
 as in Van der Wal and Geskus (2011), treat the weights as known. They are often
 conservative (too large) for a binary point treatment with good overlap, but

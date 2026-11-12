@@ -836,14 +836,119 @@ the sample size; for ATT and ATC weights WeightIt’s standard error was 1
 to 4% larger and the difference did not shrink (n from 600 to 38 400).
 <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> matches the numerical Jacobian of the exact
 stacked equations in all cases.</p>
-<p><strong>Caveats.</strong> Only binary point treatments with logistic
+<p><strong>Time-varying weights from <code><a href="../reference/ipwtm.html">ipwtm()</a></code>.</strong> For
+<code>family = "binomial"</code> with logistic models, each model
+(denominator, numerator; treatment, censoring) is a parameter block, and
+the person, not the row, is the unit of independence. For row
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math>
+of person
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>,
+<code><a href="../reference/ipwtm.html">ipwtm()</a></code> defines the weight as a product over that person’s
+rows
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo>≤</mo><mi>r</mi></mrow><annotation encoding="application/x-tex">s \le r</annotation></semantics></math>
+in time order,</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mi>r</mi></msub><mo>=</mo><munder><mo>∏</mo><mrow><mi>s</mi><mo>≤</mo><mi>r</mi></mrow></munder><mfrac><msubsup><mi>f</mi><mi>s</mi><mrow><mi>n</mi><mi>u</mi><mi>m</mi></mrow></msubsup><msubsup><mi>f</mi><mi>s</mi><mrow><mi>d</mi><mi>e</mi><mi>n</mi></mrow></msubsup></mfrac><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>f</mi><mi>s</mi></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">{</mo><mtable><mtr><mtd columnalign="left" style="text-align: left"><mi>P</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>A</mi><mi>s</mi></msub><mo>=</mo><msub><mi>a</mi><mi>s</mi></msub><mo stretchy="false" form="postfix">)</mo></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">type "first" or "all", rows used by the model</mtext></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><mn>1</mn><mo>−</mo><msub><mi>p</mi><mi>s</mi></msub></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">type "cens", rows used by the model (the censoring row included)</mtext></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><mn>1</mn></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">rows after the first switch ("first", "cens")</mtext><mo>,</mo></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">
+w_r = \prod_{s \le r} \frac{f^{num}_s}{f^{den}_s}, \qquad
+f_s = \begin{cases}
+P(A_s = a_s) &amp; \text{type "first" or "all", rows used by the model}\\
+1 - p_s &amp; \text{type "cens", rows used by the model (the censoring row included)}\\
+1 &amp; \text{rows after the first switch ("first", "cens")},
+\end{cases}
+</annotation></semantics></math></p>
+<p>where the rows used by the model are those with
+<code>selvar = 1</code> (all rows for <code>type = "all"</code>). With
+logistic models,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∂</mi><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mi>f</mi><mi>s</mi></msub><mi>/</mi><mi>∂</mi><mi>α</mi><mo>=</mo><mo stretchy="false" form="prefix">(</mo><msub><mi>a</mi><mi>s</mi></msub><mo>−</mo><msub><mi>p</mi><mi>s</mi></msub><mo stretchy="false" form="postfix">)</mo><msub><mi>Z</mi><mi>s</mi></msub></mrow><annotation encoding="application/x-tex">\partial \log f_s / \partial \alpha =
+(a_s - p_s) Z_s</annotation></semantics></math> for “first” and “all”,
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msub><mi>p</mi><mi>s</mi></msub><msub><mi>Z</mi><mi>s</mi></msub></mrow><annotation encoding="application/x-tex">-p_s Z_s</annotation></semantics></math>
+for “cens”, so</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>d</mi><mi>r</mi></msub><mo>=</mo><mfrac><mrow><mi>∂</mi><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mi>w</mi><mi>r</mi></msub></mrow><mrow><mi>∂</mi><mi>α</mi></mrow></mfrac><mo>=</mo><mi>−</mi><munder><mo>∑</mo><mrow><mi>s</mi><mo>≤</mo><mi>r</mi><mo>,</mo><mspace width="0.222em"></mspace><mi>s</mi><mo>∈</mo><mi>p</mi></mrow></munder><mfrac><mrow><mi>∂</mi><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msubsup><mi>f</mi><mi>s</mi><mrow><mi>d</mi><mi>e</mi><mi>n</mi></mrow></msubsup></mrow><mrow><mi>∂</mi><mi>α</mi></mrow></mfrac><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>e</mi><mi>r</mi></msub><mo>=</mo><mfrac><mrow><mi>∂</mi><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mi>w</mi><mi>r</mi></msub></mrow><mrow><mi>∂</mi><mi>γ</mi></mrow></mfrac><mo>=</mo><munder><mo>∑</mo><mrow><mi>s</mi><mo>≤</mo><mi>r</mi><mo>,</mo><mspace width="0.222em"></mspace><mi>s</mi><mo>∈</mo><mi>p</mi></mrow></munder><mfrac><mrow><mi>∂</mi><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msubsup><mi>f</mi><mi>s</mi><mrow><mi>n</mi><mi>u</mi><mi>m</mi></mrow></msubsup></mrow><mrow><mi>∂</mi><mi>γ</mi></mrow></mfrac><mo>,</mo></mrow><annotation encoding="application/x-tex">
+d_r = \frac{\partial \log w_r}{\partial \alpha} = -\sum_{s \le r,\ s \in p} \frac{\partial \log f^{den}_s}{\partial \alpha},
+\qquad
+e_r = \frac{\partial \log w_r}{\partial \gamma} = \sum_{s \le r,\ s \in p} \frac{\partial \log f^{num}_s}{\partial \gamma},
+</annotation></semantics></math></p>
+<p>cumulative sums within person, which also carry the value forward
+after the switch. The exposure-model score of person
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>S</mi><mi>p</mi></msub><mo>=</mo><msub><mo>∑</mo><mi>s</mi></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>a</mi><mi>s</mi></msub><mo>−</mo><msub><mi>p</mi><mi>s</mi></msub><mo stretchy="false" form="postfix">)</mo><msub><mi>Z</mi><mi>s</mi></msub></mrow><annotation encoding="application/x-tex">S_p = \sum_s (a_s - p_s)
+Z_s</annotation></semantics></math> over the rows used by the model, and
+its information comes from the fitted glm. For the MSM,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>U</mi><mi>r</mi></msub><annotation encoding="application/x-tex">U_r</annotation></semantics></math>
+is the row score (the glm score, or for a Cox model on counting-process
+data <code>Surv(tstart, time, event)</code> the weighted score residual
+with risk sets
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">{</mo><mi>j</mi><mo>:</mo><msubsup><mi>t</mi><mi>j</mi><mrow><mi>s</mi><mi>t</mi><mi>a</mi><mi>r</mi><mi>t</mi></mrow></msubsup><mo>&lt;</mo><mi>t</mi><mo>≤</mo><msub><mi>t</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">\{j: t^{start}_j &lt; t \le t_j\}</annotation></semantics></math>),
+the cross blocks are
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msub><mo>∑</mo><mi>r</mi></msub><msub><mi>U</mi><mi>r</mi></msub><msubsup><mi>d</mi><mi>r</mi><mi>T</mi></msubsup></mrow><annotation encoding="application/x-tex">-\sum_r U_r d_r^T</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msub><mo>∑</mo><mi>r</mi></msub><msub><mi>U</mi><mi>r</mi></msub><msubsup><mi>e</mi><mi>r</mi><mi>T</mi></msubsup></mrow><annotation encoding="application/x-tex">-\sum_r U_r e_r^T</annotation></semantics></math>
+(for the Cox model by the same identity as above, now row by row), and
+the meat is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>B</mi><mo>=</mo><msub><mo>∑</mo><mi>p</mi></msub><msub><mi>ψ</mi><mi>p</mi></msub><msubsup><mi>ψ</mi><mi>p</mi><mi>T</mi></msubsup></mrow><annotation encoding="application/x-tex">B = \sum_p \psi_p \psi_p^T</annotation></semantics></math>
+with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ψ</mi><mi>p</mi></msub><annotation encoding="application/x-tex">\psi_p</annotation></semantics></math>
+the sum of all scores of person
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>.
+A list of weight objects whose weights multiply, such as treatment times
+censoring weights, adds one block per model.</p>
+<p>The package tests compare the result with central finite differences
+of the stacked equations, with the weights recomputed from the model
+coefficients by independent code that follows the definition above
+(agreement about
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>10</mn><mrow><mi>−</mi><mn>7</mn></mrow></msup><annotation encoding="application/x-tex">10^{-7}</annotation></semantics></math>,
+on shuffled rows), for a <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> MSM with “all” and “cens”
+weights, a Cox MSM with “first” and “cens” weights and a subset of
+<code>haartdat</code>. They also compare with
+<code>WeightIt::glm_weightit(vcov = "asympt")</code> for a
+<code>weightitMSM()</code> object: with visits at the same times for
+everyone and time-specific columns in the pooled model, the weights are
+the same, and an MSM fitted on the long data with one parameter per
+non-last row (so that only the last rows carry information) has the same
+coefficients and variance as WeightIt’s person-level model (agreement
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>10</mn><mrow><mi>−</mi><mn>6</mn></mrow></msup><annotation encoding="application/x-tex">10^{-6}</annotation></semantics></math>).</p>
+<p><strong>Heavy-tailed weights.</strong> Cumulative weights are
+products of many factors. When some people have a very low probability
+of their observed exposure history (a near-violation of positivity), the
+weights have a heavy right tail: P(W &gt; x) falls off like
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>x</mi><mrow><mi>−</mi><mi>γ</mi></mrow></msup><annotation encoding="application/x-tex">x^{-\gamma}</annotation></semantics></math>
+for a tail index
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>γ</mi><annotation encoding="application/x-tex">\gamma</annotation></semantics></math>.
+The weighted estimating equations then have a finite variance only if
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>γ</mi><mo>&gt;</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">\gamma &gt; 2</annotation></semantics></math>.
+The usual normal approximation also relies on a finite third moment
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>γ</mi><mo>&gt;</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">\gamma &gt; 3</annotation></semantics></math>),
+and estimating the variance well, from the sandwich or from the
+bootstrap, relies on a finite fourth moment
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>γ</mi><mo>&gt;</mo><mn>4</mn></mrow><annotation encoding="application/x-tex">\gamma &gt; 4</annotation></semantics></math>).</p>
+<p>Simulations with individual visit times (see the comparison article)
+estimated
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>γ</mi><annotation encoding="application/x-tex">\gamma</annotation></semantics></math>
+with the Hill estimator on the top 5% of the final cumulative weights.
+The more strongly treatment depended on the confounder and on the
+previous treatment, the smaller the tail index: about 3.9, 2.8 and 2.3
+in three scenarios. Coverage of 95% intervals from
+<code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> followed the tail index: about 95%, about 94% and
+92 to 93%. In the heaviest-tailed scenario coverage did not improve
+between 300 and 4800 people, while the largest weight kept growing with
+<em>n</em>. The cluster bootstrap did no better (90 to 95%, on fewer
+data sets), and <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> and the bootstrap gave about the
+same standard errors throughout. The formula is exact for the stacked
+estimating equations; the problem is the weights, and it affects any
+normal-theory interval. Check the weight distribution
+(<code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, <code><a href="../reference/ipwplot.html">ipwplot()</a></code>, the effective sample
+size) before trusting any standard error. If a few people carry much of
+the weight, consider truncation, a less extreme weight model or a
+different estimand.</p>
+<p><strong>Caveats.</strong> Only binary exposures with logistic
 <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> exposure models; truncated weights (truncation at
 estimated percentiles is not a smooth function of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>),
-smooth terms, other families, Cox models with counting-process data,
-strata, clusters or frailties, and time-varying weights from
-<code><a href="../reference/ipwtm.html">ipwtm()</a></code> are not covered, and the bootstrap remains the
-advice there.</p>
+smooth terms, other families (including Cox exposure models in
+<code>ipwtm(family = "survival")</code>), Cox MSMs with strata or
+frailties, and Efron ties with tied event times are not covered, and the
+bootstrap remains the advice there.</p>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>

@@ -7,12 +7,13 @@ a marginal structural model fitted with
 [`survival::coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) and
 weights from
 [`ipwpoint`](https://tranhung93.github.io/ipw/reference/ipwpoint.md) for
-a binary point treatment, taking the estimation of the weights into
-account. The marginal structural model and the exposure models are
-treated as one set of stacked estimating equations (M-estimation;
-Lunceford & Davidian 2004), and the sandwich variance of all parameters
-is computed; the block for the coefficients of the marginal structural
-model is returned.
+a binary point treatment, or with time-varying weights from
+[`ipwtm`](https://tranhung93.github.io/ipw/reference/ipwtm.md), taking
+the estimation of the weights into account. The marginal structural
+model and the exposure models are treated as one set of stacked
+estimating equations (M-estimation; Lunceford & Davidian 2004), and the
+sandwich variance of all parameters is computed; the block for the
+coefficients of the marginal structural model is returned.
 
 ## Usage
 
@@ -26,14 +27,20 @@ ipwvcov(object, msm)
 
   Result of
   [`ipwpoint`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
-  with `family = "binomial"` and `link = "logit"`.
+  with `family = "binomial"` and `link = "logit"`; or result of
+  [`ipwtm`](https://tranhung93.github.io/ipw/reference/ipwtm.md) with
+  `family = "binomial"` and `link = "logit"`; or a list of
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) (and
+  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md))
+  results whose weights multiply to the weights of `msm`.
 
 - msm:
 
   Marginal structural model: an `lm`, `glm` or `coxph` fit with weights
-  equal to `object$ipw.weights`, on the same rows in the same order as
-  the data given to
-  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md).
+  equal to `object$ipw.weights` (or their product for a list), on the
+  same rows in the same order as the data given to
+  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  or [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md).
 
 ## Value
 
@@ -105,19 +112,83 @@ same order, and the same weights. For
 times need `ties = "breslow"`; without tied event times all tie methods
 give the same result.
 
+**Time-varying weights.** `object` can be an
+[`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) result,
+or a list of
+[`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) (and
+[`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md))
+results whose `ipw.weights` multiply to the weights of `msm`, typically
+treatment weights times censoring weights. Each model is a separate
+parameter block. The unit of independence is the subject (the `id` of
+[`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)): all
+scores are summed within subject before the meat \\B = \sum\_{subjects}
+\psi_p \psi_p^T\\ is formed. The weight of row \\r\\ is the product,
+over the rows \\s \le r\\ of the same subject, of numerator over
+denominator factors \\f_s\\, as defined by
+[`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md):
+\\P(A_s = a_s)\\ for `type = "first"` and `"all"`, \\1 - p_s\\ for
+`type = "cens"` (the censoring row included), and 1 after the first
+switch. With logistic models, \\\partial \log f_s / \partial \alpha\\ is
+\\(a_s - p_s) Z_s\\ (`"first"`, `"all"`) or \\-p_s Z_s\\ (`"cens"`), so
+\\d_r = \partial \log w_r / \partial \alpha\\ is minus the cumulative
+sum of these over the rows used by the model, within subject in time
+order (plus, for the numerator). The cross block is \\-\sum_r U_r
+d_r^T\\ for [`lm()`](https://rdrr.io/r/stats/lm.html),
+[`glm()`](https://rdrr.io/r/stats/glm.html) and Cox models; for a Cox
+model on counting-process data `Surv(tstart, time, event)` the identity
+above holds row by row, because each row enters the risk sets with its
+own weight. Without the exposure models the sandwich reduces to the
+cluster-robust variance that treats the weights as known (for a Cox
+model, [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) with
+`cluster(id)`).
+
+Supported for time-varying weights:
+`ipwtm(family = "binomial", link = "logit")` with any `type`, glm models
+without smooth terms, no truncation, made with this version of ipw;
+`msm` fitted with [`lm()`](https://rdrr.io/r/stats/lm.html),
+[`glm()`](https://rdrr.io/r/stats/glm.html) or
+[`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html)
+(counting-process data;
+[`cluster()`](https://rdrr.io/pkg/survival/man/cluster.html) is allowed,
+`ties = "breslow"` when event times are tied) on all rows of the long
+data, in the same order, with weights equal to the product of the
+weights in `object`.
+
+**Heavy-tailed weights.** Cumulative weights can have a heavy right tail
+when some people have a very low probability of their observed exposure
+history (a near-violation of positivity). Normal-theory intervals are
+then unreliable whatever method gives the standard error, the bootstrap
+included. In simulations where treatment depended strongly on the
+confounder and on past treatment, the tail index of the final cumulative
+weights was about 2.3 (the weights have a finite variance, but not a
+finite third or fourth moment). 95% intervals then covered 92 to 93% of
+the time with `ipwvcov()` and 90 to 95% with the cluster bootstrap, with
+no trend towards 95% between 300 and 4800 people. With a tail index of
+about 3.9 both covered about 95%. Check the weight distribution
+([`summary()`](https://rdrr.io/r/base/summary.html),
+[`ipwplot`](https://tranhung93.github.io/ipw/reference/ipwplot.md) and
+the effective sample size `sum(w)^2 / sum(w^2)`) before trusting any
+standard error.
+
 Not supported, and an error: other exposure families or links, smooth
 terms (GAMs), truncated weights (truncation at estimated percentiles is
-not a smooth function of the model coefficients), time-varying weights
-from [`ipwtm`](https://tranhung93.github.io/ipw/reference/ipwtm.md), and
-[`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) models with
-counting-process data,
-[`strata()`](https://rdrr.io/pkg/survival/man/strata.html),
-[`cluster()`](https://rdrr.io/pkg/survival/man/cluster.html),
+not a smooth function of the model coefficients),
+[`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) weights
+from Cox (`family = "survival"`), multinomial, ordinal or gaussian
+models, and [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html)
+models with [`strata()`](https://rdrr.io/pkg/survival/man/strata.html),
 [`frailty()`](https://rdrr.io/pkg/survival/man/frailty.html) or `tt()`
-terms, or Efron or exact ties with tied event times. Use the bootstrap
-there, re-estimating the weights in each bootstrap sample (see
+terms, or Efron or exact ties with tied event times. With
+[`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+weights the [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html)
+model must have right-censored data (one row per person) and no
+[`cluster()`](https://rdrr.io/pkg/survival/man/cluster.html); with
+[`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) weights
+it must have counting-process data. Use the bootstrap there,
+re-estimating the weights in each bootstrap sample (see
 [`ipwpoint`](https://tranhung93.github.io/ipw/reference/ipwpoint.md) and
-[`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md)).
+[`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md);
+for long data, the cluster bootstrap that resamples subjects).
 
 This is the same kind of standard error as `vcov = "asympt"` in
 [`WeightIt::glm_weightit()`](https://ngreifer.github.io/WeightIt/reference/glm_weightit.html);
@@ -161,7 +232,8 @@ independent comparison.)
 
 ## See also
 
-[`ipwpoint`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+[`ipwpoint`](https://tranhung93.github.io/ipw/reference/ipwpoint.md),
+[`ipwtm`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
 
 ## Examples
 
@@ -217,4 +289,22 @@ cbind(robust = sqrt(diag(msm.cox$var)),          # weights treated as known
       ipwvcov = sqrt(diag(ipwvcov(w, msm.cox))))  # weights estimated
 #>     robust   ipwvcov
 #> a 0.184859 0.1646684
+
+# Time-varying weights: treatment (type = "first") times censoring
+# (type = "cens") weights from pooled logistic models, and a Cox MSM on
+# the long data
+data(haartdat)
+w.haart <- ipwtm(exposure = haartind, family = "binomial", link = "logit",
+                 numerator = ~ sex + age, denominator = ~ sex + age + cd4.sqrt,
+                 id = patient, timevar = fuptime, type = "first", data = haartdat)
+w.cens <- ipwtm(exposure = dropout, family = "binomial", link = "logit",
+                numerator = ~ sex + age, denominator = ~ sex + age + cd4.sqrt,
+                id = patient, timevar = fuptime, type = "cens", data = haartdat)
+msm.haart <- coxph(Surv(tstart, fuptime, event) ~ haartind + cluster(patient),
+                   data = haartdat, ties = "breslow",
+                   weights = w.haart$ipw.weights * w.cens$ipw.weights)
+cbind(robust.cluster = sqrt(diag(msm.haart$var)),
+      ipwvcov = sqrt(diag(ipwvcov(list(w.haart, w.cens), msm.haart))))
+#>          robust.cluster   ipwvcov
+#> haartind      0.4633263 0.4585489
 ```

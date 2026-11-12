@@ -193,12 +193,18 @@ always the exposed (1).</p></dd>
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Standard errors: <code>ipwpoint</code> only estimates the weights. Standard errors
 for the marginal structural model have to be obtained when that model is fitted.
-For a binomial exposure (any <code>estimand</code>, logit link, exposure models without
-smooth terms, no truncation) and a marginal structural model fitted with <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code>
-or <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>, <code><a href="ipwvcov.html">ipwvcov</a></code> (new, experimental) gives standard errors
-that take the estimation of the weights into account (M-estimation); this is
-the recommended option there. For all other cases use the bootstrap described
-below.
+<code><a href="ipwvcov.html">ipwvcov</a></code> (new, experimental) gives standard errors that take the
+estimation of the weights into account (M-estimation), and is the recommended
+option where it applies: weights from <code>ipwpoint()</code> with
+<code>family = "binomial"</code> and <code>link = "logit"</code> (any <code>estimand</code>,
+stabilized or not, no smooth terms, no truncation) and a marginal structural
+model fitted with <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code>, <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> (any link) or <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code>
+(right-censored data, one row per person); and time-varying weights from
+<code><a href="ipwtm.html">ipwtm</a></code> with <code>family = "binomial"</code> and <code>link = "logit"</code>
+(<code>type = "first"</code>, <code>"cens"</code> or <code>"all"</code>, alone or multiplied,
+e.g. treatment times censoring weights) with an <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code>, <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> or
+counting-process <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code> model on the long data. For all other cases
+use the bootstrap described below.
 Robust (sandwich) standard errors, for example from <code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">svyglm()</a></code> in the survey
 package as in Van der Wal and Geskus (2011), treat the weights as known. For a
 binary point treatment with good overlap they were conservative (too large) in

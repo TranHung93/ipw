@@ -173,6 +173,45 @@
   [`lm()`](https://rdrr.io/r/stats/lm.html) and
   [`glm()`](https://rdrr.io/r/stats/glm.html) models are unchanged.
 
+- [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+  now also accepts time-varying weights from
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) with
+  `family = "binomial"` and `link = "logit"` (`type = "first"`, `"cens"`
+  or `"all"`), or a list of
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)/[`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  results whose weights multiply (e.g. treatment times censoring
+  weights), with an [`lm()`](https://rdrr.io/r/stats/lm.html),
+  [`glm()`](https://rdrr.io/r/stats/glm.html) or counting-process
+  [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) MSM on the
+  long data. Scores are summed within subject. Checked against a
+  numerical Jacobian of the stacked equations,
+  `WeightIt::glm_weightit(vcov = "asympt")` with `weightitMSM()` for
+  visits at common times, and a coverage simulation. Cox, multinomial,
+  ordinal and gaussian exposure models in
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) and
+  truncated weights give an error (use the cluster bootstrap). Results
+  for
+  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  weights are unchanged.
+  [`?ipwvcov`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+  and the articles explain that heavy-tailed cumulative weights (a
+  near-violation of positivity) make normal-theory intervals unreliable
+  for any method, the bootstrap included. A simulation
+  (`data-raw/make-ipwvcov-tm-tail.R`) estimates the tail index and
+  coverage for 300 to 4800 people.
+
+- [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
+  results carry new attributes `"family"`, `"type"`, `"id"` and
+  `"sort.order"` (used by
+  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md));
+  the list elements and weights are unchanged.
+
+- [`?ipwpoint`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  and [`?ipwtm`](https://tranhung93.github.io/ipw/reference/ipwtm.md):
+  the “Standard errors” paragraphs list every case that
+  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+  supports.
+
 - [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md):
   `estimand = "ATC"` (effect in the untreated) for a binomial exposure:
   treated get weight (1 - p)/p, untreated 1.

@@ -64,7 +64,7 @@ sapply(estimands, function(est)
   c(max.abs.difference = max(abs(w_ipw[[est]]$ipw.weights - w_wit[[est]]$weights)),
     max.weight = max(w_ipw[[est]]$ipw.weights)))
 #>                             ATE          ATT          ATC          ATO
-#> max.abs.difference 1.065814e-14 2.220446e-15 8.881784e-15 2.220446e-16
+#> max.abs.difference 1.065814e-14 1.065814e-14 7.105427e-15 3.330669e-16
 #> max.weight         1.180340e+01 8.832774e+00 1.080340e+01 9.152786e-01
 ```
 
@@ -93,7 +93,7 @@ sapply(estimands, function(est) {
           norm_by_group(ss$ps.weights[[psw_args[[est]]$weight]], d$a)))
 })
 #>          ATE          ATT          ATC          ATO 
-#> 1.734723e-18 4.336809e-19 0.000000e+00 1.734723e-18
+#> 0.000000e+00 4.336809e-19 3.469447e-18 8.673617e-19
 ```
 
 ### Standard errors
@@ -230,13 +230,15 @@ conservative, but wider than needed. The coverages of
 simulation error of 95%.
 
 [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
-covers binary point treatments with
-[`lm()`](https://rdrr.io/r/stats/lm.html),
+covers binary exposures with logistic exposure models: point treatments
+with [`lm()`](https://rdrr.io/r/stats/lm.html),
 [`glm()`](https://rdrr.io/r/stats/glm.html) or
-[`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) outcome models.
-WeightIt’s outcome-model functions cover more: multi-category and
-continuous treatments, many weighting methods, ordinal and multinomial
-outcome models, and longitudinal weights from `weightitMSM()`.
+[`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) outcome models,
+and time-varying weights from
+[`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
+(section 3). WeightIt’s outcome-model functions cover more:
+multi-category and continuous treatments, many weighting methods, and
+ordinal and multinomial outcome models.
 
 ## 2. Categorical point treatment
 
@@ -520,6 +522,149 @@ differ between people,
 [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) uses
 each person’s own intervals directly.
 
+### Standard errors on long data
+
+With pooled logistic models
+(`ipwtm(family = "binomial", link = "logit")`, any `type`),
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+gives M-estimation standard errors for an MSM fitted on the long data
+with [`lm()`](https://rdrr.io/r/stats/lm.html),
+[`glm()`](https://rdrr.io/r/stats/glm.html) or a Cox model on
+counting-process data, summing all scores within each person; a list of
+weight objects, such as treatment and censoring weights, can be passed.
+For the Cox exposure models used above (`family = "survival"`) it is not
+available, and the cluster bootstrap remains the option.
+
+When the visits are at the same times for everyone, the two packages can
+be compared exactly: with time-specific columns in the pooled model the
+weights equal those of `weightitMSM()`, and the package tests show that
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+then reproduces `glm_weightit(vcov = "asympt")` for a person-level
+outcome to about 1e-6.
+
+The table summarises a simulation with individual visit times (300
+people with 3 to 7 visits; a confounder that changes over time; a
+treatment that switches back and forth and depends on the confounder and
+on the previous treatment; an outcome at every visit with an effect of
+current treatment of 1). In the “moderate” scenario treatment depends
+moderately on the confounder and on the previous treatment; in the
+“strong” scenario twice as strongly, which gives cumulative weights with
+a heavy right tail (see the median of the largest weight). The weights
+are `ipwtm(type = "all", numerator = ~ blag, denominator = ~ blag + l)`
+and the MSM is `lm(y ~ b)` on all rows. The robust standard error is
+clustered by person (HC0) and treats the weights as known; the cluster
+bootstrap (200 samples of persons, weights re-estimated in each) was run
+on a subset of the data sets.
+
+``` r
+
+knitr::kable(tm_sim$summary, digits = 3, row.names = FALSE)
+```
+
+| scenario | median.max.weight | mean.estimate | empirical.sd | mean.se.ipwvcov | mean.se.robust | mean.se.bootstrap | coverage.ipwvcov | coverage.robust | coverage.bootstrap | replications | bootstrap.replications |
+|:---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| moderate | 4.152 | 1.001 | 0.057 | 0.059 | 0.082 | 0.058 | 0.958 | 0.990 | 0.965 | 1000 | 200 |
+| strong | 12.013 | 1.006 | 0.101 | 0.084 | 0.109 | 0.084 | 0.930 | 0.973 | 0.945 | 1000 | 200 |
+
+With moderate weights,
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) and
+the cluster bootstrap agree with each other and with the empirical
+standard deviation of the estimates, and their intervals cover about
+95%. The robust standard error, which treats the weights as known, is
+about 40% too large here, so its intervals are much wider than needed.
+With strongly dependent treatment,
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) and
+the bootstrap give almost the same standard error, but both are about
+17% smaller than the empirical standard deviation, and coverage drops to
+about 93% (the bootstrap’s 94.5% is based on 200 data sets). The robust
+standard error is conservative in both scenarios here, but that is not
+guaranteed; the package’s simulation study found settings where it was
+too small as well.
+
+#### Heavy-tailed weights
+
+Why do both methods fall short in the strong scenario? Cumulative
+weights are products of many factors. When some people have a very low
+probability of their observed treatment history (a near-violation of
+positivity), the weights have a heavy right tail: P(W \> x) falls off
+like $`x^{-\gamma}`$ for a tail index $`\gamma`$. The weights have a
+finite variance only if $`\gamma > 2`$. The normal approximation also
+relies on a finite third moment ($`\gamma > 3`$), and estimating the
+variance well, by the sandwich or by the bootstrap, relies on a finite
+fourth moment ($`\gamma > 4`$).
+
+To check this explanation, the strong scenario and a milder version of
+it (dependence on the confounder and on the previous treatment three
+quarters as strong) were run with 300, 1200 and 4800 people. The weight
+distribution refers to the final cumulative weight of each person: the
+largest weight and the 99.9th percentile (medians over data sets), the
+Kish effective sample size as a fraction of *n* (mean), and the Hill
+estimate of the tail index from the top 5% (median). There were 1000,
+1000 and 500 data sets per size, of which 200, 200 and 100 were
+bootstrapped (B = 200).
+
+``` r
+
+tail_tab <- tm_tail$summary[, c("scenario", "n", "max.weight", "q999.weight",
+                                "ess.fraction", "hill.tail.index",
+                                "empirical.sd", "mean.se.ipwvcov",
+                                "mean.se.bootstrap", "coverage.ipwvcov",
+                                "coverage.bootstrap", "coverage.robust")]
+knitr::kable(tail_tab, digits = c(0, 0, 1, 1, 2, 2, 4, 4, 4, 3, 3, 3), row.names = FALSE)
+```
+
+| scenario | n | max.weight | q999.weight | ess.fraction | hill.tail.index | empirical.sd | mean.se.ipwvcov | mean.se.bootstrap | coverage.ipwvcov | coverage.bootstrap | coverage.robust |
+|:---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| strong | 300 | 9.2 | 8.5 | 0.48 | 2.34 | 0.0973 | 0.0829 | 0.0851 | 0.916 | 0.950 | 0.970 |
+| strong | 1200 | 17.2 | 11.5 | 0.44 | 2.29 | 0.0499 | 0.0453 | 0.0440 | 0.932 | 0.945 | 0.975 |
+| strong | 4800 | 33.1 | 13.2 | 0.39 | 2.26 | 0.0290 | 0.0257 | 0.0264 | 0.918 | 0.900 | 0.980 |
+| milder | 300 | 6.6 | 6.2 | 0.63 | 2.87 | 0.0747 | 0.0691 | 0.0688 | 0.939 | 0.935 | 0.983 |
+| milder | 1200 | 10.7 | 7.6 | 0.61 | 2.83 | 0.0404 | 0.0367 | 0.0358 | 0.934 | 0.945 | 0.987 |
+| milder | 4800 | 18.0 | 8.5 | 0.60 | 2.81 | 0.0203 | 0.0188 | 0.0192 | 0.946 | 0.930 | 0.996 |
+
+The Hill estimate from one sample of 200,000 people per scenario, at
+three tail fractions, with the largest weight and the effective sample
+size fraction in that sample (“moderate” is the moderate scenario
+above):
+
+``` r
+
+knitr::kable(tm_tail$hill_big, digits = 2)
+```
+
+|              | strong | milder | moderate |
+|:-------------|-------:|-------:|---------:|
+| hill_5pct    |   2.28 |   2.76 |     3.90 |
+| hill_1pct    |   2.35 |   2.82 |     3.76 |
+| hill_0.2pct  |   2.33 |   2.66 |     3.45 |
+| max.weight   | 144.66 |  58.92 |    24.48 |
+| ess.fraction |   0.40 |   0.59 |     0.80 |
+
+The tail index is above 2 in every scenario, so the weights have a
+finite variance and the intervals are valid in the limit. It is,
+however, about 2.3 in the strong scenario and 2.8 in the milder one,
+compared with 3.9 in the moderate scenario. Coverage of
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+intervals follows the tail index: about 95% (moderate), about 94%
+(milder) and 92 to 93% (strong). In the strong scenario coverage does
+not improve from 300 to 4800 people, while the largest weight roughly
+doubles with every fourfold increase in *n* and the effective sample
+size fraction keeps falling. The cluster bootstrap gives about the same
+standard errors as
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) and
+does no better (its coverage rests on 100 to 200 data sets, so it is
+uncertain by about 2 to 3 percentage points).
+
+Heavy-tailed weights therefore make normal-theory intervals unreliable
+for any method, the bootstrap included. The variance formula is not the
+cause: it matches the numerical Jacobian of the estimating equations
+exactly. Check the weight distribution
+([`summary()`](https://rdrr.io/r/base/summary.html),
+[`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md),
+the effective sample size) before trusting any standard error. If a few
+people carry much of the weight, consider truncation, a less extreme
+weight model or a different estimand.
+
 ## 4. Which to use
 
 - **WeightIt** for point treatments when you want machine-learning or
@@ -534,7 +679,10 @@ each person’s own intervals directly.
   the first switch or to censoring (`ipwtm(family = "survival")`);
   exposures that switch back and forth or recur (`type = "all"`); count
   and skewed continuous exposures (Poisson, negative binomial, gamma,
-  log-normal); and analyses with few dependencies.
+  log-normal); and analyses with few dependencies. With pooled logistic
+  exposure models,
+  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+  gives M-estimation standard errors on the long data.
 - **PSweight** for point treatments when you want overlap, matching or
   entropy weights with built-in sandwich standard errors, augmented
   (doubly robust) estimators, ratio estimands for binary outcomes, or

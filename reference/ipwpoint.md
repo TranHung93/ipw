@@ -135,14 +135,24 @@ for ATC), containing:
 
 Standard errors: `ipwpoint` only estimates the weights. Standard errors
 for the marginal structural model have to be obtained when that model is
-fitted. For a binomial exposure (any `estimand`, logit link, exposure
-models without smooth terms, no truncation) and a marginal structural
-model fitted with [`lm()`](https://rdrr.io/r/stats/lm.html) or
-[`glm()`](https://rdrr.io/r/stats/glm.html),
+fitted.
 [`ipwvcov`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) (new,
 experimental) gives standard errors that take the estimation of the
-weights into account (M-estimation); this is the recommended option
-there. For all other cases use the bootstrap described below. Robust
+weights into account (M-estimation), and is the recommended option where
+it applies: weights from `ipwpoint()` with `family = "binomial"` and
+`link = "logit"` (any `estimand`, stabilized or not, no smooth terms, no
+truncation) and a marginal structural model fitted with
+[`lm()`](https://rdrr.io/r/stats/lm.html),
+[`glm()`](https://rdrr.io/r/stats/glm.html) (any link) or
+[`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) (right-censored
+data, one row per person); and time-varying weights from
+[`ipwtm`](https://tranhung93.github.io/ipw/reference/ipwtm.md) with
+`family = "binomial"` and `link = "logit"` (`type = "first"`, `"cens"`
+or `"all"`, alone or multiplied, e.g. treatment times censoring weights)
+with an [`lm()`](https://rdrr.io/r/stats/lm.html),
+[`glm()`](https://rdrr.io/r/stats/glm.html) or counting-process
+[`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) model on the
+long data. For all other cases use the bootstrap described below. Robust
 (sandwich) standard errors, for example from
 [`svyglm()`](https://rdrr.io/pkg/survey/man/svyglm.html) in the survey
 package as in Van der Wal and Geskus (2011), treat the weights as known.

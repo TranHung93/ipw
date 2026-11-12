@@ -694,18 +694,18 @@ hazard of the row (line 513).
 
 ### This version
 
-     594      # Hazard over each row's own interval (tstart, timevar]: L0(timevar) - L0(tstart).
-     595      # (Up to ipw 1.3.x the increment between consecutive time points of the whole
-     596      # data set was used, which is only right when all subjects share one time grid.)
-     597      bh <- survival::basehaz(mod, centered = TRUE)
-     598      cum_haz_at <- function(t) {
-     599        out <- stats::approx(bh$time, bh$hazard, xout = t, method = "constant", rule = 2)$y
-     600        out[t < min(bh$time)] <- 0
-     601        out
-     602      }
-     603      risk <- rep(NA_real_, nrow(data))
-     604      risk[data$.ipw_selvar == 1] <- stats::predict(mod, type = "risk", centered = TRUE)
-     605      inst_haz <- (cum_haz_at(data[[time_col]]) - cum_haz_at(data[[start_col]])) * risk
+     612      # Hazard over each row's own interval (tstart, timevar]: L0(timevar) - L0(tstart).
+     613      # (Up to ipw 1.3.x the increment between consecutive time points of the whole
+     614      # data set was used, which is only right when all subjects share one time grid.)
+     615      bh <- survival::basehaz(mod, centered = TRUE)
+     616      cum_haz_at <- function(t) {
+     617        out <- stats::approx(bh$time, bh$hazard, xout = t, method = "constant", rule = 2)$y
+     618        out[t < min(bh$time)] <- 0
+     619        out
+     620      }
+     621      risk <- rep(NA_real_, nrow(data))
+     622      risk[data$.ipw_selvar == 1] <- stats::predict(mod, type = "risk", centered = TRUE)
+     623      inst_haz <- (cum_haz_at(data[[time_col]]) - cum_haz_at(data[[start_col]])) * risk
 
 The cumulative baseline hazard is now evaluated at both ends of each
 row’s own interval, `timevar` and `tstart`, and the difference is the

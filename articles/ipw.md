@@ -28,15 +28,16 @@ An analysis has three steps:
     [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md).
 3.  **Fit the MSM** with the weights, and get **standard errors**: with
     [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
-    for a binary point treatment, otherwise with a bootstrap that
-    re-estimates the weights when they are well behaved (section 5).
+    for binary exposures with logistic models (point treatment or
+    time-varying), otherwise with a bootstrap that re-estimates the
+    weights when they are well behaved (section 5).
 
 | Function | Purpose |
 |----|----|
 | [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md) | Weights for an exposure measured once (point treatment) |
 | [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) | Weights for an exposure that changes over time, and censoring weights |
 | [`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md) | Time-varying weights from probabilities you estimated yourself **(new)** |
-| [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) | Standard errors for the MSM that account for the estimated weights (binary point treatment) **(new)** |
+| [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) | Standard errors for the MSM that account for the estimated weights (binary exposures, logistic models) **(new)** |
 | [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md) | Plot the distribution of the weights |
 | [`tstartfun()`](https://tranhung93.github.io/ipw/reference/tstartfun.md) | Interval start times for counting-process (Cox) data |
 
@@ -604,7 +605,7 @@ therefore extreme weights. Check the weights and consider `trunc`.
 
 ## 5. Standard errors: M-estimation, robust and bootstrap
 
-### New: `ipwvcov()` for a binary point treatment
+### New: `ipwvcov()` for a binary point treatment and for time-varying weights
 
 For a binary point treatment and a marginal structural model fitted with
 [`lm()`](https://rdrr.io/r/stats/lm.html),
@@ -658,14 +659,44 @@ c(log.hr = unname(coef(msm.cox)),
 ```
 
 With tied event times, fit the Cox model with `ties = "breslow"`.
+
 [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
-needs a logistic exposure model (`link = "logit"`), and does not handle
-truncated weights, smooth terms, other exposure families, Cox models
-with counting-process data,
-[`strata()`](https://rdrr.io/pkg/survival/man/strata.html) or
-[`cluster()`](https://rdrr.io/pkg/survival/man/cluster.html), or
-time-varying weights from
-[`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md); for
+also accepts **time-varying weights** from
+[`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) with
+`family = "binomial"` and `link = "logit"` (pooled logistic models, any
+`type`), alone or as a list whose weights multiply, such as treatment
+times censoring weights. The MSM is fitted on all rows of the long data,
+with [`lm()`](https://rdrr.io/r/stats/lm.html),
+[`glm()`](https://rdrr.io/r/stats/glm.html) or a Cox model on
+counting-process data; the scores are summed within each person. Below,
+the HAART analysis of section 3 with pooled logistic models instead of
+Cox models for starting HAART and for dropout:
+
+``` r
+
+w.start.bin <- ipwtm(exposure = haartind, family = "binomial", link = "logit",
+                     numerator = ~ sex + age, denominator = ~ sex + age + cd4.sqrt,
+                     id = patient, timevar = fuptime, type = "first", data = haartdat)
+w.drop.bin <- ipwtm(exposure = dropout, family = "binomial", link = "logit",
+                    numerator = ~ sex + age, denominator = ~ sex + age + cd4.sqrt,
+                    id = patient, timevar = fuptime, type = "cens", data = haartdat)
+msm.bin <- coxph(Surv(tstart, fuptime, event) ~ haartind + cluster(patient),
+                 data = haartdat, ties = "breslow",
+                 weights = w.start.bin$ipw.weights * w.drop.bin$ipw.weights)
+c(log.hr = unname(coef(msm.bin)),
+  robust.cluster.se = sqrt(msm.bin$var[1, 1]),
+  ipwvcov.se = sqrt(ipwvcov(list(w.start.bin, w.drop.bin), msm.bin)[1, 1]))
+#>            log.hr robust.cluster.se        ipwvcov.se 
+#>        -1.0277768         0.4633263         0.4585489
+```
+
+The robust standard error with `cluster(patient)` treats the weights as
+known; here the two are close.
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+needs logistic exposure models (`link = "logit"`), and does not handle
+truncated weights, smooth terms, other exposure families (including the
+Cox exposure models of section 3, `family = "survival"`), or Cox MSMs
+with [`strata()`](https://rdrr.io/pkg/survival/man/strata.html); for
 these, use the bootstrap below.
 
 ### Robust and bootstrap standard errors
@@ -703,8 +734,11 @@ quantile(boot.est, c(0.025, 0.975))   # percentile 95% confidence interval
 For data with several rows per person, resample **people**, not rows:
 keep all rows of a sampled person and give each sampled copy a new
 identifier, so that someone drawn twice counts as two people. Here both
-sets of weights for the HAART example are re-estimated in each sample
-(use about 200 samples in practice; 20 keep this vignette quick):
+sets of weights for the HAART example of section 3, which use Cox
+exposure models and so are not covered by
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md),
+are re-estimated in each sample (use about 200 samples in practice; 20
+keep this vignette quick):
 
 ``` r
 

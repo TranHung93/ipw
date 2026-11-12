@@ -121,11 +121,28 @@ A list of class `"ipwtm"` containing:
 
   Denominator model object.
 
+The result also has the attributes `"family"`, `"type"`, `"id"` (the
+subject identifier, in original row order) and `"sort.order"` (the order
+of the rows of `data` used to fit the models), which
+[`ipwvcov`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) uses.
+
 ## Details
 
 Standard errors: `ipwtm` only estimates the weights. Standard errors for
 the marginal structural model have to be obtained when that model is
-fitted. Robust standard errors, for example from
+fitted. For `family = "binomial"` with `link = "logit"` (any `type`, no
+smooth terms, no truncation) and a marginal structural model fitted on
+the long data with [`lm()`](https://rdrr.io/r/stats/lm.html),
+[`glm()`](https://rdrr.io/r/stats/glm.html) or
+[`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) on
+counting-process data,
+[`ipwvcov`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) (new,
+experimental) gives standard errors that take the estimation of the
+weights into account, with the scores summed within subject; pass a list
+to combine, for example, treatment and censoring weights. For Cox
+(`family = "survival"`), multinomial, ordinal and gaussian exposure
+models, and for truncated weights, use the bootstrap described below.
+Robust standard errors, for example from
 [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) with
 `cluster(id)` as in Van der Wal and Geskus (2011), treat the weights as
 known. They are often conservative (too large) for a binary point
