@@ -47,7 +47,7 @@ An analysis has three steps:
 | `ipwplot()` | Plot the distribution of the weights |
 | `tstartfun()` | Interval start times for counting-process (Cox) data |
 
-> **New in the development version.** Sections marked **New** describe
+> **New in ipw 1.4.0.** Sections marked **New** describe
 > features added after ipw 1.3.2: count, gamma and log-normal exposures,
 > smooth terms with mgcv, ATT, ATC and overlap weights (also for
 > categorical exposures), standard errors that account for the estimated

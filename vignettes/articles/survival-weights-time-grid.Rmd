@@ -257,7 +257,7 @@ at day 15 and missed that part of the hazard. Patient 1, exposed at day 20,
 gets a weight of `r round(w_old[2], 3)` instead of `r round(w_correct[2], 3)`.
 
 The same numbers from the package. Every old version gives the old weights,
-and the development version gives the correct ones:
+and this version gives the correct ones:
 
 ```{r tiny-package}
 w_dev <- ipwtm(exposure = a, family = "survival", denominator = ~ l, id = id,
