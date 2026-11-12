@@ -5,9 +5,10 @@
 #' point treatment situation. Exposure can be binomial, multinomial, ordinal,
 #' a count (Poisson or negative binomial) or continuous (gaussian, gamma or
 #' log-normal). Both stabilized and unstabilized weights can be estimated, and
-#' for a binomial exposure also weights for the effect in the treated (ATT) and
-#' overlap weights (ATO). Formulas may contain smooth terms such as \code{s(x)},
-#' which are then fitted as generalized additive models with \pkg{mgcv}.
+#' for a binomial exposure also weights for the effect in the treated (ATT), the
+#' effect in the untreated (ATC) and overlap weights (ATO). Formulas may
+#' contain smooth terms such as \code{s(x)}, which are then fitted as
+#' generalized additive models with \pkg{mgcv}.
 #'
 #' @details
 #' Standard errors: \code{ipwpoint} only estimates the weights. Standard errors
@@ -44,7 +45,7 @@
 #'   If \code{NULL}, unstabilized weights (numerator = 1) are calculated. Required
 #'   for the continuous families (\code{"gaussian"}, \code{"gamma"},
 #'   \code{"lognormal"}); must be \code{NULL} when \code{estimand} is
-#'   \code{"ATT"} or \code{"ATO"}.
+#'   \code{"ATT"}, \code{"ATC"} or \code{"ATO"}.
 #' @param denominator Formula specifying the right-hand side of the denominator model.
 #'   Smooth terms (\code{s()}, \code{te()}, \code{ti()}, \code{t2()}) are allowed
 #'   for the binomial, gaussian and poisson families; the model is then fitted with
@@ -52,10 +53,11 @@
 #' @param data Data frame containing exposure and model covariates.
 #' @param trunc Optional truncation percentile between 0 and 0.5 (e.g., 0.01 for 1st/99th percentiles).
 #' @param estimand Target estimand for a binomial exposure: \code{"ATE"} (default;
-#'   inverse probability weights), \code{"ATT"} (treated get weight 1, untreated
-#'   \eqn{p/(1-p)}) or \code{"ATO"} (overlap weights: treated \eqn{1-p}, untreated
-#'   \eqn{p}), where \eqn{p} is the fitted probability of exposure from the
-#'   denominator model.
+#'   inverse probability weights), \code{"ATT"} (effect in the treated: treated
+#'   get weight 1, untreated \eqn{p/(1-p)}), \code{"ATC"} (effect in the
+#'   untreated, or controls: treated get \eqn{(1-p)/p}, untreated 1) or
+#'   \code{"ATO"} (overlap weights: treated \eqn{1-p}, untreated \eqn{p}), where
+#'   \eqn{p} is the fitted probability of exposure from the denominator model.
 #' @param ... Additional arguments passed to model fitting functions (\code{glm},
 #'   \code{multinom}, \code{polr}, \code{glm.nb}, \code{gam}).
 #'
@@ -157,7 +159,7 @@ ipwpoint <- function(
     denominator,
     data,
     trunc = NULL,
-    estimand = c("ATE", "ATT", "ATO"),
+    estimand = c("ATE", "ATT", "ATC", "ATO"),
     ...)
 {
   call_obj <- match.call()
@@ -312,6 +314,7 @@ ipwpoint <- function(
   ipw_weights <- switch(estimand,
     ATE = num$dens / den$dens,
     ATT = ifelse(exp_vec == 1, 1, den$p / (1 - den$p)),
+    ATC = ifelse(exp_vec == 1, (1 - den$p) / den$p, 1),
     ATO = ifelse(exp_vec == 1, 1 - den$p, den$p)
   )
   if (anyNA(ipw_weights) || any(is.infinite(ipw_weights))) {

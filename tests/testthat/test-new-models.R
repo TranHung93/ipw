@@ -242,7 +242,7 @@ test_that("smooth terms are refused where they are not supported", {
 
 # ---- Estimands for a binomial point treatment --------------------------------
 
-test_that("ipwpoint estimand = 'ATT' and 'ATO' give the standard weights", {
+test_that("ipwpoint estimand = 'ATT', 'ATC' and 'ATO' give the standard weights", {
   set.seed(13)
   d <- data.frame(l = rnorm(300))
   d$a <- rbinom(300, 1, plogis(0.8 * d$l))
@@ -251,6 +251,10 @@ test_that("ipwpoint estimand = 'ATT' and 'ATO' give the standard weights", {
   att <- ipwpoint(exposure = a, family = "binomial", link = "logit",
                   denominator = ~ l, data = d, estimand = "ATT")
   expect_equal(unname(att$ipw.weights), unname(ifelse(d$a == 1, 1, p / (1 - p))))
+
+  atc <- ipwpoint(exposure = a, family = "binomial", link = "logit",
+                  denominator = ~ l, data = d, estimand = "ATC")
+  expect_equal(unname(atc$ipw.weights), unname(ifelse(d$a == 1, (1 - p) / p, 1)))
 
   ato <- ipwpoint(exposure = a, family = "binomial", link = "logit",
                   denominator = ~ l, data = d, estimand = "ATO")
@@ -270,6 +274,10 @@ test_that("ipwpoint refuses ATT/ATO for other families or with a numerator", {
                         estimand = "ATT"), "only available")
   expect_error(ipwpoint(exposure = a, family = "binomial", link = "logit", numerator = ~ 1,
                         denominator = ~ l, data = d, estimand = "ATO"), "must be NULL")
+  expect_error(ipwpoint(exposure = a, family = "binomial", link = "logit", numerator = ~ 1,
+                        denominator = ~ l, data = d, estimand = "ATC"), "must be NULL")
+  expect_error(ipwpoint(exposure = c, family = "poisson", denominator = ~ l, data = d,
+                        estimand = "ATC"), "only available")
   expect_error(ipwpoint(exposure = a, family = "binomial", link = "logit",
                         denominator = ~ l, data = d, estimand = "XYZ"), "should be one of")
 })

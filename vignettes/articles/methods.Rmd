@@ -42,7 +42,7 @@ denominator models, and one line forms the weight:
 ipw_weights <- num$dens / den$dens   # num$dens = 1 when numerator = NULL
 ```
 
-# 1. `estimand`: ATT and overlap weights for a binomial point treatment
+# 1. `estimand`: ATT, ATC and overlap weights for a binomial point treatment
 
 The `estimand` argument changes which population the weights standardise to,
 using the same fitted propensity score *e*(*L*) = P(*A* = 1 | *L*) from the
@@ -51,7 +51,7 @@ denominator model.
 **Formula.**
 
 $$
-\text{ATE: } w = \frac{A}{e} + \frac{1-A}{1-e} \qquad \text{ATT: } w = A + (1-A)\frac{e}{1-e} \qquad \text{ATO: } w = A(1-e) + (1-A)\,e
+\text{ATE: } w = \frac{A}{e} + \frac{1-A}{1-e} \qquad \text{ATT: } w = A + (1-A)\frac{e}{1-e} \qquad \text{ATC: } w = A\frac{1-e}{e} + (1-A) \qquad \text{ATO: } w = A(1-e) + (1-A)\,e
 $$
 
 **Code.**
@@ -60,12 +60,13 @@ $$
 ipw_weights <- switch(estimand,
   ATE = num$dens / den$dens,
   ATT = ifelse(exp_vec == 1, 1, den$p / (1 - den$p)),
+  ATC = ifelse(exp_vec == 1, (1 - den$p) / den$p, 1),
   ATO = ifelse(exp_vec == 1, 1 - den$p, den$p)
 )
 ```
 
 `den$p` is the fitted P(*A* = 1 | *L*) kept from the binomial denominator
-model; `"ATT"` and `"ATO"` require `numerator = NULL` and a binomial family.
+model; `"ATT"`, `"ATC"` and `"ATO"` require `numerator = NULL`.
 
 **Why this approach.** Each estimand answers a different clinical question;
 the formulas only change who gets how much weight.
@@ -77,13 +78,18 @@ the formulas only change who gets how much weight.
   Treated people keep weight 1; untreated people are reweighted to look like
   the treated group. Useful when treatment is only realistic for some
   patients.
+* **ATC:** "What would the treatment have done for the people who did not
+  receive it?" The mirror image of the ATT: untreated people keep weight 1
+  and treated people are reweighted to look like the untreated group. Useful
+  when the question is whether to extend a treatment to those not yet
+  receiving it.
 * **ATO (overlap):** "What is the effect in patients for whom doctors could
   have gone either way?" Every weight lies between 0 and 1, so no single
   person can dominate. This helps when some patients are almost always or
   almost never treated: there, ATE weights become huge and need truncation.
   With a logistic model, overlap weights also make the average of every
   covariate in the model exactly equal between the groups.
-* **Why no numerator:** ATT and overlap weights are not a ratio of two
+* **Why no numerator:** ATT, ATC and overlap weights are not a ratio of two
   probabilities, so stabilizing them has no meaning. ipw gives an error
   instead of silently ignoring a numerator.
 * **Which to use:** choose by the clinical question first. If ATE weights are

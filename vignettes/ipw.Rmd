@@ -46,7 +46,7 @@ An analysis has three steps:
 
 > **New in the development version.** Sections marked **New** describe
 > features added after ipw 1.3.2: count, gamma and log-normal exposures,
-> smooth terms with mgcv, ATT and overlap weights, `type = "all"` for
+> smooth terms with mgcv, ATT, ATC and overlap weights, `type = "all"` for
 > categorical and survival exposures in `ipwtm()`, and `ipwprobtm()`.
 > Existing calls give the same results as before.
 > The formulas, code and rationale behind each new feature are in the
@@ -116,14 +116,16 @@ rbind(unstabilized = summary(w.unstab$ipw.weights),
       truncated    = summary(w.trunc$weights.trunc))
 ```
 
-## New: ATT and overlap weights
+## New: ATT, ATC and overlap weights
 
 The weights above target the **average treatment effect (ATE)**: the effect
 if everyone versus no one were exposed. With `estimand = "ATT"` the weights
 target the effect **in the exposed** (exposed get weight 1, unexposed
-p/(1 - p)); with `estimand = "ATO"`, **overlap weights**, the effect in the
-people whose exposure was most uncertain (exposed 1 - p, unexposed p, all
-between 0 and 1). Here p is the fitted probability of exposure.
+p/(1 - p)); with `estimand = "ATC"` the effect **in the unexposed** (the
+controls: exposed (1 - p)/p, unexposed 1); with `estimand = "ATO"`,
+**overlap weights**, the effect in the people whose exposure was most
+uncertain (exposed 1 - p, unexposed p, all between 0 and 1). Here p is the
+fitted probability of exposure.
 
 ```{r estimands}
 fit.estimand <- function(estimand) {
@@ -132,13 +134,14 @@ fit.estimand <- function(estimand) {
   c(effect = unname(coef(lm(y ~ a, data = simdat, weights = wt))["a"]),
     max.weight = max(wt))
 }
-sapply(c(ATE = "ATE", ATT = "ATT", ATO = "ATO"), fit.estimand)
+sapply(c(ATE = "ATE", ATT = "ATT", ATC = "ATC", ATO = "ATO"), fit.estimand)
 ```
 
-The effect was simulated as constant, so all three estimands are 10 in
+The effect was simulated as constant, so all four estimands are 10 in
 truth, and the differences between the estimates are sampling noise. The
 ATT weights show why: unexposed people with a high probability of exposure
-get weights above 100, which makes that estimate unstable. Overlap weights
+get weights above 100, which makes that estimate unstable, and the ATC
+weights do the same for exposed people with a low probability of exposure. Overlap weights
 never exceed 1, which helps when some people are almost always or almost
 never exposed. With an effect that differs between people, the three
 estimands differ in truth as well.

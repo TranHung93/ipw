@@ -22,6 +22,8 @@ test_that("binomial weights equal by-hand glm for every link and estimand", {
     expect_equal(ipwpoint(a, "binomial", lk, NULL, ~ l, d)$ipw.weights, unname(ate_w(d$a, p)), tolerance = 1e-10)
     expect_equal(ipwpoint(a, "binomial", lk, NULL, ~ l, d, estimand = "ATT")$ipw.weights,
                  unname(ifelse(d$a == 1, 1, p / (1 - p))), tolerance = 1e-10)
+    expect_equal(ipwpoint(a, "binomial", lk, NULL, ~ l, d, estimand = "ATC")$ipw.weights,
+                 unname(ifelse(d$a == 1, (1 - p) / p, 1)), tolerance = 1e-10)
     expect_equal(ipwpoint(a, "binomial", lk, NULL, ~ l, d, estimand = "ATO")$ipw.weights,
                  unname(ifelse(d$a == 1, 1 - p, p)), tolerance = 1e-10)
   }

@@ -14,7 +14,7 @@ bin_w <- function(d, ...) {
            numerator = ~ 1, denominator = ~ l + f, data = d, ...)$ipw.weights
 }
 
-test_that("binomial weights match closed form for ATE, ATT and ATO", {
+test_that("binomial weights match closed form for ATE, ATT, ATC and ATO", {
   d <- make_point()
   p <- stats::fitted(stats::glm(a ~ l + f, binomial, d))
   expect_equal(ipwpoint(a, "binomial", "logit", denominator = ~ l + f, data = d)$ipw.weights,
@@ -23,6 +23,9 @@ test_that("binomial weights match closed form for ATE, ATT and ATO", {
                         estimand = "ATT")$ipw.weights,
                unname(ifelse(d$a == 1, 1, p / (1 - p))))
   expect_equal(ipwpoint(a, "binomial", "logit", denominator = ~ l + f, data = d,
+                        estimand = "ATC")$ipw.weights,
+               unname(ifelse(d$a == 1, (1 - p) / p, 1)))
+  expect_equal(ipwpoint(a, "binomial", "logit", denominator = ~ l + f, data = d,
                         estimand = "ATO")$ipw.weights,
                unname(ifelse(d$a == 1, 1 - p, p)))
 })
@@ -30,7 +33,7 @@ test_that("binomial weights match closed form for ATE, ATT and ATO", {
 test_that("binomial weights agree with WeightIt", {
   skip_if_not_installed("WeightIt")
   d <- make_point(1000, 2)
-  for (est in c("ATE", "ATT", "ATO")) {
+  for (est in c("ATE", "ATT", "ATC", "ATO")) {
     expect_equal(
       ipwpoint(a, "binomial", "logit", denominator = ~ l + f, data = d, estimand = est)$ipw.weights,
       unname(WeightIt::weightit(a ~ l + f, data = d, method = "glm", estimand = est)$weights),
