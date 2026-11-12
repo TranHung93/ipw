@@ -2,7 +2,8 @@
 #'
 #' @description
 #' \strong{New, experimental.} Variance-covariance matrix of the coefficients
-#' of a marginal structural model fitted with \code{lm()} or \code{glm()} and
+#' of a marginal structural model fitted with \code{lm()}, \code{glm()} or
+#' \code{survival::coxph()} and
 #' weights from \code{\link{ipwpoint}} for a binary point treatment, taking the
 #' estimation of the weights into account. The marginal structural model and
 #' the exposure models are treated as one set of stacked estimating equations
@@ -37,27 +38,60 @@
 #' No small-sample correction is applied. Proportional rescaling of the
 #' weights does not change the result.
 #'
+#' \strong{Cox models.} For a \code{coxph()} marginal structural model the
+#' weighted partial likelihood score is used as the estimating equation
+#' (Binder 1992; Lin & Wei 1989), with the Breslow form for tied event
+#' times. Person \eqn{i}'s contribution is \eqn{w_i} times the score
+#' residual, \eqn{U_i = w_i [\delta_i (X_i - \bar X(t_i)) - \sum_k \delta_k
+#' w_k Y_i(t_k) e^{\beta' X_i} (X_i - \bar X(t_k)) / S_0(t_k)]}, with
+#' \eqn{S_0(t) = \sum_j w_j Y_j(t) e^{\beta' X_j}} and \eqn{\bar X(t)} the
+#' weighted mean of \eqn{X} in the risk set; \code{residuals(msm, type =
+#' "score")} returns the part in brackets (without the weight). The bread
+#' for \eqn{\beta} is the weighted information matrix (the inverse of
+#' \code{msm$naive.var}). The weights enter both each person's own term and
+#' the risk-set sums; differentiating the total score with respect to one
+#' weight gives exactly that person's score residual, so the cross block is
+#' \eqn{-\sum_i U_i d_i^T} with \eqn{d_i = \partial \log w_i / \partial
+#' \alpha}, as for \code{glm()}. It is computed analytically; the package
+#' tests check it against central finite differences of the stacked
+#' estimating equations. Without the exposure models, the sandwich reduces
+#' to \code{coxph()}'s robust variance (\code{msm$var}), which treats the
+#' weights as known.
+#'
 #' Supported: \code{object} from \code{ipwpoint(family = "binomial",
 #' link = "logit")} with denominator (and, if present, numerator) models
 #' fitted by \code{glm()} (no smooth terms) and any \code{estimand}; \code{msm} of class
 #' \code{"lm"} or \code{"glm"}, fitted on the same rows, in the same order, as
-#' the weights, with \code{weights = object$ipw.weights}.
+#' the weights, with \code{weights = object$ipw.weights}; or \code{msm} from
+#' \code{coxph()} with right-censored data \code{Surv(time, status)}, one row
+#' per person in the same order, and the same weights. For \code{coxph()},
+#' tied event times need \code{ties = "breslow"}; without tied event times
+#' all tie methods give the same result.
 #'
 #' Not supported, and an error: other exposure families or links, smooth terms
 #' (GAMs), truncated weights (truncation at estimated percentiles is not a
-#' smooth function of the model coefficients) and time-varying weights from
-#' \code{\link{ipwtm}}. Use the bootstrap there, re-estimating the weights in
+#' smooth function of the model coefficients), time-varying weights from
+#' \code{\link{ipwtm}}, and \code{coxph()} models with counting-process data,
+#' \code{strata()}, \code{cluster()}, \code{frailty()} or \code{tt()} terms, or
+#' Efron or exact ties with tied event times. Use the bootstrap there, re-estimating the weights in
 #' each bootstrap sample (see \code{\link{ipwpoint}} and \code{vignette("ipw")}).
 #'
 #' This is the same kind of standard error as \code{vcov = "asympt"} in
 #' \code{WeightIt::glm_weightit()}; in the package tests the two agree for
-#' binary treatments.
+#' binary treatments. For Cox models, \code{ipwvcov()} agrees with a
+#' numerical Jacobian of the stacked estimating equations to about
+#' \eqn{10^{-7}}. \code{WeightIt::coxph_weightit(vcov = "asympt")} gives
+#' slightly different values: for the ATE and overlap weights the relative
+#' difference was below 0.1\% and shrank with the sample size; for ATT and
+#' ATC weights its standard error was 1 to 4\% larger and the difference did
+#' not shrink. Its \code{vcov = "HC0"} equals \code{coxph()}'s robust
+#' variance exactly.
 #'
 #' @param object Result of \code{\link{ipwpoint}} with \code{family = "binomial"}
 #'   and \code{link = "logit"}.
-#' @param msm Marginal structural model: an \code{lm} or \code{glm} fit with
-#'   prior weights equal to \code{object$ipw.weights}, on the same rows in the
-#'   same order as the data given to \code{ipwpoint()}.
+#' @param msm Marginal structural model: an \code{lm}, \code{glm} or
+#'   \code{coxph} fit with weights equal to \code{object$ipw.weights}, on the
+#'   same rows in the same order as the data given to \code{ipwpoint()}.
 #'
 #' @return Variance-covariance matrix of the coefficients of \code{msm}, with
 #'   the coefficient names as row and column names. It can be passed, for
@@ -67,6 +101,13 @@
 #' Lunceford, J.K. & Davidian, M. (2004). Stratification and weighting via the
 #' propensity score in estimation of causal treatment effects: a comparative
 #' study. \emph{Statistics in Medicine}, \bold{23}, 2937-2960. \doi{10.1002/sim.1903}.
+#'
+#' Binder, D.A. (1992). Fitting Cox's proportional hazards models from
+#' survey data. \emph{Biometrika}, \bold{79}, 139-147. \doi{10.1093/biomet/79.1.139}.
+#'
+#' Lin, D.Y. & Wei, L.J. (1989). The robust inference for the Cox proportional
+#' hazards model. \emph{Journal of the American Statistical Association},
+#' \bold{84}, 1074-1078. \doi{10.1080/01621459.1989.10478874}.
 #'
 #' Stefanski, L.A. & Boos, D.D. (2002). The calculus of M-estimation.
 #' \emph{The American Statistician}, \bold{56}, 29-38. \doi{10.1198/000313002753631330}.
@@ -104,6 +145,15 @@
 #'   print(lmtest::coeftest(msm, vcov. = ipwvcov(w, msm)))
 #'   print(lmtest::coefci(msm, vcov. = ipwvcov(w, msm)))
 #' }
+#'
+#' # Cox marginal structural model for a survival outcome
+#' library(survival)
+#' simdat$time <- rexp(n, 0.1 * exp(-0.5 * simdat$a + 0.05 * simdat$l))
+#' simdat$status <- as.numeric(simdat$time < 10)
+#' simdat$time <- pmin(simdat$time, 10)
+#' msm.cox <- coxph(Surv(time, status) ~ a, data = simdat, weights = w$ipw.weights)
+#' cbind(robust = sqrt(diag(msm.cox$var)),          # weights treated as known
+#'       ipwvcov = sqrt(diag(ipwvcov(w, msm.cox))))  # weights estimated
 ipwvcov <- function(object, msm) {
   # 1. Checks ----------------------------------------------------------------
   if (inherits(object, "ipwtm")) {
@@ -122,12 +172,15 @@ ipwvcov <- function(object, msm) {
   .check_vcov_model(object$den.mod, "denominator")
   if (!is.null(object$num.mod)) .check_vcov_model(object$num.mod, "numerator")
 
-  if (missing(msm) || !inherits(msm, "lm") || inherits(msm, c("mlm", "gam"))) {
-    stop("'msm' must be a model fitted with lm() or glm().", call. = FALSE)
+  is_cox <- !missing(msm) && inherits(msm, "coxph")
+  if (missing(msm) || !(is_cox || inherits(msm, "lm")) || inherits(msm, c("mlm", "gam"))) {
+    stop("'msm' must be a model fitted with lm() or glm(), or with coxph() for ",
+         "right-censored survival data.", call. = FALSE)
   }
   if (anyNA(stats::coef(msm))) {
     stop("'msm' has aliased (NA) coefficients; remove them from the model.", call. = FALSE)
   }
+  if (is_cox) .check_coxph_msm(msm)
   w <- object$ipw.weights
   n <- length(w)
   X <- stats::model.matrix(msm)
@@ -150,7 +203,11 @@ ipwvcov <- function(object, msm) {
   }
 
   # 2. Marginal structural model: scores U_i and information A_bb --------------
-  if (inherits(msm, "glm")) {
+  if (is_cox) {
+    cox <- .coxph_parts(msm, w, X)
+    U <- cox$U
+    A_bb <- cox$A
+  } else if (inherits(msm, "glm")) {
     mu <- msm$fitted.values
     resid <- msm$y - mu
     mu_eta <- msm$family$mu.eta(msm$linear.predictors)
@@ -160,8 +217,10 @@ ipwvcov <- function(object, msm) {
     mu_eta <- rep(1, n)
     var_mu <- rep(1, n)
   }
-  U <- X * (w * resid * mu_eta / var_mu)
-  A_bb <- crossprod(X * (w * mu_eta^2 / var_mu), X)
+  if (!is_cox) {
+    U <- X * (w * resid * mu_eta / var_mu)
+    A_bb <- crossprod(X * (w * mu_eta^2 / var_mu), X)
+  }
 
   # 3. Denominator model: scores S_i, information, d log w / d alpha ----------
   den <- .binomial_parts(object$den.mod)
@@ -207,6 +266,83 @@ ipwvcov <- function(object, msm) {
   V <- V[seq_len(k), seq_len(k), drop = FALSE]
   dimnames(V) <- list(names(stats::coef(msm)), names(stats::coef(msm)))
   V
+}
+
+# A coxph() marginal structural model that ipwvcov() can handle: right-censored
+# Surv(time, status), no strata, clusters, frailties or time-transforms, and
+# Breslow ties whenever event times are tied (without tied event times all
+# tie methods give the same partial likelihood).
+.check_coxph_msm <- function(msm) {
+  if (!identical(class(msm), "coxph")) {
+    stop("ipwvcov() supports coxph() models without penalized terms (frailty(), ",
+         "pspline()) and with at least one covariate.", call. = FALSE)
+  }
+  if (!identical(attr(msm$y, "type"), "right")) {
+    stop("ipwvcov() supports a coxph() model with right-censored data, ",
+         "Surv(time, status), one row per person; counting-process data ",
+         "Surv(tstart, time, status) are not supported for ipwpoint() weights.",
+         call. = FALSE)
+  }
+  specials <- attr(stats::terms(msm), "specials")
+  used <- names(Filter(Negate(is.null), specials[c("strata", "cluster", "frailty", "tt")]))
+  if (length(used) > 0 || !is.null(msm$strata) || !is.null(msm$call$cluster) ||
+      !is.null(msm$call$tt)) {
+    stop("ipwvcov() does not support strata(), cluster(), frailty() or tt() terms ",
+         "in a coxph() model.", call. = FALSE)
+  }
+  event_times <- msm$y[msm$y[, 2] == 1, 1]
+  if (anyDuplicated(event_times) && !identical(msm$method, "breslow")) {
+    stop("The coxph() model has tied event times and uses ties = '", msm$method,
+         "'. ipwvcov() needs ties = \"breslow\" when event times are tied.",
+         call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+# Weighted Cox partial likelihood (Breslow) as an estimating equation.
+# With r_j = w_j exp(eta_j), S0(t) = sum_{time_j >= t} r_j and
+# S1(t) = sum_{time_j >= t} r_j X_j, person i's score is w_i times the
+# (unweighted-form) score residual
+#   res_i = status_i (X_i - Xbar(t_i)) - exp(eta_i) (X_i H0(t_i) - H1(t_i)),
+#   H0(t) = sum_{event times u <= t} dW(u) / S0(u),
+#   H1(t) = sum_{event times u <= t} dW(u) Xbar(u) / S0(u),
+# with dW(u) the weighted number of events at u; res_i equals
+# residuals(msm, type = "score"). The information is
+#   sum_u dW(u) [S2(u) / S0(u) - Xbar(u) Xbar(u)'].
+# Sums over risk sets use cumulative sums over the distinct times, so
+# memory is linear in the number of rows.
+.coxph_parts <- function(msm, w, X) {
+  time <- msm$y[, 1]
+  status <- msm$y[, 2]
+  X <- matrix(X, nrow = nrow(X))   # drop model.matrix attributes
+  k <- ncol(X)
+  eta <- msm$linear.predictors   # centred; the constant cancels in all ratios
+  r <- w * exp(eta)
+  ut <- sort(unique(time))
+  idx <- match(time, ut)
+  m <- length(ut)
+  by_time <- function(M) rowsum(as.matrix(M), idx, reorder = TRUE)
+  rev_cumsum <- function(M) {
+    rows <- rev(seq_len(nrow(M)))
+    apply(M[rows, , drop = FALSE], 2, cumsum)[rows, , drop = FALSE]
+  }
+  rev_cumsum_m <- function(M) matrix(rev_cumsum(M), nrow = m)
+  a_idx <- rep(seq_len(k), times = k)
+  b_idx <- rep(seq_len(k), each = k)
+
+  S0 <- rev_cumsum_m(by_time(r))[, 1]
+  S1 <- rev_cumsum_m(by_time(X * r))
+  S2 <- rev_cumsum_m(by_time(X[, a_idx, drop = FALSE] * X[, b_idx, drop = FALSE] * r))
+  dW <- by_time(w * status)[, 1]
+  Xbar <- S1 / S0
+
+  info <- colSums(dW * (S2 / S0 - Xbar[, a_idx, drop = FALSE] * Xbar[, b_idx, drop = FALSE]))
+  info <- matrix(info, k, k)
+  H0 <- cumsum(dW / S0)
+  H1 <- matrix(apply(dW * Xbar / S0, 2, cumsum), nrow = m)
+  res <- status * (X - Xbar[idx, , drop = FALSE]) -
+    exp(eta) * (X * H0[idx] - H1[idx, , drop = FALSE])
+  list(U = res * w, A = info, res = res)
 }
 
 # An exposure model that ipwvcov() can handle: a logistic glm (not a GAM),

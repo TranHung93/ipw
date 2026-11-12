@@ -500,7 +500,7 @@ to 0 or 1 and therefore extreme weights. Check the weights and consider
 ## New: `ipwvcov()` for a binary point treatment
 
 For a binary point treatment and a marginal structural model fitted with
-`lm()` or `glm()`, `ipwvcov()` returns the variance-covariance matrix of the
+`lm()`, `glm()` or `coxph()`, `ipwvcov()` returns the variance-covariance matrix of the
 MSM coefficients with the estimation of the weights taken into account. The
 MSM and the exposure model(s) are solved together as one set of estimating
 equations (M-estimation, Lunceford & Davidian 2004), and the sandwich
@@ -516,9 +516,30 @@ se.mest
 ```
 
 `lmtest::coeftest(msm.lm, vcov. = ipwvcov(w, msm.lm))` gives Wald tests and
-`lmtest::coefci()` confidence intervals. `ipwvcov()` needs a logistic
-exposure model (`link = "logit"`), and does not handle truncated weights, smooth terms, other exposure families or time-varying
-weights from `ipwtm()`; for these, use the bootstrap below.
+`lmtest::coefci()` confidence intervals.
+
+For a survival outcome, the MSM can be a weighted Cox model with one row per
+person and `Surv(time, status)`. Below, a time to event is simulated for
+`simdat` with a hazard ratio of exp(-0.5) for `a`. The robust standard error
+of `coxph()` treats the weights as known; `ipwvcov()` accounts for their
+estimation:
+
+```{r ipwvcov-cox}
+set.seed(5)
+simdat$time <- rexp(nrow(simdat), 0.1 * exp(-0.5 * simdat$a + 0.05 * simdat$l))
+simdat$status <- as.numeric(simdat$time < 10)
+simdat$time <- pmin(simdat$time, 10)
+msm.cox <- coxph(Surv(time, status) ~ a, data = simdat, weights = w$ipw.weights)
+c(log.hr = unname(coef(msm.cox)),
+  robust.se = sqrt(msm.cox$var[1, 1]),
+  ipwvcov.se = sqrt(ipwvcov(w, msm.cox)[1, 1]))
+```
+
+With tied event times, fit the Cox model with `ties = "breslow"`. `ipwvcov()`
+needs a logistic exposure model (`link = "logit"`), and does not handle
+truncated weights, smooth terms, other exposure families, Cox models with
+counting-process data, `strata()` or `cluster()`, or time-varying weights
+from `ipwtm()`; for these, use the bootstrap below.
 
 ## Robust and bootstrap standard errors
 

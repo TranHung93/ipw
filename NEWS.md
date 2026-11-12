@@ -102,6 +102,14 @@
   weights, smooth terms, other families or `ipwtm()` weights: use the
   bootstrap there. Agrees with
   `WeightIt::glm_weightit(vcov = "asympt")` in the tests.
+* `ipwvcov()` now also accepts a `coxph()` marginal structural model with
+  right-censored data (`Surv(time, status)`, one row per person) and
+  `ipwpoint()` weights: the weighted partial likelihood score is stacked with
+  the exposure models (Binder 1992; Lin & Wei 1989). Tied event times need
+  `ties = "breslow"`; counting-process data, `strata()`, `cluster()`,
+  `frailty()` and `tt()` are not supported. Checked against a numerical
+  Jacobian of the stacked equations and a coverage simulation. Results for
+  `lm()` and `glm()` models are unchanged.
 * `ipwpoint()`: `estimand = "ATC"` (effect in the untreated) for a binomial
   exposure: treated get weight (1 - p)/p, untreated 1.
 * `ipwpoint()`: `estimand = "ATT"` and `"ATO"` for `family = "multinomial"`

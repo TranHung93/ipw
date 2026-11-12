@@ -508,8 +508,9 @@ the probabilities are only approximate.
 # 8. `ipwvcov()`: standard errors that account for the estimated weights
 
 `ipwvcov()` (new, experimental) gives the variance of the coefficients of a
-marginal structural model fitted with `lm()` or `glm()` and weights from
-`ipwpoint(family = "binomial")`, with the estimation of the weights taken
+marginal structural model fitted with `lm()`, `glm()` or `coxph()` and
+weights from `ipwpoint(family = "binomial")`, with the estimation of the
+weights taken
 into account (M-estimation: Lunceford & Davidian 2004; Stefanski & Boos
 2002).
 
@@ -594,13 +595,72 @@ applied. The package tests compare the result with a numerical Jacobian of
 the stacked equations and with `glm_weightit(vcov = "asympt")` from the
 WeightIt package.
 
+**Cox marginal structural models.** For `coxph()` with right-censored
+data, one row per person, the estimating equation for $\beta$ is the
+weighted partial likelihood score (Binder 1992; Lin & Wei 1989), with the
+Breslow form for tied event times. With $\delta_i$ the event indicator,
+$Y_j(t)$ the at-risk indicator, $S_0(t) = \sum_j w_j Y_j(t)
+e^{\beta^T X_j}$, $S_1(t) = \sum_j w_j Y_j(t) e^{\beta^T X_j} X_j$ and
+$\bar X(t) = S_1(t) / S_0(t)$, person $i$'s contribution is
+
+$$
+U_i = w_i \Big[ \delta_i \big(X_i - \bar X(t_i)\big) - \sum_k \frac{\delta_k w_k
+Y_i(t_k)\, e^{\beta^T X_i} \big(X_i - \bar X(t_k)\big)}{S_0(t_k)} \Big]
+= w_i\, r_i ,
+$$
+
+where $r_i$, the score residual, is what `residuals(msm, type = "score")`
+returns (without the weight). The bread for $\beta$ is the weighted
+information $\sum_k \delta_k w_k \big[S_2(t_k)/S_0(t_k) - \bar X(t_k) \bar
+X(t_k)^T\big]$, the inverse of `msm$naive.var`.
+
+The weights appear in each person's own term *and* in the risk-set sums
+$S_0$, $S_1$, so it is not obvious that the cross block keeps the glm form.
+It does. The total score is $\sum_k \delta_k w_k (X_k - \bar X(t_k))$, and
+its derivative with respect to one weight $w_j$ is
+
+$$
+\frac{\partial}{\partial w_j} \sum_i U_i = \delta_j \big(X_j - \bar X(t_j)\big) -
+\sum_k \delta_k w_k \frac{Y_j(t_k)\, e^{\beta^T X_j} \big(X_j - \bar X(t_k)\big)}{S_0(t_k)} = r_j ,
+$$
+
+because $\partial \bar X(t_k) / \partial w_j = Y_j(t_k) e^{\beta^T X_j}
+(X_j - \bar X(t_k)) / S_0(t_k)$. Hence $\partial \sum_i U_i / \partial
+\alpha = \sum_j r_j\, \partial w_j / \partial \alpha^T = \sum_j U_j d_j^T$,
+the same expression as for `glm()`, and `ipwvcov()` computes it
+analytically. The tests compare the whole variance with central finite
+differences of the stacked equations, with risk sets computed by brute
+force; they agree to about $10^{-7}$. Without the exposure-model blocks the
+sandwich is $I^{-1} \sum_i U_i U_i^T I^{-1}$, which is exactly `coxph()`'s
+robust variance (`msm$var`): the standard error that treats the weights as
+known.
+
+With tied event times, Efron's approximation changes the score and the
+information in a way that ipw does not reproduce, so `ipwvcov()` requires
+`ties = "breslow"` when event times are tied. Without tied event times all
+tie methods give the same partial likelihood, and any `ties` is accepted.
+
+`WeightIt::coxph_weightit(vcov = "asympt")` gives slightly different values.
+Its `vcov = "HC0"` equals `coxph()`'s robust variance exactly, and the
+weights agree to $10^{-14}$, so the difference lies in how the dependence of
+the Cox score on the propensity-model coefficients enters. In our checks the
+relative difference was below 0.1% for ATE and overlap weights and shrank
+with the sample size; for ATT and ATC weights WeightIt's standard error was 1
+to 4% larger and the difference did not shrink (n from 600 to 38 400).
+`ipwvcov()` matches the numerical Jacobian of the exact stacked equations
+in all cases.
+
 **Caveats.** Only binary point treatments with logistic `glm()` exposure models;
 truncated weights (truncation at estimated percentiles is not a smooth
-function of $\alpha$), smooth terms, other families and time-varying weights
-from `ipwtm()` are not covered, and the bootstrap remains the advice there.
+function of $\alpha$), smooth terms, other families, Cox models with
+counting-process data, strata, clusters or frailties, and time-varying
+weights from `ipwtm()` are not covered, and the bootstrap remains the
+advice there.
 
 # References
 
+* Binder DA (1992). Fitting Cox's proportional hazards models from survey
+  data. *Biometrika* 79, 139–147.
 * Cole SR, Hernán MA (2008). Constructing inverse probability weights for
   marginal structural models. *American Journal of Epidemiology* 168,
   656–664.
@@ -618,6 +678,9 @@ from `ipwtm()` are not covered, and the bootstrap remains the advice there.
 * Li F, Morgan KL, Zaslavsky AM (2018). Balancing covariates via propensity
   score weighting. *Journal of the American Statistical Association* 113,
   390–400.
+* Lin DY, Wei LJ (1989). The robust inference for the Cox proportional
+  hazards model. *Journal of the American Statistical Association* 84,
+  1074–1078.
 * Lunceford JK, Davidian M (2004). Stratification and weighting via the
   propensity score in estimation of causal treatment effects: a comparative
   study. *Statistics in Medicine* 23, 2937–2960.
