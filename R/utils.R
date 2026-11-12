@@ -86,19 +86,26 @@
   pmin(pmax(w, q[1]), q[2])
 }
 
-# Probability of the observed category from predict(<multinom/polr>, type = "probs").
-# Columns are matched by level name, never by position. Handles the vector that
-# multinom returns for a two-level exposure (P of the second level).
-.prob_of_observed <- function(probs, obs, levels_all) {
+# Matrix of fitted probabilities (n rows, one column per level, named by level)
+# from predict(<multinom/polr>, type = "probs"). Handles the vector that
+# multinom returns for a two-level exposure (P of the second level), and the
+# vector returned for a single row.
+.prob_matrix <- function(probs, levels_all, n) {
   if (is.null(dim(probs))) {
-    if (length(levels_all) == 2L && length(probs) == length(obs)) {
+    if (length(levels_all) == 2L && length(probs) == n) {
       probs <- cbind(1 - probs, probs)
     } else {
-      probs <- matrix(probs, nrow = length(obs), byrow = TRUE)
+      probs <- matrix(probs, nrow = n, byrow = TRUE)
     }
     colnames(probs) <- levels_all
   }
-  probs <- as.matrix(probs)
+  as.matrix(probs)
+}
+
+# Probability of the observed category from predict(<multinom/polr>, type = "probs").
+# Columns are matched by level name, never by position.
+.prob_of_observed <- function(probs, obs, levels_all) {
+  probs <- .prob_matrix(probs, levels_all, length(obs))
   idx <- match(as.character(obs), colnames(probs))
   if (anyNA(idx)) {
     stop("Observed exposure levels do not match fitted probability levels: ",

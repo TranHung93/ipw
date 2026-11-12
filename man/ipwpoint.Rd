@@ -12,7 +12,8 @@ ipwpoint(
   denominator,
   data,
   trunc = NULL,
-  estimand = c("ATE", "ATT", "ATO"),
+  estimand = c("ATE", "ATT", "ATC", "ATO"),
+  focal = NULL,
   ...
 )
 }
@@ -35,7 +36,7 @@ log-normal exposures must be positive.}
 If \code{NULL}, unstabilized weights (numerator = 1) are calculated. Required
 for the continuous families (\code{"gaussian"}, \code{"gamma"},
 \code{"lognormal"}); must be \code{NULL} when \code{estimand} is
-\code{"ATT"} or \code{"ATO"}.}
+\code{"ATT"}, \code{"ATC"} or \code{"ATO"}.}
 
 \item{denominator}{Formula specifying the right-hand side of the denominator model.
 Smooth terms (\code{s()}, \code{te()}, \code{ti()}, \code{t2()}) are allowed
@@ -46,17 +47,36 @@ for the binomial, gaussian and poisson families; the model is then fitted with
 
 \item{trunc}{Optional truncation percentile between 0 and 0.5 (e.g., 0.01 for 1st/99th percentiles).}
 
-\item{estimand}{Target estimand for a binomial exposure: \code{"ATE"} (default;
-inverse probability weights), \code{"ATT"} (treated get weight 1, untreated
-\eqn{p/(1-p)}) or \code{"ATO"} (overlap weights: treated \eqn{1-p}, untreated
-\eqn{p}), where \eqn{p} is the fitted probability of exposure from the
-denominator model.}
+\item{estimand}{Target estimand. For a binomial exposure: \code{"ATE"} (default;
+inverse probability weights), \code{"ATT"} (effect in the treated: treated
+get weight 1, untreated \eqn{p/(1-p)}), \code{"ATC"} (effect in the
+untreated, or controls: treated get \eqn{(1-p)/p}, untreated 1) or
+\code{"ATO"} (overlap weights: treated \eqn{1-p}, untreated \eqn{p}), where
+\eqn{p} is the fitted probability of exposure from the denominator model.
+For a multinomial or ordinal exposure: \code{"ATE"}, \code{"ATT"} (effect
+in the people at level \code{focal}: weight \eqn{P_i(focal) / P_i(A_i)},
+1 for people at the focal level) or \code{"ATO"} (generalized overlap
+weights, Li & Li 2019: \eqn{(1/P_i(A_i)) / \sum_k 1/P_i(k)}), where
+\eqn{P_i(k)} is the fitted probability of level \eqn{k} and \eqn{A_i} the
+observed level. For two levels these equal the binomial ATT and ATO
+weights. \code{"ATC"} is only available for a binomial exposure; for a
+categorical exposure use \code{"ATT"} with \code{focal} set to the control
+level. Other families only allow \code{"ATE"}.}
+
+\item{focal}{For \code{estimand = "ATT"} with \code{family = "multinomial"}
+or \code{"ordinal"}: the exposure level whose effect is targeted (the
+"treated" group), given as a level of the exposure. Required there and
+must be \code{NULL} otherwise; for a binomial exposure the focal group is
+always the exposed (1).}
 
 \item{...}{Additional arguments passed to model fitting functions (\code{glm},
 \code{multinom}, \code{polr}, \code{glm.nb}, \code{gam}).}
 }
 \value{
-A list of class \code{"ipwpoint"} containing:
+A list of class \code{"ipwpoint"} with attributes \code{"estimand"},
+  \code{"exposure"} (the name of the exposure column) and, for ATT and ATC
+  weights, \code{"focal"} (the level whose effect is targeted: 1 for a
+  binomial ATT, 0 for ATC), containing:
 \item{ipw.weights}{Numeric vector of inverse probability weights.}
 \item{weights.trunc}{Numeric vector of truncated weights (if \code{trunc} is specified).}
 \item{call}{The original function call.}
@@ -68,13 +88,22 @@ Estimates inverse probability weights to fit marginal structural models in a
 point treatment situation. Exposure can be binomial, multinomial, ordinal,
 a count (Poisson or negative binomial) or continuous (gaussian, gamma or
 log-normal). Both stabilized and unstabilized weights can be estimated, and
-for a binomial exposure also weights for the effect in the treated (ATT) and
-overlap weights (ATO). Formulas may contain smooth terms such as \code{s(x)},
-which are then fitted as generalized additive models with \pkg{mgcv}.
+for a binomial exposure also weights for the effect in the treated (ATT), the
+effect in the untreated (ATC) and overlap weights (ATO). For a multinomial
+or ordinal exposure, ATT weights (for a chosen \code{focal} level) and
+generalized overlap weights are available as well. Formulas may
+contain smooth terms such as \code{s(x)}, which are then fitted as
+generalized additive models with \pkg{mgcv}.
 }
 \details{
 Standard errors: \code{ipwpoint} only estimates the weights. Standard errors
 for the marginal structural model have to be obtained when that model is fitted.
+For a binomial exposure (any \code{estimand}, logit link, exposure models without
+smooth terms, no truncation) and a marginal structural model fitted with \code{lm()}
+or \code{glm()}, \code{\link{ipwvcov}} (new, experimental) gives standard errors
+that take the estimation of the weights into account (M-estimation); this is
+the recommended option there. For all other cases use the bootstrap described
+below.
 Robust (sandwich) standard errors, for example from \code{svyglm()} in the survey
 package as in Van der Wal and Geskus (2011), treat the weights as known. For a
 binary point treatment with good overlap they were conservative (too large) in
@@ -135,6 +164,11 @@ if (requireNamespace("survey", quietly = TRUE)) {
   summary(msm)
 }
 
+# Standard errors that take the estimation of the weights into account
+# (M-estimation; binomial exposure, lm() or glm() MSM)
+msm.lm <- lm(y ~ a, data = simdat, weights = temp$ipw.weights)
+sqrt(diag(ipwvcov(temp, msm.lm)))
+
 # Bootstrap standard error and percentile confidence interval for the MSM.
 # The robust standard error from svyglm() treats the weights as known and
 # can be too large or too small (simulation study, scenarios 7a and 7b).
@@ -171,10 +205,16 @@ Robins, J.M., Hernán, M.A. & Brumback, B.A. (2000). Marginal structural models 
 
 Van der Wal W.M. & Geskus R.B. (2011). ipw: An R Package for Inverse Probability Weighting. \emph{Journal of Statistical Software}, \bold{43}(13), 1-23. \doi{10.18637/jss.v043.i13}.
 
+Li, F., Morgan, K.L. & Zaslavsky, A.M. (2018). Balancing covariates via propensity score weighting. \emph{Journal of the American Statistical Association}, \bold{113}, 390-400. \doi{10.1080/01621459.2016.1260466}.
+
+Greifer, N. WeightIt: Weighting for Covariate Balance in Observational Studies. R package, \url{https://ngreifer.github.io/WeightIt/}. (Used in the package tests as an independent comparison of the weights.)
+
+Li, F. & Li, F. (2019). Propensity score weighting for causal inference with multiple treatments. \emph{Annals of Applied Statistics}, \bold{13}(4), 2389-2415. \doi{10.1214/19-AOAS1282}.
+
 Austin, P.C. (2016). Variance estimation when using inverse probability of treatment weighting (IPTW) with survival analysis. \emph{Statistics in Medicine}, \bold{35}, 5642-5655. \doi{10.1002/sim.7084}.
 }
 \seealso{
-\code{\link{basdat}}, \code{\link{haartdat}}, \code{\link{ipwplot}}, \code{\link{ipwpoint}}, \code{\link{ipwtm}}, \code{\link{timedat}}, \code{\link{tstartfun}}.
+\code{\link{ipwvcov}}, \code{\link{basdat}}, \code{\link{haartdat}}, \code{\link{ipwplot}}, \code{\link{ipwpoint}}, \code{\link{ipwtm}}, \code{\link{timedat}}, \code{\link{tstartfun}}.
 }
 \author{
 Willem M. van der Wal \email{willem@vanderwalresearch.com}, Ronald B. Geskus \email{rgeskus@oucru.org},

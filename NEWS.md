@@ -63,6 +63,22 @@
 
 ## Documentation
 
+* `vignette("ipw")`, section 6: covariate balance with `cobalt::bal.tab()` and
+  `love.plot()` (ipw weights passed as a vector), for the binary point
+  treatment and for the HAART example at two time points, and the Kish
+  effective sample size overall and by exposure group.
+* New section "ipw or WeightIt?" in the README (with a comparison table) and a
+  short version near the start of `vignette("ipw")`: when to use which
+  package.
+* New article "ipw and WeightIt side by side": the same binary and
+  categorical point treatments in both packages (weights and standard
+  errors), and longitudinal data with individual visit times in `ipwtm()`
+  and `weightitMSM()`.
+* `?ipwpoint` and `vignette("ipw")`, section 5: `ipwvcov()` is the
+  recommended standard error for a binary point treatment; the bootstrap
+  remains the advice otherwise. The methods article has new sections on
+  ATC, categorical ATT/ATO weights and `ipwvcov()`.
+
 * New article "Bugs fixed after ipw 1.3.2" on the package website: for each
   bug above, an example run in ipw 1.2.1.1, ipw 1.3.2 and this version, with
   the weights compared with weights computed by hand.
@@ -74,6 +90,27 @@
   tests.
 
 ## New features
+
+* New `ipwvcov()` (**new, experimental; still under discussion**): the
+  variance-covariance matrix of the coefficients of a marginal structural
+  model fitted with `lm()` or `glm()` and `ipwpoint()` weights for a binary
+  exposure, taking the estimation of the weights into account (M-estimation
+  with stacked estimating equations, Lunceford & Davidian 2004). Works for
+  `estimand = "ATE"` (stabilized or not), `"ATT"`, `"ATC"` and `"ATO"`, with
+  logistic exposure models (`link = "logit"`). Not for other links, truncated
+  weights, smooth terms, other families or `ipwtm()` weights: use the
+  bootstrap there. Agrees with
+  `WeightIt::glm_weightit(vcov = "asympt")` in the tests.
+* `ipwpoint()`: `estimand = "ATC"` (effect in the untreated) for a binomial
+  exposure: treated get weight (1 - p)/p, untreated 1.
+* `ipwpoint()`: `estimand = "ATT"` and `"ATO"` for `family = "multinomial"`
+  and `"ordinal"`. The new argument `focal` gives the level whose effect the
+  ATT targets: weight P(focal) / P(observed level), 1 at the focal level.
+  `"ATO"` gives generalized overlap weights (Li & Li 2019). For two levels
+  both equal the binomial weights. For the effect in the controls of a
+  categorical exposure use `"ATT"` with `focal` set to the control level.
+* `ipwpoint()` results now carry the attributes `"estimand"`, `"exposure"`
+  and (for ATT and ATC) `"focal"`. The list elements are unchanged.
 
 * `ipwtm()`: `type = "all"` now works for `family = "multinomial"` and
   `"ordinal"` (time-varying categorical exposures that switch back and forth).
