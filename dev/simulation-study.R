@@ -14,11 +14,14 @@
 #   IPW_SIM_REPS_BIG replications for the large-sample and oracle checks [200]
 #   IPW_SIM_REPS_SE  replications for the standard-error scenarios 7a, 7b [1000]
 #   IPW_SIM_REPS_SE2 replications for scenarios 7c, 7d [500]
-#   IPW_SIM_CORES    parallel workers (Linux/macOS) [all cores]; the results
-#                    are the same for any number of workers and on Windows
+#   IPW_SIM_CORES    parallel workers [all cores]: forked processes on
+#                    Linux/macOS, a socket cluster on Windows; the results are
+#                    the same for any number of workers and on any system
 # Results are written to vignettes/articles/simulation-results.csv and
 # simulation-se.csv (read by the "Simulation study" article; commit them to
-# update it) and reported on GitHub Actions when run there.
+# update it) and reported on GitHub Actions when run there. The estimates and
+# standard errors of every data set of section 7 are saved in
+# vignettes/articles/simulation-se-replicates.rds.
 
 suppressPackageStartupMessages({
   library(ipw)
@@ -31,7 +34,9 @@ S      <- env_int("IPW_SIM_REPS", 500)
 S_BIG  <- env_int("IPW_SIM_REPS_BIG", 200)
 S_SE   <- env_int("IPW_SIM_REPS_SE", 1000)
 S_SE2  <- env_int("IPW_SIM_REPS_SE2", 500)
-CORES  <- if (.Platform$OS.type == "windows") 1L else env_int("IPW_SIM_CORES", detectCores())
+CORES  <- env_int("IPW_SIM_CORES", detectCores())
+# Standard errors are judged on the variance scale (Morris et al. 2019)
+source(file.path("data-raw", "se-performance.R"))
 RNGkind("L'Ecuyer-CMRG")
 set.seed(20261101)
 
@@ -62,14 +67,24 @@ rep_streams <- function(n) {
 
 # Run f() n times in parallel; a replication that fails gives a row of NA and
 # is left out (the number of failures is reported).
+.par <- new.env()   # holds the socket cluster on Windows
 reps <- function(n, f) {
   st <- rep_streams(n)
   run <- function(i) {
     assign(".Random.seed", st$streams[[i]], envir = .GlobalEnv)
     tryCatch(f(), error = function(e) conditionMessage(e))
   }
-  out <- if (CORES > 1) {
+  out <- if (CORES > 1 && .Platform$OS.type != "windows") {
     mclapply(seq_len(n), run, mc.cores = CORES, mc.set.seed = FALSE)
+  } else if (CORES > 1) {
+    # Windows cannot fork: a socket cluster, started once, that gets a copy of
+    # the current global objects (the data generators etc.) before each call
+    if (is.null(.par$cl)) {
+      .par$cl <- makeCluster(CORES)
+      clusterEvalQ(.par$cl, suppressPackageStartupMessages({ library(ipw); library(survival) }))
+    }
+    clusterExport(.par$cl, setdiff(ls(envir = .GlobalEnv), ".par"), envir = .GlobalEnv)
+    parLapply(.par$cl, seq_len(n), run)
   } else {
     lapply(seq_len(n), run)
   }
@@ -89,18 +104,19 @@ add <- function(scenario, method, est, truth) {
     rmse = sqrt(mean((est - truth)^2)), reps = length(est))
 }
 
-# coverage rows: est, se and (optionally) interval limits per method
+# Standard-error rows: est, se and (optionally) interval limits per method.
+# The standard error is judged on the variance scale: mean(se^2) against
+# var(est), their ratio, and the model-based SE sqrt(mean(se^2)) against the
+# empirical SE with the relative % error and its Monte Carlo SE (Morris,
+# White & Crowther 2019, Table 6; data-raw/se-performance.R).
 add_cov <- function(scenario, method, est, se, truth, lo = NULL, hi = NULL) {
-  ok <- is.finite(est) & is.finite(se)
-  if (!is.null(lo)) ok <- ok & is.finite(lo) & is.finite(hi)
-  est <- est[ok]; se <- se[ok]
-  if (is.null(lo)) { lo <- est - 1.96 * se; hi <- est + 1.96 * se } else { lo <- lo[ok]; hi <- hi[ok] }
-  cov <- mean(lo <= truth & hi >= truth)
+  p <- se_performance(est, se, truth, lo, hi, z = 1.96)
+  names(p)[names(p) == "mcse.coverage"] <- "mcse.cov"
+  names(p)[names(p) == "replications"] <- "reps"
   coverage[[length(coverage) + 1]] <<- data.frame(
-    scenario = scenario, method = method, truth = truth, mean.est = mean(est),
-    mean.se = mean(se), emp.sd = sd(est), se.ratio = mean(se) / sd(est),
-    coverage = cov, mcse.cov = sqrt(cov * (1 - cov) / length(est)), reps = length(est))
+    scenario = scenario, method = method, truth = truth, mean.est = mean(est[is.finite(est)]), p)
 }
+se_replicates <- list()   # per-data-set results of section 7
 
 wlm <- function(formula, data, w = NULL) {
   # weights go in as a data column: lm() looks for 'weights' in the data and
@@ -502,6 +518,8 @@ for (sc in c("7a. Linear MSM, good overlap", "7b. Linear MSM, JSS example (poor 
     c(unname(b$t0), unname(b$se), b$ci[1, 1], b$ci[1, 2],
       if (has_survey) robust_lm_se(d, w) else NA)
   })
+  se_replicates[[sc]] <- data.frame(r7, truth = 10)
+  colnames(se_replicates[[sc]])[1:5] <- c("est", "se_boot", "boot_lo", "boot_hi", "se_robust")
   add_cov(sc, "bootstrap, percentile CI", r7[, 1], r7[, 2], 10, r7[, 3], r7[, 4])
   add_cov(sc, "bootstrap SE, Wald CI", r7[, 1], r7[, 2], 10)
   if (has_survey) add_cov(sc, "robust SE (svyglm), Wald CI", r7[, 1], r7[, 5], 10)
@@ -539,6 +557,8 @@ r7c <- reps(S_SE2, function() {
     unname(b$se), b$ci[1, 1], b$ci[1, 2])
 })
 sc <- "7c. Weighted Cox MSM (log hazard ratio)"
+se_replicates[[sc]] <- data.frame(r7c, truth = cox_truth)
+colnames(se_replicates[[sc]])[1:6] <- c("est", "se_naive", "se_robust", "se_boot", "boot_lo", "boot_hi")
 add_cov(sc, "naive SE (coxph), Wald CI", r7c[, 1], r7c[, 2], cox_truth)
 add_cov(sc, "robust SE (coxph), Wald CI", r7c[, 1], r7c[, 3], cox_truth)
 add_cov(sc, "bootstrap SE, Wald CI", r7c[, 1], r7c[, 4], cox_truth)
@@ -572,6 +592,8 @@ r7d <- reps(S_SE2, function() {
   c(unname(b$t0), unname(b$se), b$ci[1, 1], b$ci[1, 2], rob)
 })
 sc <- "7d. Time-varying exposure, bootstrap by person"
+se_replicates[[sc]] <- data.frame(r7d, truth = 1)
+colnames(se_replicates[[sc]])[1:5] <- c("est", "se_boot", "boot_lo", "boot_hi", "se_robust")
 add_cov(sc, "bootstrap by person, percentile CI", r7d[, 1], r7d[, 2], 1, r7d[, 3], r7d[, 4])
 add_cov(sc, "bootstrap by person SE, Wald CI", r7d[, 1], r7d[, 2], 1)
 if (has_survey) add_cov(sc, "robust SE (svyglm), Wald CI", r7d[, 1], r7d[, 5], 1)
@@ -581,12 +603,12 @@ timer("7d. time-varying bootstrap")
 res <- do.call(rbind, results)
 res <- res[order(sub("\\..*", "", res$scenario), method = "radix"), ]  # numbered order, stable
 cov_tab <- do.call(rbind, coverage)
-round_df <- function(df, skip = "reps") {
+round_df <- function(df, skip = "reps", digits = 3) {
   num <- vapply(df, is.numeric, logical(1)) & !(names(df) %in% skip)
-  df[num] <- lapply(df[num], round, 3)
+  df[num] <- lapply(df[num], round, digits)
   df
 }
-res <- round_df(res); cov_tab <- round_df(cov_tab)
+res <- round_df(res); cov_tab <- round_df(cov_tab, digits = 5)
 
 cat(sprintf("\nSimulation study: S = %d, S_BIG = %d, S_SE = %d, S_SE2 = %d, %d cores\n\n",
             S, S_BIG, S_SE, S_SE2, CORES))
@@ -599,6 +621,9 @@ cat(sprintf("\nTrue values: scenario 1 ATE %.3f, ATT %.3f, ATO %.3f; scenario 7c
 dir.create(file.path("vignettes", "articles"), showWarnings = FALSE, recursive = TRUE)
 write.csv(res, file.path("vignettes", "articles", "simulation-results.csv"), row.names = FALSE)
 write.csv(cov_tab, file.path("vignettes", "articles", "simulation-se.csv"), row.names = FALSE)
+saveRDS(list(replicates = se_replicates, S_SE = S_SE, S_SE2 = S_SE2,
+             ipw_version = as.character(utils::packageVersion("ipw")), date = Sys.Date()),
+        file.path("vignettes", "articles", "simulation-se-replicates.rds"))
 
 if (nzchar(Sys.getenv("GITHUB_ACTIONS"))) {
   md_table <- function(df) {
@@ -626,4 +651,5 @@ if (nzchar(Sys.getenv("GITHUB_ACTIONS"))) {
   cat(sprintf("::notice title=truth::ATE %.4f, ATT %.4f, ATO %.4f, Cox log HR %.4f\n",
               truth1["ATE"], truth1["ATT"], truth1["ATO"], cox_truth))
 }
+if (!is.null(.par$cl)) stopCluster(.par$cl)
 timer("finished")

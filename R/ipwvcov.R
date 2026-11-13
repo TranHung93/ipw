@@ -108,10 +108,14 @@
 #' bootstrap included. In simulations where treatment depended strongly on the
 #' confounder and on past treatment, the tail index of the final cumulative
 #' weights was about 2.3 (the weights have a finite variance, but not a
-#' finite third or fourth moment). 95\% intervals then covered 92 to 93\% of
-#' the time with \code{ipwvcov()} and 90 to 95\% with the cluster bootstrap,
-#' with no trend towards 95\% between 300 and 4800 people. With a tail index
-#' of about 3.9 both covered about 95\%. Check the weight distribution
+#' finite third or fourth moment). The mean variance from \code{ipwvcov()}
+#' was then 0.84 to 0.93 times the true variance of the estimates (the
+#' standard error 3 to 8\% too small), and 95\% intervals covered 92 to 93\%
+#' of the time, with no trend towards 95\% between 300 and 4800 people. The
+#' cluster bootstrap did no better (variance ratio 0.86 to 1.00 on fewer data
+#' sets, coverage 90 to 95\%). With a tail index of about 3.9 the variance
+#' ratios were 1.05 (\code{ipwvcov()}) and 1.04 (bootstrap), and both
+#' covered 95.8\% and 96.5\% of the time. Check the weight distribution
 #' (\code{summary()}, \code{\link{ipwplot}} and the effective sample size
 #' \code{sum(w)^2 / sum(w^2)}) before trusting any standard error.
 #'

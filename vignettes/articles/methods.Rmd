@@ -709,16 +709,43 @@ $\gamma > 2$. The usual normal approximation also relies on a finite third
 moment ($\gamma > 3$), and estimating the variance well, from the sandwich or
 from the bootstrap, relies on a finite fourth moment ($\gamma > 4$).
 
+```{r tail-sim-numbers, echo = FALSE}
+# Saved results of data-raw/make-ipwvcov-tm-simulation.R and
+# data-raw/make-ipwvcov-tm-tail.R (judged as in the next section).
+tm_sim <- readRDS("ipwvcov-tm-simulation.rds")$summary
+tm_tail <- readRDS("ipwvcov-tm-tail.rds")
+tsum <- tm_tail$summary
+rng <- function(sc, m, col, scale = 1, fmt = "%.2f") {
+  x <- scale * tsum[tsum$scenario %in% sc & tsum$method == m, col]
+  paste(unique(sprintf(fmt, range(x))), collapse = " to ")
+}
+mod <- tm_sim[tm_sim$scenario == "moderate" & tm_sim$method == "ipwvcov", ]
+```
+
 Simulations with individual visit times (see the comparison article)
 estimated $\gamma$ with the Hill estimator on the top 5% of the final
 cumulative weights. The more strongly treatment depended on the confounder
 and on the previous treatment, the smaller the tail index: about 3.9, 2.8
 and 2.3 in three scenarios. Coverage of 95% intervals from `ipwvcov()`
-followed the tail index: about 95%, about 94% and 92 to 93%. In the
-heaviest-tailed scenario coverage did not improve between 300 and 4800
-people, while the largest weight kept growing with *n*. The cluster
-bootstrap did no better (90 to 95%, on fewer data sets), and `ipwvcov()` and
-the bootstrap gave about the same standard errors throughout. The formula is
+followed the tail index: `r sprintf("%.1f", 100 * mod$coverage)`%,
+`r rng("milder", "ipwvcov", "coverage", 100, "%.1f")`% and
+`r rng("strong", "ipwvcov", "coverage", 100, "%.1f")`%. On the variance
+scale, the mean estimated variance from `ipwvcov()` was
+`r sprintf("%.2f", mod$var.ratio)` times the empirical variance of the
+estimates in the moderate scenario, but
+`r rng("milder", "ipwvcov", "var.ratio")` and
+`r rng("strong", "ipwvcov", "var.ratio")` times it in the two heavy-tailed
+ones (relative error in the model-based standard error
+`r rng(c("milder", "strong"), "ipwvcov", "rel.error", fmt = "%+.0f")`%,
+MCSE `r rng(c("milder", "strong"), "ipwvcov", "mcse.rel.error", fmt = "%.0f")`
+points). Neither the variance ratio nor the coverage improved between
+`r min(tm_tail$design$n)` and `r max(tm_tail$design$n)` people, while the
+largest weight kept growing with *n*. The cluster bootstrap did no better:
+its variance ratio was `r rng(c("milder", "strong"), "bootstrap", "var.ratio")`,
+but on `r min(tm_tail$design$R_boot)` to `r max(tm_tail$design$R_boot)`
+data sets this is too imprecise (MCSE of the relative error
+`r rng(c("milder", "strong"), "bootstrap", "mcse.rel.error", fmt = "%.0f")`
+points) to tell it apart from `ipwvcov()`. The formula is
 exact for the stacked estimating equations; the problem is the weights,
 and it affects any normal-theory interval. Check the weight distribution
 (`summary()`, `ipwplot()`, the effective sample size) before trusting any
@@ -731,6 +758,122 @@ function of $\alpha$), smooth terms, other families (including Cox
 exposure models in `ipwtm(family = "survival")`), Cox MSMs with strata or
 frailties, and Efron ties with tied event times are not covered, and the
 bootstrap remains the advice there.
+
+## How the simulations judge a standard error
+
+```{r cox-sim-numbers, include = FALSE}
+# Cox simulation of the comparison article, made once with
+# data-raw/make-ipwvcov-cox-simulation.R; the summary is computed from the
+# saved per-data-set results with data-raw/se-performance.R
+cox_sim <- readRDS("ipwvcov-cox-simulation.rds")
+s <- cox_sim$summary
+rownames(s) <- paste(s$estimand, s$method)
+R <- cox_sim$R
+R_boot <- cox_sim$R_boot
+f <- function(x, d = 3) formatC(x, format = "f", digits = d)
+v <- function(est, type, col, d = 3) f(s[paste(est, type), col], d)
+rel <- function(est, type) {
+  paste0(sprintf("%+.1f", s[paste(est, type), "rel.error"]), "% (MCSE ",
+         f(s[paste(est, type), "mcse.rel.error"], 1), ")")
+}
+cvg <- function(est, type) f(100 * s[paste(est, type), "coverage"], 1)
+mcse <- function(r) f(100 * sqrt(0.95 * 0.05 / r), 1)
+# Jensen's inequality in the simulation itself: mean SE against sqrt(mean SE^2)
+jensen <- 100 * (1 - mean(cox_sim$replicates$ATE$se_ipwvcov) /
+                   sqrt(mean(cox_sim$replicates$ATE$se_ipwvcov^2)))
+```
+
+The main vignette and the [comparison article](ipw-and-weightit.html)
+say that, in a simulation, `ipwvcov()` gave correct standard errors and the
+robust standard error did not. This section explains how such a simulation
+works and how to read its numbers, following Morris, White & Crowther
+(2019). The example is the Cox simulation of the comparison article
+(section "A Cox outcome model").
+
+**What a simulation does.** We set up a world in which the true effect is
+known: how the confounder is generated, how treatment depends on it and how
+the outcome depends on both. Then we repeat the same study on many data
+sets, here `r R` data sets of `r cox_sim$n` people. In each data set we
+estimate the effect as in a real analysis and compute its robust and its
+`ipwvcov()` standard error.
+
+**The true variability.** The estimate changes from one data set to the
+next. The variance of the estimates across the data sets (the empirical
+variance) is the true variance of the estimator, and its square root (the
+empirical SE) is the true standard error. A real study cannot measure them,
+because it has only one data set. A standard error from one data set tries
+to estimate the empirical SE.
+
+**Why variances, not standard errors, are compared.** `ipwvcov()`, like
+other sandwich formulas, estimates a *variance*, and a good variance
+estimator is unbiased: on average across data sets, the estimated variance
+SE² equals the empirical variance. The standard error is its square root,
+and the average of square roots is smaller than the square root of the
+average (Jensen's inequality). So even for a correct variance estimator the
+mean SE comes out a little smaller than the empirical SE, more so the more
+the SE varies between data sets. (Here the mean `ipwvcov()` SE for the ATE
+is `r f(jensen, 2)`% below the square root of the mean SE², a small but
+avoidable distortion.) The simulations therefore compare the mean estimated
+variance, mean(SE²), with the empirical variance, var(estimate), and report
+their ratio (1 is ideal). For readability they also give the model-based SE,
+sqrt(mean(SE²)), next to the empirical SE, and the relative error in the
+model-based SE, 100 × (model SE / empirical SE − 1), as in Table 6 of
+Morris et al.
+
+In the Cox simulation the empirical variance of the log hazard ratio was
+`r v("ATE", "ipwvcov", "emp.var", 4)` for the ATE (empirical SE
+`r v("ATE", "ipwvcov", "emp.se")`) and `r v("ATO", "ipwvcov", "emp.var", 4)`
+for overlap weights (ATO; SE `r v("ATO", "ipwvcov", "emp.se")`). For
+`ipwvcov()` the variance ratio was `r v("ATE", "ipwvcov", "var.ratio")` and
+`r v("ATO", "ipwvcov", "var.ratio")`: the model-based SE was
+`r v("ATE", "ipwvcov", "model.se")` and `r v("ATO", "ipwvcov", "model.se")`,
+a relative error of `r rel("ATE", "ipwvcov")` and `r rel("ATO", "ipwvcov")`.
+For the robust standard error the variance ratio was
+`r v("ATE", "robust", "var.ratio")` and `r v("ATO", "robust", "var.ratio")`
+(model-based SE `r v("ATE", "robust", "model.se")` and
+`r v("ATO", "robust", "model.se")`, relative error `r rel("ATE", "robust")`
+and `r rel("ATO", "robust")`): its variance is too large.
+
+**How precise that is.** The empirical variance is itself estimated from a
+finite number of data sets. With *R* data sets its relative Monte Carlo
+standard error (MCSE) is about sqrt(2 / (*R* − 1)), which is
+`r f(100 * sqrt(2 / (R - 1)), 1)`% for *R* = `r R`; on the SE scale this
+halves, to about `r f(100 * sqrt(1 / (2 * (R - 1))), 1)`%. The MCSE of the
+relative error in the model-based SE (in brackets above) adds the
+variability of the estimated variances themselves (Morris et al., Table 6).
+A relative error of under 1% for `ipwvcov()`, with an MCSE above 2%, is no
+detectable difference. For the robust standard error, the relative error is
+about `r f(s["ATE robust", "rel.error"] / s["ATE robust", "mcse.rel.error"], 1)`
+MCSEs from 0 for the ATE and
+`r f(s["ATO robust", "rel.error"] / s["ATO robust", "mcse.rel.error"], 1)`
+for the ATO: a real difference.
+
+**Coverage, an independent check.** Because the true effect is known, we
+can count how often the 95% interval (estimate ± 1.96 × SE) contains it.
+This check does not use the empirical variance at all. Coverage is also
+estimated from a finite number of data sets: for a coverage *p*, its MCSE is
+sqrt(*p*(1 − *p*) / *R*), about `r mcse(R)` percentage points near 95% for
+*R* = `r R` and `r mcse(R_boot)` for *R* = `r R_boot` (the number of data
+sets with a bootstrap). Intervals that are too wide cover the truth more
+often than 95%, and correct ones about 95% of the time. The robust intervals
+covered it in `r cvg("ATE", "robust")`% (ATE) and `r cvg("ATO", "robust")`%
+(ATO) of the data sets, the `ipwvcov()` intervals in
+`r cvg("ATE", "ipwvcov")`% and `r cvg("ATO", "ipwvcov")`%.
+
+**Why the truth is the marginal log hazard ratio.** The data are simulated
+from a model given the confounder, with a conditional hazard ratio of
+exp(-0.5) for treatment. The MSM, a Cox model with treatment only, targets
+something else: the marginal hazard ratio, which compares the whole target
+population treated with the whole population untreated. For hazard ratios
+the two differ even without confounding (hazard ratios are not
+collapsible), and the marginal one is closer to 1. So the truth is computed
+directly. For every person in a very large simulated sample, both potential
+survival times (treated and untreated) are generated, and a Cox model of
+time on treatment is fitted to these data (for the ATO weighted by
+e(1 − e), with e the propensity score).
+This gives a true log hazard ratio of `r f(s["ATE", "truth"])` for the ATE
+and `r f(s["ATO", "truth"])` for the ATO, not -0.5. Counting how often the intervals contain -0.5
+would wrongly count correct intervals as misses.
 
 # References
 
@@ -759,6 +902,8 @@ bootstrap remains the advice there.
 * Lunceford JK, Davidian M (2004). Stratification and weighting via the
   propensity score in estimation of causal treatment effects: a comparative
   study. *Statistics in Medicine* 23, 2937–2960.
+* Morris TP, White IR, Crowther MJ (2019). Using simulation studies to
+  evaluate statistical methods. *Statistics in Medicine* 38, 2074–2102.
 * Robins JM, Hernán MA, Brumback B (2000). Marginal structural models and
   causal inference in epidemiology. *Epidemiology* 11, 550–560.
 * Stefanski LA, Boos DD (2002). The calculus of M-estimation. *The
