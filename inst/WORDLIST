@@ -13,6 +13,7 @@ Brumback
 CBPS
 CRC
 Chevret
+Crowther
 Davidian
 Dyk
 Econometrica
@@ -61,6 +62,7 @@ SMDs
 Springer
 Stefanski
 SuperLearner
+TP
 Unstabilized
 Venables
 WN
@@ -83,6 +85,7 @@ cloglog
 confounder
 confounder's
 coverages
+deciles
 der
 doi
 dp
@@ -103,6 +106,7 @@ ipwvcov
 jss
 le
 lin
+marginaleffects
 mgcv
 mgcv's
 minimising

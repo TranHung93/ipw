@@ -39,8 +39,11 @@ reference:
   contents:
   - ipwvcov
 - title: Diagnostics
+  desc: >
+    Plots to check the weights.
   contents:
   - ipwplot
+  - ipwdiag
 - title: Data preparation
   contents:
   - tstartfun

@@ -197,7 +197,7 @@ summary(msm.cox)$conf.int
 | Censoring | censoring weights with the same models, including Cox models (`type = "cens"`) | censoring weights with `.cens()` in `weightit()` and `weightitMSM()` |
 | Outcome models and standard errors | fit with `lm()`, `glm()`, `coxph()`, `svyglm()` etc.; `ipwvcov()` (new) for M-estimation standard errors with binary exposures and logistic models: `ipwpoint()` weights with an `lm()`, `glm()` or `coxph()` MSM, and `ipwtm()` weights with an `lm()`, `glm()` or counting-process `coxph()` MSM on the long data; otherwise the bootstrap | `glm_weightit()`, `ordinal_weightit()`, `multinom_weightit()`, `coxph_weightit()`: M-estimation, robust, bootstrap, fractional weighted bootstrap and cluster-robust standard errors |
 | Trimming | truncation at percentiles (`trunc`) | `trim()` (trimming or truncation) |
-| Diagnostics | `ipwplot()`; balance with cobalt (weights passed as a vector) | `summary()` (weight ranges, effective sample size, …); full cobalt integration |
+| Diagnostics | `ipwplot()`; `ipwdiag()` (new): overlap, weight share and effective sample size, tail index, truncation sensitivity; balance with cobalt (weights passed as a vector) | `summary()` (weight ranges, effective sample size, …); full cobalt integration |
 | Dependencies | MASS, nnet, survival, geepack | cobalt, ggplot2, cli, rlang, sandwich, generics, arg, plus optional packages for many methods |
 | License | GPL (\>= 2) | GPL (\>= 2) |
 

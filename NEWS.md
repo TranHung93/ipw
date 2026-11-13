@@ -30,6 +30,15 @@
 * New `ipwprobtm()`: time-varying weights from probabilities estimated
   elsewhere (for example with machine learning), multiplied over time within
   each subject. For a point treatment the weights are simply `num / den`.
+* New `ipwdiag()`: diagnostic plots for the weights of `ipwpoint()` and
+  `ipwtm()` (or a list of them whose weights multiply), in base graphics:
+  overlap of the estimated exposure probabilities by exposure group
+  (positivity), the share of the total weight held by the people with the
+  largest weights (with the mean weight and Kish's effective sample size),
+  the tail of the weights with the Hill estimate of the tail index, and the
+  sensitivity of a marginal structural model's estimate (`lm()`, `glm()` or
+  `coxph()`) to truncating the weights. The numbers behind every plot are
+  returned. See "Checking the weights" in `vignette("ipw")`.
 * `ipwpoint()`: new families for count exposures (`"poisson"`, `"negbin"`)
   and skewed continuous exposures (`"gamma"`, `"lognormal"`).
 * `ipwtm()`: `type = "all"` (exposures that switch back and forth) now works

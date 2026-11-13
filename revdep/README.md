@@ -1,18 +1,18 @@
 # Platform
 
-|field    |value                                                               |
-|:--------|:-------------------------------------------------------------------|
-|version  |R version 4.6.1 (2026-06-24 ucrt)                                   |
-|os       |Windows 11 x64 (build 26300)                                        |
-|system   |x86_64, mingw32                                                     |
-|ui       |RTerm                                                               |
-|language |(EN)                                                                |
-|collate  |English_United States.utf8                                          |
-|ctype    |English_United States.utf8                                          |
-|tz       |Asia/Bangkok                                                        |
-|date     |2026-11-13                                                          |
-|pandoc   |NA                                                                  |
-|quarto   |1.9.38 @ C:\PROGRA~1\RStudio\RESOUR~1\app\bin\quarto\bin\quarto.exe |
+|field    |value                                                                    |
+|:--------|:------------------------------------------------------------------------|
+|version  |R version 4.6.1 (2026-06-24 ucrt)                                        |
+|os       |Windows 11 x64 (build 26300)                                             |
+|system   |x86_64, mingw32                                                          |
+|ui       |RTerm                                                                    |
+|language |(EN)                                                                     |
+|collate  |English_United States.utf8                                               |
+|ctype    |English_United States.utf8                                               |
+|tz       |Asia/Bangkok                                                             |
+|date     |2026-11-13                                                               |
+|pandoc   |3.8.3 @ C:\PROGRA~1\RStudio\RESOUR~1\app\bin\quarto\bin\tools\pandoc.exe |
+|quarto   |1.9.38 @ C:\PROGRA~1\RStudio\RESOUR~1\app\bin\quarto\bin\quarto.exe      |
 
 # Dependencies
 

@@ -32,7 +32,7 @@ An analysis has three steps:
 1. **Estimate the weights** with `ipwpoint()` (exposure measured once) or
    `ipwtm()` (exposure that changes over time), or from your own
    probabilities with `ipwprobtm()`.
-2. **Check the weights** with `summary()` and `ipwplot()`.
+2. **Check the weights** with `summary()`, `ipwplot()` and `ipwdiag()`.
 3. **Fit the MSM** with the weights, and get **standard errors**: with
    `ipwvcov()` for binary exposures with logistic models (point treatment
    or time-varying), otherwise with a bootstrap that re-estimates the
@@ -45,6 +45,7 @@ An analysis has three steps:
 | `ipwprobtm()` | Time-varying weights from probabilities you estimated yourself **(new)** |
 | `ipwvcov()` | Standard errors for the MSM that account for the estimated weights (binary exposures, logistic models) **(new)** |
 | `ipwplot()` | Plot the distribution of the weights |
+| `ipwdiag()` | Diagnostic plots: overlap, weight share, tail index, truncation sensitivity **(new)** |
 | `tstartfun()` | Interval start times for counting-process (Cox) data |
 
 > **New in ipw 1.4.0.** Sections marked **New** describe
@@ -52,7 +53,8 @@ An analysis has three steps:
 > smooth terms with mgcv, ATT, ATC and overlap weights (also for
 > categorical exposures), standard errors that account for the estimated
 > weights (`ipwvcov()`), `type = "all"` for
-> categorical and survival exposures in `ipwtm()`, and `ipwprobtm()`.
+> categorical and survival exposures in `ipwtm()`, `ipwprobtm()`, and
+> diagnostic plots for the weights (`ipwdiag()`).
 > Existing calls give the same results as before.
 > The formulas, code and rationale behind each new feature are in the
 > [methods article](https://tranhung93.github.io/ipw/articles/methods.html).
@@ -524,7 +526,7 @@ smooth terms (mgcv), exposures that are not binary (categorical, ordinal,
 continuous, counts), or Cox MSMs with `strata()`. For these, use the
 bootstrap (next subsection). With heavy-tailed weights, where a few people
 carry much of the weight, neither `ipwvcov()` nor the bootstrap can be
-trusted. Check `ipwplot()` and the effective sample size (section 6) first
+trusted. Check the weights with `ipwdiag()` (section 6) first
 (see "Heavy-tailed weights" in the
 [methods article](https://tranhung93.github.io/ipw/articles/methods.html)).
 
@@ -723,18 +725,139 @@ any standard error.
   from 1 suggests a misspecified exposure model.
 * **Extreme weights.** Very large weights point to **positivity** problems:
   some kinds of people (almost) never receive one of the exposures. Look at
-  `ipwplot()`, reconsider the model, use overlap weights (`estimand = "ATO"`)
+  `ipwdiag()` and `ipwplot()`, reconsider the model, use overlap weights
+  (`estimand = "ATO"`)
   or truncate (`trunc`), keeping in mind that truncation slightly changes
   what is estimated.
 * **Assumptions.** The weighted analysis assumes no unmeasured confounding,
   positivity, consistency and correctly specified exposure (and censoring)
   models.
 
-## Covariate balance
+## New: checking the weights with `ipwdiag()` {#ipwdiag}
+
+Cole & Hernán (2008) and Austin & Stuart (2015) recommend looking closely
+at the weights before trusting a weighted analysis. `ipwdiag()` draws four
+plots for a result of `ipwpoint()` or `ipwtm()` (or a list of them whose
+weights multiply, such as treatment and censoring weights), prints a short
+summary and returns the numbers behind every plot, so they can be redrawn
+with any graphics package. Checking that the weights balance the
+confounders is a separate step, done with cobalt (see
+[Covariate balance](#covariate-balance) below); `ipwplot()` shows how
+time-varying weights change over follow-up.
+
+For the point treatment of section 1, with the MSM `msm.lm` from section 5:
+
+```{r ipwdiag-point, fig.height = 6.5}
+diag.point <- ipwdiag(w, msm = msm.lm)
+diag.point
+```
+
+```{r ipwdiag-numbers, include = FALSE}
+sp <- diag.point$summary$share
+tp <- diag.point$trunc
+pct <- function(x, d = 0) sprintf(paste0("%.", d, "f%%"), 100 * x)
+```
+
+What to look for in each plot:
+
+* **Overlap (positivity).** The densities of the estimated probability of
+  exposure, from the denominator model, in the unexposed and the exposed.
+  Shaded ranges contain people from one group only: they have (almost) no
+  counterparts with the other exposure, and their weights become extreme.
+  Here `r pct(diag.point$summary$overlap[["proportion"]])` of the people
+  have a probability below 0.05 or above 0.95, which confirms the poor
+  overlap that the large ATT weights showed in section 1. The plot needs a
+  binomial exposure model; for other families it is skipped.
+* **Weight share.** The people sorted from the largest weight to the
+  smallest, against the cumulative share of the total weight. With equal
+  weights the curve lies on the diagonal. Here the top 1% of the people
+  carry `r pct(sp[["top1"]])` of the total weight and the top 5% carry
+  `r pct(sp[["top5"]])`; Kish's effective sample size is
+  `r round(sp[["ess"]])`, `r pct(sp[["ess.fraction"]])` of the
+  `r nrow(simdat)` people. The summary also gives the **mean** weight, which
+  should be close to 1 for stabilized weights; here it is
+  `r sprintf("%.2f", sp[["mean"]])`. A mean well below 1 is typical of poor
+  overlap: the rare people who would get very large weights are mostly
+  missing from the sample (ATT, ATC and overlap weights have no such
+  target).
+* **Tail index.** For the largest 5% of the weights, the log of rank / n
+  (the proportion of weights at least this large) against the log of the
+  weight. A straight line means a Pareto-type tail, P(W > x) proportional
+  to $x^{-\alpha}$; the Hill estimate of $\alpha$ is drawn as a dashed line
+  with slope $-\alpha$. With $\alpha < 2$ the weights have an infinite
+  variance; with $\alpha$ between 2 and 4, normal-theory intervals can be
+  too narrow, whether the standard error comes from `ipwvcov()` or from the
+  bootstrap (see "Heavy-tailed weights" in `?ipwvcov` and in the article
+  [ipw, WeightIt and PSweight side by side](https://tranhung93.github.io/ipw/articles/ipw-and-weightit.html)).
+  Here the estimate is `r sprintf("%.2f", diag.point$tail$alpha)`, and no
+  standard error for this MSM can be trusted.
+* **Truncation sensitivity.** The MSM is refitted with the weights truncated
+  at their q and 1 - q quantiles (as `ipwpoint(..., trunc = q)` would), and
+  the estimate is shown with a 95% robust confidence interval for each q. A
+  stable estimate means that the extreme weights do not drive the result.
+  Here the estimate moves from `r sprintf("%.1f", tp$estimate[1])` without
+  truncation to `r sprintf("%.1f", tp$estimate[tp$q == 0.01])` at q = 0.01
+  and `r sprintf("%.1f", tp$estimate[tp$q == 0.1])` at q = 0.1, while the
+  true effect is 10: the few people with extreme weights are needed to
+  remove the confounding, and truncating their weights brings bias back.
+  The intervals treat the (truncated) weights as known; for proper intervals
+  with truncated weights, use the bootstrap (section 5) and truncate the
+  weights in each bootstrap sample.
+
+For `ipwtm()` the weight share and the tail use each person's final
+cumulative weight. For the HAART analysis of section 3 (Cox models for
+starting HAART and for dropout, so there is no overlap plot), with the Cox
+MSM `msm.haart`:
+
+```{r ipwdiag-haart, fig.height = 6.5}
+diag.haart <- ipwdiag(list(w.haart, w.cens), which = c("share", "tail", "trunc"),
+                      msm = msm.haart)
+diag.haart
+```
+
+```{r ipwdiag-haart-numbers, include = FALSE}
+sh <- diag.haart$summary$share
+th <- diag.haart$trunc
+```
+
+These weights are well behaved: the mean is `r sprintf("%.2f", sh[["mean"]])`,
+the largest weight `r sprintf("%.1f", sh[["max"]])`, the top 1% of the
+patients carry `r pct(sh[["top1"]], 1)` of the total weight, and the
+effective sample size is `r pct(sh[["ess.fraction"]])` of the
+`r diag.haart$summary$n` patients. The tail index,
+`r sprintf("%.1f", diag.haart$tail$alpha)`, is at the border of the range
+where intervals may be too narrow. The log hazard ratio of HAART moves from
+`r sprintf("%.2f", th$estimate[1])` to
+`r sprintf("%.2f", th$estimate[th$q == 0.01])` with 1% truncation and to
+`r sprintf("%.2f", th$estimate[th$q == 0.1])` with 10% truncation, changes
+of up to half its standard error of `r sprintf("%.2f", th$se[1])`. For a
+list of weight objects the product of the weights is truncated. The overlap
+plot needs a binomial exposure model, for example
+`ipwtm(..., family = "binomial")` (pooled logistic regression). Its
+probabilities are per interval, and small when the intervals are short, so
+look at whether the two groups overlap rather than at the proportion below
+0.05.
+
+**Calibration of the exposure model.** A complementary check, not part of
+`ipwdiag()`, compares the observed proportion exposed with the mean
+predicted probability within deciles of the prediction; the points should
+lie near the diagonal.
+
+```{r calibration, fig.width = 4.2, fig.height = 4.2, out.width = "50%"}
+p <- fitted(w$den.mod)
+decile <- cut(p, quantile(p, 0:10 / 10), include.lowest = TRUE)
+plot(tapply(p, decile, mean), tapply(simdat$a, decile, mean),
+     xlab = "Mean predicted probability", ylab = "Observed proportion exposed",
+     xlim = c(0, 1), ylim = c(0, 1), pch = 19)
+abline(0, 1, lty = 3)
+```
+
+## Covariate balance {#covariate-balance}
 
 Good weights make the confounders unrelated to the exposure, so after
 weighting their distribution should be the same in the exposure groups.
-Check this directly: it tests the exposure model where it matters. The
+Check this directly: it tests the exposure model where it matters, and it
+complements the plots of [`ipwdiag()`](#ipwdiag) above. The
 cobalt package (Greifer) computes balance statistics for any weights; ipw's
 weights are passed as a plain vector, with `method = "weighting"`. The
 standardized mean difference (SMD) uses the pooled standard deviation of the
@@ -826,6 +949,10 @@ sample sizes".
 
 # References
 
+* Austin PC, Stuart EA (2015). Moving towards best practice when using
+  inverse probability of treatment weighting (IPTW) using the propensity
+  score to estimate causal treatment effects in observational studies.
+  *Statistics in Medicine* 34, 3661-3679. doi:10.1002/sim.6607.
 * Austin PC (2016). Variance estimation when using inverse probability of
   treatment weighting (IPTW) with survival analysis. *Statistics in
   Medicine* 35, 5642-5655. doi:10.1002/sim.7084.
