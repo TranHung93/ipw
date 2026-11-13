@@ -259,77 +259,131 @@ administrative censoring) of 95% Wald intervals for the marginal log
 hazard ratio. The truth is the marginal log hazard ratio in the target
 population, computed from both potential outcomes of a very large
 sample. The bootstrap (200 samples, weights re-estimated in each) was
-run on a subset of the data sets.</p>
+run on 300 of the 1000 data sets. Standard errors are judged on the
+variance scale (Morris, White &amp; Crowther 2019): the variance ratio
+is the mean estimated variance, mean(SE²), divided by the empirical
+variance of the estimates (1 is ideal), and the model SE,
+sqrt(mean(SE²)), is compared with the empirical SE.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="va">cox_sim</span><span class="op">$</span><span class="va">summary</span>, digits <span class="op">=</span> <span class="fl">3</span>, row.names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
-<table style="width:100%;" class="table">
+<code class="sourceCode R"><span><span class="fu">sim_table</span><span class="op">(</span><span class="va">cox_sim</span><span class="op">$</span><span class="va">summary</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>Estimand <span class="op">=</span> <span class="st">"estimand"</span>, Truth <span class="op">=</span> <span class="st">"truth"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<table class="table">
 <colgroup>
+<col width="6%">
 <col width="5%">
-<col width="3%">
 <col width="7%">
-<col width="7%">
-<col width="8%">
-<col width="8%">
-<col width="10%">
 <col width="9%">
-<col width="8%">
+<col width="6%">
 <col width="10%">
-<col width="7%">
+<col width="27%">
+<col width="6%">
 <col width="12%">
+<col width="7%">
 </colgroup>
 <thead><tr class="header">
 <th align="left">estimand</th>
 <th align="right">truth</th>
-<th align="right">mean.estimate</th>
-<th align="right">empirical.sd</th>
-<th align="right">mean.se.ipwvcov</th>
-<th align="right">mean.se.robust</th>
-<th align="right">mean.se.bootstrap</th>
-<th align="right">coverage.ipwvcov</th>
-<th align="right">coverage.robust</th>
-<th align="right">coverage.bootstrap</th>
-<th align="right">replications</th>
-<th align="right">bootstrap.replications</th>
+<th align="left">Method</th>
+<th align="right">Empirical SE</th>
+<th align="right">Model SE</th>
+<th align="right">Variance ratio</th>
+<th align="left">Relative error in model SE, % (MCSE)</th>
+<th align="right">Coverage</th>
+<th align="right">MCSE of coverage</th>
+<th align="right">Data sets</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
 <td align="left">ATE</td>
-<td align="right">-0.450</td>
-<td align="right">-0.447</td>
-<td align="right">0.128</td>
-<td align="right">0.128</td>
-<td align="right">0.14</td>
-<td align="right">0.128</td>
+<td align="right">-0.4502</td>
+<td align="left">ipwvcov</td>
+<td align="right">0.1281</td>
+<td align="right">0.1280</td>
+<td align="right">1.00</td>
+<td align="left">-0.1 (2.2)</td>
 <td align="right">0.956</td>
-<td align="right">0.969</td>
-<td align="right">0.95</td>
+<td align="right">0.006</td>
 <td align="right">1000</td>
+</tr>
+<tr class="even">
+<td align="left">ATE</td>
+<td align="right">-0.4502</td>
+<td align="left">robust</td>
+<td align="right">0.1281</td>
+<td align="right">0.1404</td>
+<td align="right">1.20</td>
+<td align="left">+9.6 (2.5)</td>
+<td align="right">0.969</td>
+<td align="right">0.005</td>
+<td align="right">1000</td>
+</tr>
+<tr class="odd">
+<td align="left">ATE</td>
+<td align="right">-0.4502</td>
+<td align="left">bootstrap</td>
+<td align="right">0.1281</td>
+<td align="right">0.1283</td>
+<td align="right">1.00</td>
+<td align="left">+0.2 (2.3)</td>
+<td align="right">0.950</td>
+<td align="right">0.013</td>
 <td align="right">300</td>
 </tr>
 <tr class="even">
 <td align="left">ATO</td>
-<td align="right">-0.461</td>
-<td align="right">-0.460</td>
-<td align="right">0.133</td>
-<td align="right">0.132</td>
-<td align="right">0.14</td>
-<td align="right">0.133</td>
+<td align="right">-0.4614</td>
+<td align="left">ipwvcov</td>
+<td align="right">0.1327</td>
+<td align="right">0.1325</td>
+<td align="right">1.00</td>
+<td align="left">-0.2 (2.2)</td>
 <td align="right">0.956</td>
-<td align="right">0.961</td>
-<td align="right">0.95</td>
+<td align="right">0.006</td>
 <td align="right">1000</td>
+</tr>
+<tr class="odd">
+<td align="left">ATO</td>
+<td align="right">-0.4614</td>
+<td align="left">robust</td>
+<td align="right">0.1327</td>
+<td align="right">0.1402</td>
+<td align="right">1.12</td>
+<td align="left">+5.6 (2.4)</td>
+<td align="right">0.961</td>
+<td align="right">0.006</td>
+<td align="right">1000</td>
+</tr>
+<tr class="even">
+<td align="left">ATO</td>
+<td align="right">-0.4614</td>
+<td align="left">bootstrap</td>
+<td align="right">0.1327</td>
+<td align="right">0.1334</td>
+<td align="right">1.01</td>
+<td align="left">+0.5 (2.3)</td>
+<td align="right">0.950</td>
+<td align="right">0.013</td>
 <td align="right">300</td>
 </tr>
 </tbody>
 </table>
-<p>The mean <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> standard error is within 1% of the
-empirical standard deviation of the estimates for both estimands, and so
-is the bootstrap’s. The robust standard error, which treats the weights
-as known, is about 10% (ATE) and 6% (ATO) too large here, so its
-intervals cover more often than 95%: conservative, but wider than
-needed. The coverages of <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> (1000 data sets) and of
-the bootstrap (300 data sets) are both within simulation error of
-95%.</p>
+<p>The empirical variance of the estimates is what a variance estimator
+should estimate, but with 1000 data sets it is itself uncertain by about
+4.5% (relative Monte Carlo standard error sqrt(2 / (<em>R</em> − 1))).
+The variance ratio of <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> is 1.00 (ATE) and 1.00
+(ATO), and that of the bootstrap 1.00 and 1.01; the relative errors in
+the model SE are all under 1% with Monte Carlo standard errors above 2%:
+no detectable difference. The robust variance, which treats the weights
+as known, is too large here: variance ratio 1.20 (ATE) and 1.12 (ATO),
+model SE +10% (MCSE 2) and +6% (MCSE 2). Its intervals therefore cover
+more often than 95%: conservative, but wider than needed. The coverages
+of <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> (1000 data sets) and of the bootstrap (300
+data sets) are both within simulation error of 95% (the Monte Carlo
+standard error of a coverage near 95% is about 0.7 percentage points
+with 1000 data sets and 1.3 with 300). Coverage does not depend on the
+empirical variance: it counts how often the interval contains the known
+true value. The <a href="methods.html#how-the-simulations-judge-a-standard-error">methods
+article</a> explains these checks in more detail, including why
+variances rather than standard errors are compared.</p>
 <p><code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> covers binary exposures with logistic exposure
 models: point treatments with <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code>, <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> or
 <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code> outcome models, and time-varying weights from
@@ -634,79 +688,121 @@ error is clustered by person (HC0) and treats the weights as known; the
 cluster bootstrap (200 samples of persons, weights re-estimated in each)
 was run on a subset of the data sets.</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="va">tm_sim</span><span class="op">$</span><span class="va">summary</span>, digits <span class="op">=</span> <span class="fl">3</span>, row.names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
-<table class="table">
+<code class="sourceCode R"><span><span class="fu">sim_table</span><span class="op">(</span><span class="va">tm_sim</span><span class="op">$</span><span class="va">summary</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>Scenario <span class="op">=</span> <span class="st">"scenario"</span>, `Median largest weight` <span class="op">=</span> <span class="st">"median.max.weight"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<table style="width:100%;" class="table">
 <colgroup>
-<col width="4%">
-<col width="9%">
-<col width="7%">
-<col width="6%">
-<col width="8%">
-<col width="7%">
-<col width="9%">
-<col width="8%">
-<col width="8%">
-<col width="9%">
 <col width="6%">
 <col width="12%">
+<col width="6%">
+<col width="8%">
+<col width="6%">
+<col width="10%">
+<col width="25%">
+<col width="6%">
+<col width="11%">
+<col width="6%">
 </colgroup>
 <thead><tr class="header">
 <th align="left">scenario</th>
 <th align="right">median.max.weight</th>
-<th align="right">mean.estimate</th>
-<th align="right">empirical.sd</th>
-<th align="right">mean.se.ipwvcov</th>
-<th align="right">mean.se.robust</th>
-<th align="right">mean.se.bootstrap</th>
-<th align="right">coverage.ipwvcov</th>
-<th align="right">coverage.robust</th>
-<th align="right">coverage.bootstrap</th>
-<th align="right">replications</th>
-<th align="right">bootstrap.replications</th>
+<th align="left">Method</th>
+<th align="right">Empirical SE</th>
+<th align="right">Model SE</th>
+<th align="right">Variance ratio</th>
+<th align="left">Relative error in model SE, % (MCSE)</th>
+<th align="right">Coverage</th>
+<th align="right">MCSE of coverage</th>
+<th align="right">Data sets</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
 <td align="left">moderate</td>
 <td align="right">4.152</td>
-<td align="right">1.001</td>
-<td align="right">0.057</td>
-<td align="right">0.059</td>
-<td align="right">0.082</td>
-<td align="right">0.058</td>
+<td align="left">ipwvcov</td>
+<td align="right">0.0574</td>
+<td align="right">0.0589</td>
+<td align="right">1.05</td>
+<td align="left">+2.6 (2.3)</td>
 <td align="right">0.958</td>
-<td align="right">0.990</td>
-<td align="right">0.965</td>
+<td align="right">0.006</td>
 <td align="right">1000</td>
+</tr>
+<tr class="even">
+<td align="left">moderate</td>
+<td align="right">4.152</td>
+<td align="left">robust</td>
+<td align="right">0.0574</td>
+<td align="right">0.0826</td>
+<td align="right">2.07</td>
+<td align="left">+43.8 (3.3)</td>
+<td align="right">0.990</td>
+<td align="right">0.003</td>
+<td align="right">1000</td>
+</tr>
+<tr class="odd">
+<td align="left">moderate</td>
+<td align="right">4.152</td>
+<td align="left">bootstrap</td>
+<td align="right">0.0574</td>
+<td align="right">0.0586</td>
+<td align="right">1.04</td>
+<td align="left">+2.0 (2.5)</td>
+<td align="right">0.965</td>
+<td align="right">0.013</td>
 <td align="right">200</td>
 </tr>
 <tr class="even">
 <td align="left">strong</td>
 <td align="right">12.013</td>
-<td align="right">1.006</td>
-<td align="right">0.101</td>
-<td align="right">0.084</td>
-<td align="right">0.109</td>
-<td align="right">0.084</td>
+<td align="left">ipwvcov</td>
+<td align="right">0.1012</td>
+<td align="right">0.0891</td>
+<td align="right">0.78</td>
+<td align="left">-11.9 (2.6)</td>
 <td align="right">0.930</td>
-<td align="right">0.973</td>
-<td align="right">0.945</td>
+<td align="right">0.008</td>
 <td align="right">1000</td>
+</tr>
+<tr class="odd">
+<td align="left">strong</td>
+<td align="right">12.013</td>
+<td align="left">robust</td>
+<td align="right">0.1012</td>
+<td align="right">0.1155</td>
+<td align="right">1.30</td>
+<td align="left">+14.1 (3.2)</td>
+<td align="right">0.973</td>
+<td align="right">0.005</td>
+<td align="right">1000</td>
+</tr>
+<tr class="even">
+<td align="left">strong</td>
+<td align="right">12.013</td>
+<td align="left">bootstrap</td>
+<td align="right">0.1012</td>
+<td align="right">0.0932</td>
+<td align="right">0.85</td>
+<td align="left">-7.9 (7.4)</td>
+<td align="right">0.945</td>
+<td align="right">0.016</td>
 <td align="right">200</td>
 </tr>
 </tbody>
 </table>
 <p>With moderate weights, <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> and the cluster
-bootstrap agree with each other and with the empirical standard
-deviation of the estimates, and their intervals cover about 95%. The
-robust standard error, which treats the weights as known, is about 40%
-too large here, so its intervals are much wider than needed. With
-strongly dependent treatment, <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> and the bootstrap
-give almost the same standard error, but both are about 17% smaller than
-the empirical standard deviation, and coverage drops to about 93% (the
-bootstrap’s 94.5% is based on 200 data sets). The robust standard error
-is conservative in both scenarios here, but that is not guaranteed; the
-package’s simulation study found settings where it was too small as
-well.</p>
+bootstrap agree with each other and with the empirical variance of the
+estimates (variance ratio 1.05 and 1.04; model SE +3% (MCSE 2) and +2%
+(MCSE 2)), and their intervals cover about 95%. The robust variance,
+which treats the weights as known, is 2.07 times the empirical variance
+here (model SE +44% (MCSE 3)), so its intervals are much wider than
+needed. With strongly dependent treatment, <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> and
+the bootstrap give similar standard errors, but they are too small: the
+variance ratio of <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> is 0.78 (model SE -12% (MCSE
+3)), and coverage drops to 93.0%. The bootstrap’s variance ratio, 0.85
+(model SE -8% (MCSE 7)), and coverage, 94.5%, rest on 200 data sets and
+are much less precise. The robust standard error is conservative in both
+scenarios here, but that is not guaranteed; the package’s simulation
+study found settings where it was too small as well.</p>
 <div class="section level4">
 <h4 id="heavy-tailed-weights">Heavy-tailed weights<a class="anchor" aria-label="anchor" href="#heavy-tailed-weights"></a>
 </h4>
@@ -732,43 +828,29 @@ distribution refers to the final cumulative weight of each person: the
 largest weight and the 99.9th percentile (medians over data sets), the
 Kish effective sample size as a fraction of <em>n</em> (mean), and the
 Hill estimate of the tail index from the top 5% (median). There were
-1000, 1000 and 500 data sets per size, of which 200, 200 and 100 were
-bootstrapped (B = 200).</p>
+1000, 1000 and 500 data sets for <em>n</em> = 300, 1200 and 4800, of
+which 200, 200 and 100 were bootstrapped (B = 200).</p>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">tail_tab</span> <span class="op">&lt;-</span> <span class="va">tm_tail</span><span class="op">$</span><span class="va">summary</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"scenario"</span>, <span class="st">"n"</span>, <span class="st">"max.weight"</span>, <span class="st">"q999.weight"</span>,</span>
-<span>                                <span class="st">"ess.fraction"</span>, <span class="st">"hill.tail.index"</span>,</span>
-<span>                                <span class="st">"empirical.sd"</span>, <span class="st">"mean.se.ipwvcov"</span>,</span>
-<span>                                <span class="st">"mean.se.bootstrap"</span>, <span class="st">"coverage.ipwvcov"</span>,</span>
-<span>                                <span class="st">"coverage.bootstrap"</span>, <span class="st">"coverage.robust"</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="va">tail_tab</span>, digits <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">2</span>, <span class="fl">4</span>, <span class="fl">4</span>, <span class="fl">4</span>, <span class="fl">3</span>, <span class="fl">3</span>, <span class="fl">3</span><span class="op">)</span>, row.names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="va">tm_tail</span><span class="op">$</span><span class="va">weights</span>,</span>
+<span>                      <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Scenario"</span>, <span class="st">"n"</span>, <span class="st">"Largest weight"</span>, <span class="st">"99.9th percentile"</span>,</span>
+<span>                        <span class="st">"ESS fraction"</span>, <span class="st">"Hill tail index"</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>             digits <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">2</span><span class="op">)</span>, row.names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <table style="width:100%;" class="table">
 <colgroup>
-<col width="5%">
-<col width="3%">
-<col width="6%">
-<col width="7%">
-<col width="7%">
-<col width="9%">
-<col width="7%">
-<col width="9%">
-<col width="10%">
-<col width="10%">
 <col width="11%">
-<col width="9%">
+<col width="6%">
+<col width="19%">
+<col width="23%">
+<col width="17%">
+<col width="21%">
 </colgroup>
 <thead><tr class="header">
-<th align="left">scenario</th>
+<th align="left">Scenario</th>
 <th align="right">n</th>
-<th align="right">max.weight</th>
-<th align="right">q999.weight</th>
-<th align="right">ess.fraction</th>
-<th align="right">hill.tail.index</th>
-<th align="right">empirical.sd</th>
-<th align="right">mean.se.ipwvcov</th>
-<th align="right">mean.se.bootstrap</th>
-<th align="right">coverage.ipwvcov</th>
-<th align="right">coverage.bootstrap</th>
-<th align="right">coverage.robust</th>
+<th align="right">Largest weight</th>
+<th align="right">99.9th percentile</th>
+<th align="right">ESS fraction</th>
+<th align="right">Hill tail index</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
@@ -778,12 +860,6 @@ bootstrapped (B = 200).</p>
 <td align="right">8.5</td>
 <td align="right">0.48</td>
 <td align="right">2.34</td>
-<td align="right">0.0973</td>
-<td align="right">0.0829</td>
-<td align="right">0.0851</td>
-<td align="right">0.916</td>
-<td align="right">0.950</td>
-<td align="right">0.970</td>
 </tr>
 <tr class="even">
 <td align="left">strong</td>
@@ -792,12 +868,6 @@ bootstrapped (B = 200).</p>
 <td align="right">11.5</td>
 <td align="right">0.44</td>
 <td align="right">2.29</td>
-<td align="right">0.0499</td>
-<td align="right">0.0453</td>
-<td align="right">0.0440</td>
-<td align="right">0.932</td>
-<td align="right">0.945</td>
-<td align="right">0.975</td>
 </tr>
 <tr class="odd">
 <td align="left">strong</td>
@@ -806,12 +876,6 @@ bootstrapped (B = 200).</p>
 <td align="right">13.2</td>
 <td align="right">0.39</td>
 <td align="right">2.26</td>
-<td align="right">0.0290</td>
-<td align="right">0.0257</td>
-<td align="right">0.0264</td>
-<td align="right">0.918</td>
-<td align="right">0.900</td>
-<td align="right">0.980</td>
 </tr>
 <tr class="even">
 <td align="left">milder</td>
@@ -820,12 +884,6 @@ bootstrapped (B = 200).</p>
 <td align="right">6.2</td>
 <td align="right">0.63</td>
 <td align="right">2.87</td>
-<td align="right">0.0747</td>
-<td align="right">0.0691</td>
-<td align="right">0.0688</td>
-<td align="right">0.939</td>
-<td align="right">0.935</td>
-<td align="right">0.983</td>
 </tr>
 <tr class="odd">
 <td align="left">milder</td>
@@ -834,12 +892,6 @@ bootstrapped (B = 200).</p>
 <td align="right">7.6</td>
 <td align="right">0.61</td>
 <td align="right">2.83</td>
-<td align="right">0.0404</td>
-<td align="right">0.0367</td>
-<td align="right">0.0358</td>
-<td align="right">0.934</td>
-<td align="right">0.945</td>
-<td align="right">0.987</td>
 </tr>
 <tr class="even">
 <td align="left">milder</td>
@@ -848,12 +900,253 @@ bootstrapped (B = 200).</p>
 <td align="right">8.5</td>
 <td align="right">0.60</td>
 <td align="right">2.81</td>
+</tr>
+</tbody>
+</table>
+<p>The standard errors, judged as above:</p>
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">sim_table</span><span class="op">(</span><span class="va">tm_tail</span><span class="op">$</span><span class="va">summary</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>Scenario <span class="op">=</span> <span class="st">"scenario"</span>, n <span class="op">=</span> <span class="st">"n"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<table class="table">
+<colgroup>
+<col width="6%">
+<col width="3%">
+<col width="7%">
+<col width="9%">
+<col width="6%">
+<col width="11%">
+<col width="27%">
+<col width="6%">
+<col width="12%">
+<col width="7%">
+</colgroup>
+<thead><tr class="header">
+<th align="left">scenario</th>
+<th align="right">n</th>
+<th align="left">Method</th>
+<th align="right">Empirical SE</th>
+<th align="right">Model SE</th>
+<th align="right">Variance ratio</th>
+<th align="left">Relative error in model SE, % (MCSE)</th>
+<th align="right">Coverage</th>
+<th align="right">MCSE of coverage</th>
+<th align="right">Data sets</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td align="left">strong</td>
+<td align="right">300</td>
+<td align="left">ipwvcov</td>
+<td align="right">0.0973</td>
+<td align="right">0.0891</td>
+<td align="right">0.84</td>
+<td align="left">-8.4 (3.2)</td>
+<td align="right">0.916</td>
+<td align="right">0.009</td>
+<td align="right">1000</td>
+</tr>
+<tr class="even">
+<td align="left">strong</td>
+<td align="right">300</td>
+<td align="left">bootstrap</td>
+<td align="right">0.0973</td>
+<td align="right">0.0973</td>
+<td align="right">1.00</td>
+<td align="left">-0.0 (11.9)</td>
+<td align="right">0.950</td>
+<td align="right">0.015</td>
+<td align="right">200</td>
+</tr>
+<tr class="odd">
+<td align="left">strong</td>
+<td align="right">300</td>
+<td align="left">robust</td>
+<td align="right">0.0973</td>
+<td align="right">0.1150</td>
+<td align="right">1.40</td>
+<td align="left">+18.2 (3.9)</td>
+<td align="right">0.970</td>
+<td align="right">0.005</td>
+<td align="right">1000</td>
+</tr>
+<tr class="even">
+<td align="left">strong</td>
+<td align="right">1200</td>
+<td align="left">ipwvcov</td>
+<td align="right">0.0499</td>
+<td align="right">0.0482</td>
+<td align="right">0.93</td>
+<td align="left">-3.5 (2.9)</td>
+<td align="right">0.932</td>
+<td align="right">0.008</td>
+<td align="right">1000</td>
+</tr>
+<tr class="odd">
+<td align="left">strong</td>
+<td align="right">1200</td>
+<td align="left">bootstrap</td>
+<td align="right">0.0499</td>
+<td align="right">0.0462</td>
+<td align="right">0.86</td>
+<td align="left">-7.4 (4.5)</td>
+<td align="right">0.945</td>
+<td align="right">0.016</td>
+<td align="right">200</td>
+</tr>
+<tr class="even">
+<td align="left">strong</td>
+<td align="right">1200</td>
+<td align="left">robust</td>
+<td align="right">0.0499</td>
+<td align="right">0.0603</td>
+<td align="right">1.46</td>
+<td align="left">+20.8 (3.3)</td>
+<td align="right">0.975</td>
+<td align="right">0.005</td>
+<td align="right">1000</td>
+</tr>
+<tr class="odd">
+<td align="left">strong</td>
+<td align="right">4800</td>
+<td align="left">ipwvcov</td>
+<td align="right">0.0290</td>
+<td align="right">0.0275</td>
+<td align="right">0.89</td>
+<td align="left">-5.4 (3.8)</td>
+<td align="right">0.918</td>
+<td align="right">0.012</td>
+<td align="right">500</td>
+</tr>
+<tr class="even">
+<td align="left">strong</td>
+<td align="right">4800</td>
+<td align="left">bootstrap</td>
+<td align="right">0.0290</td>
+<td align="right">0.0289</td>
+<td align="right">0.99</td>
+<td align="left">-0.6 (7.3)</td>
+<td align="right">0.900</td>
+<td align="right">0.030</td>
+<td align="right">100</td>
+</tr>
+<tr class="odd">
+<td align="left">strong</td>
+<td align="right">4800</td>
+<td align="left">robust</td>
+<td align="right">0.0290</td>
+<td align="right">0.0332</td>
+<td align="right">1.30</td>
+<td align="left">+14.2 (4.2)</td>
+<td align="right">0.980</td>
+<td align="right">0.006</td>
+<td align="right">500</td>
+</tr>
+<tr class="even">
+<td align="left">milder</td>
+<td align="right">300</td>
+<td align="left">ipwvcov</td>
+<td align="right">0.0747</td>
+<td align="right">0.0707</td>
+<td align="right">0.90</td>
+<td align="left">-5.4 (2.3)</td>
+<td align="right">0.939</td>
+<td align="right">0.008</td>
+<td align="right">1000</td>
+</tr>
+<tr class="odd">
+<td align="left">milder</td>
+<td align="right">300</td>
+<td align="left">bootstrap</td>
+<td align="right">0.0747</td>
+<td align="right">0.0698</td>
+<td align="right">0.87</td>
+<td align="left">-6.6 (2.5)</td>
+<td align="right">0.935</td>
+<td align="right">0.017</td>
+<td align="right">200</td>
+</tr>
+<tr class="even">
+<td align="left">milder</td>
+<td align="right">300</td>
+<td align="left">robust</td>
+<td align="right">0.0747</td>
+<td align="right">0.0961</td>
+<td align="right">1.65</td>
+<td align="left">+28.6 (3.1)</td>
+<td align="right">0.983</td>
+<td align="right">0.004</td>
+<td align="right">1000</td>
+</tr>
+<tr class="odd">
+<td align="left">milder</td>
+<td align="right">1200</td>
+<td align="left">ipwvcov</td>
+<td align="right">0.0404</td>
+<td align="right">0.0382</td>
+<td align="right">0.89</td>
+<td align="left">-5.4 (2.8)</td>
+<td align="right">0.934</td>
+<td align="right">0.008</td>
+<td align="right">1000</td>
+</tr>
+<tr class="even">
+<td align="left">milder</td>
+<td align="right">1200</td>
+<td align="left">bootstrap</td>
+<td align="right">0.0404</td>
+<td align="right">0.0363</td>
+<td align="right">0.81</td>
+<td align="left">-10.1 (2.5)</td>
+<td align="right">0.945</td>
+<td align="right">0.016</td>
+<td align="right">200</td>
+</tr>
+<tr class="odd">
+<td align="left">milder</td>
+<td align="right">1200</td>
+<td align="left">robust</td>
+<td align="right">0.0404</td>
+<td align="right">0.0504</td>
+<td align="right">1.56</td>
+<td align="left">+24.8 (3.3)</td>
+<td align="right">0.987</td>
+<td align="right">0.004</td>
+<td align="right">1000</td>
+</tr>
+<tr class="even">
+<td align="left">milder</td>
+<td align="right">4800</td>
+<td align="left">ipwvcov</td>
 <td align="right">0.0203</td>
-<td align="right">0.0188</td>
-<td align="right">0.0192</td>
+<td align="right">0.0193</td>
+<td align="right">0.90</td>
+<td align="left">-5.1 (3.5)</td>
 <td align="right">0.946</td>
+<td align="right">0.010</td>
+<td align="right">500</td>
+</tr>
+<tr class="odd">
+<td align="left">milder</td>
+<td align="right">4800</td>
+<td align="left">bootstrap</td>
+<td align="right">0.0203</td>
+<td align="right">0.0202</td>
+<td align="right">0.98</td>
+<td align="left">-0.9 (7.1)</td>
 <td align="right">0.930</td>
+<td align="right">0.026</td>
+<td align="right">100</td>
+</tr>
+<tr class="even">
+<td align="left">milder</td>
+<td align="right">4800</td>
+<td align="left">robust</td>
+<td align="right">0.0203</td>
+<td align="right">0.0253</td>
+<td align="right">1.55</td>
+<td align="left">+24.4 (4.3)</td>
 <td align="right">0.996</td>
+<td align="right">0.003</td>
+<td align="right">500</td>
 </tr>
 </tbody>
 </table>
@@ -861,7 +1154,7 @@ bootstrapped (B = 200).</p>
 three tail fractions, with the largest weight and the effective sample
 size fraction in that sample (“moderate” is the moderate scenario
 above):</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="va">tm_tail</span><span class="op">$</span><span class="va">hill_big</span>, digits <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></code></pre></div>
 <table class="table">
 <thead><tr class="header">
@@ -906,16 +1199,23 @@ above):</p>
 <p>The tail index is above 2 in every scenario, so the weights have a
 finite variance and the intervals are valid in the limit. It is,
 however, about 2.3 in the strong scenario and 2.8 in the milder one,
-compared with 3.9 in the moderate scenario. Coverage of
-<code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> intervals follows the tail index: about 95%
-(moderate), about 94% (milder) and 92 to 93% (strong). In the strong
-scenario coverage does not improve from 300 to 4800 people, while the
-largest weight roughly doubles with every fourfold increase in
-<em>n</em> and the effective sample size fraction keeps falling. The
-cluster bootstrap gives about the same standard errors as
-<code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> and does no better (its coverage rests on 100 to
-200 data sets, so it is uncertain by about 2 to 3 percentage
-points).</p>
+compared with 3.9 in the moderate scenario. The variance from
+<code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> is too small in both heavy-tailed scenarios, and
+by about the same amount at every sample size: its ratio to the
+empirical variance is 0.84 to 0.93 in the strong scenario and 0.89 to
+0.90 in the milder one (relative error in model SE -8 to -3% and -5%,
+with MCSEs of 2 to 4 points), against 1.05 in the moderate scenario.
+Coverage follows the tail index: about 96% (moderate), 93.4 to 94.6%
+(milder) and 91.6 to 93.2% (strong). Neither the variance ratio nor the
+coverage improves from 300 to 4800 people, while the largest weight
+roughly doubles with every fourfold increase in <em>n</em> and the
+effective sample size fraction keeps falling. The cluster bootstrap does
+no better: its variance ratio ranges from 0.81 to 1.00, but it rests on
+100 to 200 data sets, so the MCSE of its relative error in model SE is 2
+to 12 points and that of its coverage 1.5 to 3.0 percentage points; it
+cannot be told apart from <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code>. The robust variance is
+1.30 to 1.65 times the empirical variance, so its intervals over-cover
+(97.0 to 99.6%).</p>
 <p>Heavy-tailed weights therefore make normal-theory intervals
 unreliable for any method, the bootstrap included. The variance formula
 is not the cause: it matches the numerical Jacobian of the estimating
@@ -974,6 +1274,9 @@ with multiple treatments. <em>Annals of Applied Statistics</em> 13,
 <li>Lunceford JK, Davidian M (2004). Stratification and weighting via
 the propensity score in estimation of causal treatment effects: a
 comparative study. <em>Statistics in Medicine</em> 23, 2937–2960.</li>
+<li>Morris TP, White IR, Crowther MJ (2019). Using simulation studies to
+evaluate statistical methods. <em>Statistics in Medicine</em> 38,
+2074–2102.</li>
 <li>Zhou T, Tong G, Li F, Thomas L, Li F. PSweight: Propensity Score
 Weighting for Causal Inference with Observational Studies and Randomized
 Trials. R package, <a href="https://CRAN.R-project.org/package=PSweight" class="external-link uri">https://CRAN.R-project.org/package=PSweight</a>.</li>

@@ -207,28 +207,47 @@ administrative censoring) of 95% Wald intervals for the marginal log
 hazard ratio. The truth is the marginal log hazard ratio in the target
 population, computed from both potential outcomes of a very large
 sample. The bootstrap (200 samples, weights re-estimated in each) was
-run on a subset of the data sets.
+run on 300 of the 1000 data sets. Standard errors are judged on the
+variance scale (Morris, White & Crowther 2019): the variance ratio is
+the mean estimated variance, mean(SE²), divided by the empirical
+variance of the estimates (1 is ideal), and the model SE,
+sqrt(mean(SE²)), is compared with the empirical SE.
 
 ``` r
 
-knitr::kable(cox_sim$summary, digits = 3, row.names = FALSE)
+sim_table(cox_sim$summary, c(Estimand = "estimand", Truth = "truth"))
 ```
 
-| estimand | truth | mean.estimate | empirical.sd | mean.se.ipwvcov | mean.se.robust | mean.se.bootstrap | coverage.ipwvcov | coverage.robust | coverage.bootstrap | replications | bootstrap.replications |
-|:---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| ATE | -0.450 | -0.447 | 0.128 | 0.128 | 0.14 | 0.128 | 0.956 | 0.969 | 0.95 | 1000 | 300 |
-| ATO | -0.461 | -0.460 | 0.133 | 0.132 | 0.14 | 0.133 | 0.956 | 0.961 | 0.95 | 1000 | 300 |
+| estimand | truth | Method | Empirical SE | Model SE | Variance ratio | Relative error in model SE, % (MCSE) | Coverage | MCSE of coverage | Data sets |
+|:---|---:|:---|---:|---:|---:|:---|---:|---:|---:|
+| ATE | -0.4502 | ipwvcov | 0.1281 | 0.1280 | 1.00 | -0.1 (2.2) | 0.956 | 0.006 | 1000 |
+| ATE | -0.4502 | robust | 0.1281 | 0.1404 | 1.20 | +9.6 (2.5) | 0.969 | 0.005 | 1000 |
+| ATE | -0.4502 | bootstrap | 0.1281 | 0.1283 | 1.00 | +0.2 (2.3) | 0.950 | 0.013 | 300 |
+| ATO | -0.4614 | ipwvcov | 0.1327 | 0.1325 | 1.00 | -0.2 (2.2) | 0.956 | 0.006 | 1000 |
+| ATO | -0.4614 | robust | 0.1327 | 0.1402 | 1.12 | +5.6 (2.4) | 0.961 | 0.006 | 1000 |
+| ATO | -0.4614 | bootstrap | 0.1327 | 0.1334 | 1.01 | +0.5 (2.3) | 0.950 | 0.013 | 300 |
 
-The mean
-[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
-standard error is within 1% of the empirical standard deviation of the
-estimates for both estimands, and so is the bootstrap’s. The robust
-standard error, which treats the weights as known, is about 10% (ATE)
-and 6% (ATO) too large here, so its intervals cover more often than 95%:
-conservative, but wider than needed. The coverages of
+The empirical variance of the estimates is what a variance estimator
+should estimate, but with 1000 data sets it is itself uncertain by about
+4.5% (relative Monte Carlo standard error sqrt(2 / (*R* − 1))). The
+variance ratio of
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) is
+1.00 (ATE) and 1.00 (ATO), and that of the bootstrap 1.00 and 1.01; the
+relative errors in the model SE are all under 1% with Monte Carlo
+standard errors above 2%: no detectable difference. The robust variance,
+which treats the weights as known, is too large here: variance ratio
+1.20 (ATE) and 1.12 (ATO), model SE +10% (MCSE 2) and +6% (MCSE 2). Its
+intervals therefore cover more often than 95%: conservative, but wider
+than needed. The coverages of
 [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
 (1000 data sets) and of the bootstrap (300 data sets) are both within
-simulation error of 95%.
+simulation error of 95% (the Monte Carlo standard error of a coverage
+near 95% is about 0.7 percentage points with 1000 data sets and 1.3 with
+300). Coverage does not depend on the empirical variance: it counts how
+often the interval contains the known true value. The [methods
+article](https://tranhung93.github.io/ipw/articles/methods.html#how-the-simulations-judge-a-standard-error)
+explains these checks in more detail, including why variances rather
+than standard errors are compared.
 
 [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
 covers binary exposures with logistic exposure models: point treatments
@@ -559,25 +578,33 @@ on a subset of the data sets.
 
 ``` r
 
-knitr::kable(tm_sim$summary, digits = 3, row.names = FALSE)
+sim_table(tm_sim$summary, c(Scenario = "scenario", `Median largest weight` = "median.max.weight"))
 ```
 
-| scenario | median.max.weight | mean.estimate | empirical.sd | mean.se.ipwvcov | mean.se.robust | mean.se.bootstrap | coverage.ipwvcov | coverage.robust | coverage.bootstrap | replications | bootstrap.replications |
-|:---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| moderate | 4.152 | 1.001 | 0.057 | 0.059 | 0.082 | 0.058 | 0.958 | 0.990 | 0.965 | 1000 | 200 |
-| strong | 12.013 | 1.006 | 0.101 | 0.084 | 0.109 | 0.084 | 0.930 | 0.973 | 0.945 | 1000 | 200 |
+| scenario | median.max.weight | Method | Empirical SE | Model SE | Variance ratio | Relative error in model SE, % (MCSE) | Coverage | MCSE of coverage | Data sets |
+|:---|---:|:---|---:|---:|---:|:---|---:|---:|---:|
+| moderate | 4.152 | ipwvcov | 0.0574 | 0.0589 | 1.05 | +2.6 (2.3) | 0.958 | 0.006 | 1000 |
+| moderate | 4.152 | robust | 0.0574 | 0.0826 | 2.07 | +43.8 (3.3) | 0.990 | 0.003 | 1000 |
+| moderate | 4.152 | bootstrap | 0.0574 | 0.0586 | 1.04 | +2.0 (2.5) | 0.965 | 0.013 | 200 |
+| strong | 12.013 | ipwvcov | 0.1012 | 0.0891 | 0.78 | -11.9 (2.6) | 0.930 | 0.008 | 1000 |
+| strong | 12.013 | robust | 0.1012 | 0.1155 | 1.30 | +14.1 (3.2) | 0.973 | 0.005 | 1000 |
+| strong | 12.013 | bootstrap | 0.1012 | 0.0932 | 0.85 | -7.9 (7.4) | 0.945 | 0.016 | 200 |
 
 With moderate weights,
 [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) and
 the cluster bootstrap agree with each other and with the empirical
-standard deviation of the estimates, and their intervals cover about
-95%. The robust standard error, which treats the weights as known, is
-about 40% too large here, so its intervals are much wider than needed.
-With strongly dependent treatment,
+variance of the estimates (variance ratio 1.05 and 1.04; model SE +3%
+(MCSE 2) and +2% (MCSE 2)), and their intervals cover about 95%. The
+robust variance, which treats the weights as known, is 2.07 times the
+empirical variance here (model SE +44% (MCSE 3)), so its intervals are
+much wider than needed. With strongly dependent treatment,
 [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) and
-the bootstrap give almost the same standard error, but both are about
-17% smaller than the empirical standard deviation, and coverage drops to
-about 93% (the bootstrap’s 94.5% is based on 200 data sets). The robust
+the bootstrap give similar standard errors, but they are too small: the
+variance ratio of
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) is
+0.78 (model SE -12% (MCSE 3)), and coverage drops to 93.0%. The
+bootstrap’s variance ratio, 0.85 (model SE -8% (MCSE 7)), and coverage,
+94.5%, rest on 200 data sets and are much less precise. The robust
 standard error is conservative in both scenarios here, but that is not
 guaranteed; the package’s simulation study found settings where it was
 too small as well.
@@ -601,27 +628,53 @@ distribution refers to the final cumulative weight of each person: the
 largest weight and the 99.9th percentile (medians over data sets), the
 Kish effective sample size as a fraction of *n* (mean), and the Hill
 estimate of the tail index from the top 5% (median). There were 1000,
-1000 and 500 data sets per size, of which 200, 200 and 100 were
-bootstrapped (B = 200).
+1000 and 500 data sets for *n* = 300, 1200 and 4800, of which 200, 200
+and 100 were bootstrapped (B = 200).
 
 ``` r
 
-tail_tab <- tm_tail$summary[, c("scenario", "n", "max.weight", "q999.weight",
-                                "ess.fraction", "hill.tail.index",
-                                "empirical.sd", "mean.se.ipwvcov",
-                                "mean.se.bootstrap", "coverage.ipwvcov",
-                                "coverage.bootstrap", "coverage.robust")]
-knitr::kable(tail_tab, digits = c(0, 0, 1, 1, 2, 2, 4, 4, 4, 3, 3, 3), row.names = FALSE)
+knitr::kable(setNames(tm_tail$weights,
+                      c("Scenario", "n", "Largest weight", "99.9th percentile",
+                        "ESS fraction", "Hill tail index")),
+             digits = c(0, 0, 1, 1, 2, 2), row.names = FALSE)
 ```
 
-| scenario | n | max.weight | q999.weight | ess.fraction | hill.tail.index | empirical.sd | mean.se.ipwvcov | mean.se.bootstrap | coverage.ipwvcov | coverage.bootstrap | coverage.robust |
-|:---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| strong | 300 | 9.2 | 8.5 | 0.48 | 2.34 | 0.0973 | 0.0829 | 0.0851 | 0.916 | 0.950 | 0.970 |
-| strong | 1200 | 17.2 | 11.5 | 0.44 | 2.29 | 0.0499 | 0.0453 | 0.0440 | 0.932 | 0.945 | 0.975 |
-| strong | 4800 | 33.1 | 13.2 | 0.39 | 2.26 | 0.0290 | 0.0257 | 0.0264 | 0.918 | 0.900 | 0.980 |
-| milder | 300 | 6.6 | 6.2 | 0.63 | 2.87 | 0.0747 | 0.0691 | 0.0688 | 0.939 | 0.935 | 0.983 |
-| milder | 1200 | 10.7 | 7.6 | 0.61 | 2.83 | 0.0404 | 0.0367 | 0.0358 | 0.934 | 0.945 | 0.987 |
-| milder | 4800 | 18.0 | 8.5 | 0.60 | 2.81 | 0.0203 | 0.0188 | 0.0192 | 0.946 | 0.930 | 0.996 |
+| Scenario |    n | Largest weight | 99.9th percentile | ESS fraction | Hill tail index |
+|:---------|-----:|---------------:|------------------:|-------------:|----------------:|
+| strong   |  300 |            9.2 |               8.5 |         0.48 |            2.34 |
+| strong   | 1200 |           17.2 |              11.5 |         0.44 |            2.29 |
+| strong   | 4800 |           33.1 |              13.2 |         0.39 |            2.26 |
+| milder   |  300 |            6.6 |               6.2 |         0.63 |            2.87 |
+| milder   | 1200 |           10.7 |               7.6 |         0.61 |            2.83 |
+| milder   | 4800 |           18.0 |               8.5 |         0.60 |            2.81 |
+
+The standard errors, judged as above:
+
+``` r
+
+sim_table(tm_tail$summary, c(Scenario = "scenario", n = "n"))
+```
+
+| scenario | n | Method | Empirical SE | Model SE | Variance ratio | Relative error in model SE, % (MCSE) | Coverage | MCSE of coverage | Data sets |
+|:---|---:|:---|---:|---:|---:|:---|---:|---:|---:|
+| strong | 300 | ipwvcov | 0.0973 | 0.0891 | 0.84 | -8.4 (3.2) | 0.916 | 0.009 | 1000 |
+| strong | 300 | bootstrap | 0.0973 | 0.0973 | 1.00 | -0.0 (11.9) | 0.950 | 0.015 | 200 |
+| strong | 300 | robust | 0.0973 | 0.1150 | 1.40 | +18.2 (3.9) | 0.970 | 0.005 | 1000 |
+| strong | 1200 | ipwvcov | 0.0499 | 0.0482 | 0.93 | -3.5 (2.9) | 0.932 | 0.008 | 1000 |
+| strong | 1200 | bootstrap | 0.0499 | 0.0462 | 0.86 | -7.4 (4.5) | 0.945 | 0.016 | 200 |
+| strong | 1200 | robust | 0.0499 | 0.0603 | 1.46 | +20.8 (3.3) | 0.975 | 0.005 | 1000 |
+| strong | 4800 | ipwvcov | 0.0290 | 0.0275 | 0.89 | -5.4 (3.8) | 0.918 | 0.012 | 500 |
+| strong | 4800 | bootstrap | 0.0290 | 0.0289 | 0.99 | -0.6 (7.3) | 0.900 | 0.030 | 100 |
+| strong | 4800 | robust | 0.0290 | 0.0332 | 1.30 | +14.2 (4.2) | 0.980 | 0.006 | 500 |
+| milder | 300 | ipwvcov | 0.0747 | 0.0707 | 0.90 | -5.4 (2.3) | 0.939 | 0.008 | 1000 |
+| milder | 300 | bootstrap | 0.0747 | 0.0698 | 0.87 | -6.6 (2.5) | 0.935 | 0.017 | 200 |
+| milder | 300 | robust | 0.0747 | 0.0961 | 1.65 | +28.6 (3.1) | 0.983 | 0.004 | 1000 |
+| milder | 1200 | ipwvcov | 0.0404 | 0.0382 | 0.89 | -5.4 (2.8) | 0.934 | 0.008 | 1000 |
+| milder | 1200 | bootstrap | 0.0404 | 0.0363 | 0.81 | -10.1 (2.5) | 0.945 | 0.016 | 200 |
+| milder | 1200 | robust | 0.0404 | 0.0504 | 1.56 | +24.8 (3.3) | 0.987 | 0.004 | 1000 |
+| milder | 4800 | ipwvcov | 0.0203 | 0.0193 | 0.90 | -5.1 (3.5) | 0.946 | 0.010 | 500 |
+| milder | 4800 | bootstrap | 0.0203 | 0.0202 | 0.98 | -0.9 (7.1) | 0.930 | 0.026 | 100 |
+| milder | 4800 | robust | 0.0203 | 0.0253 | 1.55 | +24.4 (4.3) | 0.996 | 0.003 | 500 |
 
 The Hill estimate from one sample of 200,000 people per scenario, at
 three tail fractions, with the largest weight and the effective sample
@@ -644,17 +697,24 @@ knitr::kable(tm_tail$hill_big, digits = 2)
 The tail index is above 2 in every scenario, so the weights have a
 finite variance and the intervals are valid in the limit. It is,
 however, about 2.3 in the strong scenario and 2.8 in the milder one,
-compared with 3.9 in the moderate scenario. Coverage of
-[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
-intervals follows the tail index: about 95% (moderate), about 94%
-(milder) and 92 to 93% (strong). In the strong scenario coverage does
-not improve from 300 to 4800 people, while the largest weight roughly
-doubles with every fourfold increase in *n* and the effective sample
-size fraction keeps falling. The cluster bootstrap gives about the same
-standard errors as
-[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) and
-does no better (its coverage rests on 100 to 200 data sets, so it is
-uncertain by about 2 to 3 percentage points).
+compared with 3.9 in the moderate scenario. The variance from
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) is
+too small in both heavy-tailed scenarios, and by about the same amount
+at every sample size: its ratio to the empirical variance is 0.84 to
+0.93 in the strong scenario and 0.89 to 0.90 in the milder one (relative
+error in model SE -8 to -3% and -5%, with MCSEs of 2 to 4 points),
+against 1.05 in the moderate scenario. Coverage follows the tail index:
+about 96% (moderate), 93.4 to 94.6% (milder) and 91.6 to 93.2% (strong).
+Neither the variance ratio nor the coverage improves from 300 to 4800
+people, while the largest weight roughly doubles with every fourfold
+increase in *n* and the effective sample size fraction keeps falling.
+The cluster bootstrap does no better: its variance ratio ranges from
+0.81 to 1.00, but it rests on 100 to 200 data sets, so the MCSE of its
+relative error in model SE is 2 to 12 points and that of its coverage
+1.5 to 3.0 percentage points; it cannot be told apart from
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md).
+The robust variance is 1.30 to 1.65 times the empirical variance, so its
+intervals over-cover (97.0 to 99.6%).
 
 Heavy-tailed weights therefore make normal-theory intervals unreliable
 for any method, the bootstrap included. The variance formula is not the
@@ -708,6 +768,8 @@ has a comparison table.
 - Lunceford JK, Davidian M (2004). Stratification and weighting via the
   propensity score in estimation of causal treatment effects: a
   comparative study. *Statistics in Medicine* 23, 2937–2960.
+- Morris TP, White IR, Crowther MJ (2019). Using simulation studies to
+  evaluate statistical methods. *Statistics in Medicine* 38, 2074–2102.
 - Zhou T, Tong G, Li F, Thomas L, Li F. PSweight: Propensity Score
   Weighting for Causal Inference with Observational Studies and
   Randomized Trials. R package,

@@ -20,11 +20,12 @@ Geskus 2011).
   log-normal and gamma doses and for counts, and for smooth terms and
   ordinal exposures the bias shrinks as the sample grows.
 - **A bootstrap that re-estimates the weights gives accurate standard
-  errors when the weights are well behaved**, where robust standard
-  errors are 10 to 12% too large. It does **not** fix analyses with
-  extreme weights: with poor overlap or long products of time-varying
-  weights, no standard error reaches 95% coverage, and the bootstrap is
-  then not better than the robust standard error.
+  errors when the weights are well behaved**, where the variance from
+  robust standard errors is 1.22 to 1.25 times the true variance
+  (model-based SE 10 to 12% too large). It does **not** fix analyses
+  with extreme weights: with poor overlap or long products of
+  time-varying weights, no standard error reaches 95% coverage, and the
+  bootstrap is then not better than the robust standard error.
 
 **How the results were produced.** The study is in
 [`dev/simulation-study.R`](https://github.com/TranHung93/ipw/blob/main/dev/simulation-study.R);
@@ -358,10 +359,23 @@ causal effect.
 
 ## 7. Standard errors: bootstrap, robust and naive
 
-Each table shows the mean estimated standard error divided by the actual
-spread of the estimates (1 is ideal) and the coverage of 95% confidence
-intervals. The bootstrap re-estimates the weights and the MSM in each of
-200 bootstrap samples (function `boot_sim()` in the script).
+Standard errors are judged on the variance scale (Morris, White &
+Crowther 2019): the *variance ratio* is the mean estimated variance,
+mean(SE²), divided by the empirical variance of the estimates (1 is
+ideal). The *model SE*, sqrt(mean(SE²)), is shown next to the *empirical
+SE*, the standard deviation of the estimates, with the relative error in
+the model SE, 100 × (model SE / empirical SE − 1), and its Monte Carlo
+standard error (Morris et al., Table 6). Variances are compared rather
+than standard errors because a correct variance estimator is unbiased
+for the variance, while its square root underestimates the standard
+error on average (see “How the simulations judge a standard error” in
+the [methods
+article](https://tranhung93.github.io/ipw/articles/methods.html#how-the-simulations-judge-a-standard-error)).
+The tables also give the coverage of 95% confidence intervals. The
+bootstrap re-estimates the weights and the MSM in each of 200 bootstrap
+samples (function `boot_sim()` in the script). The estimates and
+standard errors of every data set are saved in
+`simulation-se-replicates.rds`.
 
 ### 7a and 7b. Linear MSM for a binary exposure
 
@@ -382,24 +396,26 @@ sd(boot.est)                          # bootstrap standard error
 quantile(boot.est, c(0.025, 0.975))   # percentile interval
 ```
 
-| Method | Mean estimate | Mean SE | Empirical SD | SE / empirical SD | Coverage of 95% CI | MCSE of coverage | Replications |
-|:---|---:|---:|---:|---:|---:|---:|---:|
-| bootstrap, percentile CI | 10.031 | 0.492 | 0.481 | 1.023 | 0.945 | 0.007 | 1000 |
-| bootstrap SE, Wald CI | 10.031 | 0.492 | 0.481 | 1.023 | 0.955 | 0.007 | 1000 |
-| robust SE (svyglm), Wald CI | 10.031 | 0.537 | 0.481 | 1.115 | 0.972 | 0.005 | 1000 |
+| Method | Mean estimate | Empirical SE | Model SE | Variance ratio | Relative error in model SE, % (MCSE) | Coverage of 95% CI | MCSE of coverage | Replications |
+|:---|---:|---:|---:|---:|---:|---:|---:|---:|
+| bootstrap, percentile CI | 10.031 | 0.481 | 0.494 | 1.05 | +2.7 (2.3) | 0.945 | 0.007 | 1000 |
+| bootstrap SE, Wald CI | 10.031 | 0.481 | 0.494 | 1.05 | +2.7 (2.3) | 0.955 | 0.007 | 1000 |
+| robust SE (svyglm), Wald CI | 10.031 | 0.481 | 0.538 | 1.25 | +11.9 (2.5) | 0.972 | 0.005 | 1000 |
 
-| Method | Mean estimate | Mean SE | Empirical SD | SE / empirical SD | Coverage of 95% CI | MCSE of coverage | Replications |
-|:---|---:|---:|---:|---:|---:|---:|---:|
-| bootstrap, percentile CI | 11.055 | 1.135 | 1.848 | 0.614 | 0.575 | 0.016 | 1000 |
-| bootstrap SE, Wald CI | 11.055 | 1.135 | 1.848 | 0.614 | 0.596 | 0.016 | 1000 |
-| robust SE (svyglm), Wald CI | 11.055 | 1.144 | 1.848 | 0.619 | 0.600 | 0.015 | 1000 |
+| Method | Mean estimate | Empirical SE | Model SE | Variance ratio | Relative error in model SE, % (MCSE) | Coverage of 95% CI | MCSE of coverage | Replications |
+|:---|---:|---:|---:|---:|---:|---:|---:|---:|
+| bootstrap, percentile CI | 11.055 | 1.848 | 1.317 | 0.51 | -28.8 (2.4) | 0.575 | 0.016 | 1000 |
+| bootstrap SE, Wald CI | 11.055 | 1.848 | 1.317 | 0.51 | -28.8 (2.4) | 0.596 | 0.016 | 1000 |
+| robust SE (svyglm), Wald CI | 11.055 | 1.848 | 1.276 | 0.48 | -30.9 (2.0) | 0.600 | 0.015 | 1000 |
 
-With good overlap the bootstrap standard error is accurate (ratio 1.02,
-Wald coverage 95.5%), while the robust standard error is 12% too large
-(coverage 97.2%), in line with Austin (2016); percentile intervals cover
-slightly less than 95%. In the JSS example the estimate itself is biased
-(11.1 instead of 10) and all standard errors are 38% too small, so
-coverage is 60% or less whatever method is used.
+With good overlap the bootstrap standard error is accurate (variance
+ratio 1.05, relative error in the model SE +3% (MCSE 2), Wald coverage
+95.5%), while the robust variance is too large (variance ratio 1.25,
+model SE +12% (MCSE 3), coverage 97.2%), in line with Austin (2016);
+percentile intervals cover slightly less than 95%. In the JSS example
+the estimate itself is biased (11.1 instead of 10) and all standard
+errors are much too small (variance ratio 0.48 to 0.51, model SE -31 to
+-29%), so coverage is 60% or less whatever method is used.
 
 ### 7c. Weighted Cox MSM
 
@@ -409,16 +425,17 @@ exponential with hazard 0.1 exp(-0.7 a + 0.8 l), censored at 5; n =
 potential outcomes of 200,000 people (it differs from -0.7 because
 hazard ratios are not collapsible).
 
-| Method | Mean estimate | Mean SE | Empirical SD | SE / empirical SD | Coverage of 95% CI | MCSE of coverage | Replications |
-|:---|---:|---:|---:|---:|---:|---:|---:|
-| naive SE (coxph), Wald CI | -0.617 | 0.117 | 0.11 | 1.065 | 0.958 | 0.009 | 500 |
-| robust SE (coxph), Wald CI | -0.617 | 0.121 | 0.11 | 1.104 | 0.968 | 0.008 | 500 |
-| bootstrap SE, Wald CI | -0.617 | 0.110 | 0.11 | 0.998 | 0.940 | 0.011 | 500 |
-| bootstrap, percentile CI | -0.617 | 0.110 | 0.11 | 0.998 | 0.928 | 0.012 | 500 |
+| Method | Mean estimate | Empirical SE | Model SE | Variance ratio | Relative error in model SE, % (MCSE) | Coverage of 95% CI | MCSE of coverage | Replications |
+|:---|---:|---:|---:|---:|---:|---:|---:|---:|
+| naive SE (coxph), Wald CI | -0.617 | 0.11 | 0.117 | 1.14 | +6.5 (3.4) | 0.958 | 0.009 | 500 |
+| robust SE (coxph), Wald CI | -0.617 | 0.11 | 0.121 | 1.22 | +10.5 (3.5) | 0.968 | 0.008 | 500 |
+| bootstrap SE, Wald CI | -0.617 | 0.11 | 0.110 | 1.00 | +0.0 (3.2) | 0.940 | 0.011 | 500 |
+| bootstrap, percentile CI | -0.617 | 0.11 | 0.110 | 1.00 | +0.0 (3.2) | 0.928 | 0.012 | 500 |
 
 All three standard errors are close to the truth here. The bootstrap
-standard error is accurate (ratio 1.00); the robust one is again too
-large (+10%) and the naive one somewhat too large (+7%), as Austin
+standard error is accurate (variance ratio 1.00); the robust variance is
+again too large (variance ratio 1.22, model SE +10% (MCSE 4)) and the
+naive one somewhat too large (1.14, model SE +7% (MCSE 3)), as Austin
 (2016) found. All Wald intervals cover the truth in 94 to 97% of
 samples, so with stabilized weights and good overlap the choice matters
 little in this setting.
@@ -433,19 +450,20 @@ people with all their visits, and each sampled copy gets a new id.
 boot_sim(long, tv.effect, id = "id", R = 200)
 ```
 
-| Method | Mean estimate | Mean SE | Empirical SD | SE / empirical SD | Coverage of 95% CI | MCSE of coverage | Replications |
-|:---|---:|---:|---:|---:|---:|---:|---:|
-| bootstrap by person, percentile CI | 1.047 | 0.139 | 0.226 | 0.616 | 0.722 | 0.020 | 500 |
-| bootstrap by person SE, Wald CI | 1.047 | 0.139 | 0.226 | 0.616 | 0.744 | 0.020 | 500 |
-| robust SE (svyglm), Wald CI | 1.047 | 0.158 | 0.226 | 0.698 | 0.798 | 0.018 | 500 |
+| Method | Mean estimate | Empirical SE | Model SE | Variance ratio | Relative error in model SE, % (MCSE) | Coverage of 95% CI | MCSE of coverage | Replications |
+|:---|---:|---:|---:|---:|---:|---:|---:|---:|
+| bootstrap by person, percentile CI | 1.047 | 0.226 | 0.158 | 0.49 | -29.9 (3.3) | 0.722 | 0.020 | 500 |
+| bootstrap by person SE, Wald CI | 1.047 | 0.226 | 0.158 | 0.49 | -29.9 (3.3) | 0.744 | 0.020 | 500 |
+| robust SE (svyglm), Wald CI | 1.047 | 0.226 | 0.175 | 0.60 | -22.4 (3.3) | 0.798 | 0.018 | 500 |
 
-Neither method is adequate here: the bootstrap standard error is 38% too
-small and the robust one 30% too small, with coverage of 74% and 80%.
-The weights are products over 4 visits, so a few people get very large
-weights and the estimate has a heavy-tailed distribution that 500 people
-do not represent well, the same problem as in 7b. Truncation, a larger
-sample or a better-balanced design would be needed; the bootstrap does
-not repair it.
+Neither method is adequate here: the variance ratio is 0.49 for the
+bootstrap and 0.60 for the robust standard error (model SE -30% (MCSE 3)
+and -22% (MCSE 3)), with coverage of 74% and 80%. The weights are
+products over 4 visits, so a few people get very large weights and the
+estimate has a heavy-tailed distribution that 500 people do not
+represent well, the same problem as in 7b. Truncation, a larger sample
+or a better-balanced design would be needed; the bootstrap does not
+repair it.
 
 ## Conclusions
 
@@ -476,5 +494,7 @@ and consider overlap weights, truncation or a different model.
 - Li F, Morgan KL, Zaslavsky AM (2018). Balancing covariates via
   propensity score weighting. *Journal of the American Statistical
   Association* 113, 390-400.
+- Morris TP, White IR, Crowther MJ (2019). Using simulation studies to
+  evaluate statistical methods. *Statistics in Medicine* 38, 2074-2102.
 - van der Wal WM, Geskus RB (2011). ipw: An R package for inverse
   probability weighting. *Journal of Statistical Software* 43(13), 1-23.

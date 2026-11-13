@@ -644,16 +644,44 @@ extreme weights. Check the weights and consider <code>trunc</code>.</p>
 <h3 id="new-ipwvcov-for-a-binary-point-treatment-and-for-time-varying-weights">New: <code>ipwvcov()</code> for a binary point treatment and for
 time-varying weights<a class="anchor" aria-label="anchor" href="#new-ipwvcov-for-a-binary-point-treatment-and-for-time-varying-weights"></a>
 </h3>
-<p>For a binary point treatment and a marginal structural model fitted
-with <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code>, <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> or <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code>,
-<code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> returns the variance-covariance matrix of the MSM
-coefficients with the estimation of the weights taken into account. The
-MSM and the exposure model(s) are solved together as one set of
-estimating equations (M-estimation, Lunceford &amp; Davidian 2004), and
-the sandwich variance of all parameters is computed. It works for every
-estimand (ATE, ATT, ATC, ATO), stabilized or not, and is the recommended
-option in this setting. It is new and still experimental. Fit the MSM on
-the same rows as <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code>, with
+<p><strong>What a variance-covariance matrix is.</strong> The
+variance-covariance matrix (vcov) <code>V</code> of a model describes
+the uncertainty of its coefficients. Its diagonal holds the variances of
+the coefficients, and <code>sqrt(diag(V))</code> gives their standard
+errors. The off-diagonal entries are covariances. You need them for
+combinations of coefficients, such as <code>a + a:sex</code>, the effect
+of <code>a</code> when <code>sex = 1</code> in a model with an
+interaction. Standard errors, confidence intervals and p-values all come
+from this matrix. <code>vcov(fit)</code> is R’s standard function for
+it, and tools such as <code>lmtest::coeftest(fit, vcov. = V)</code>,
+<code><a href="https://rdrr.io/pkg/lmtest/man/coeftest.html" class="external-link">lmtest::coefci()</a></code> and the marginaleffects package accept a
+vcov that you supply. <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> returns the vcov of the MSM
+coefficients, corrected for the estimation of the weights.</p>
+<p><strong>When you need it.</strong> Use it when you want standard
+errors and confidence intervals for an MSM that account for the weights
+being estimated. There are two alternatives. Robust standard errors
+treat the weights as known: for the ATE they are usually too large, and
+for the ATT, ATC and ATO they can be off in either direction. The
+bootstrap with the weights re-estimated in each sample is correct but
+slow. <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> does not cover Cox exposure models
+(<code>family = "survival"</code>), links other than logit, truncated
+weights, smooth terms (mgcv), exposures that are not binary
+(categorical, ordinal, continuous, counts), or Cox MSMs with
+<code><a href="https://rdrr.io/pkg/survival/man/strata.html" class="external-link">strata()</a></code>. For these, use the bootstrap (next subsection).
+With heavy-tailed weights, where a few people carry much of the weight,
+neither <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> nor the bootstrap can be trusted. Check
+<code><a href="../reference/ipwplot.html">ipwplot()</a></code> and the effective sample size (section 6) first
+(see “Heavy-tailed weights” in the <a href="https://tranhung93.github.io/ipw/articles/methods.html">methods
+article</a>).</p>
+<p><code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> handles a binary point treatment with an MSM
+fitted with <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code>, <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> or
+<code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code>, and time-varying weights (below). The MSM and the
+exposure model(s) are solved together as one set of estimating equations
+(M-estimation, Lunceford &amp; Davidian 2004), and the sandwich variance
+of all parameters is computed. It works for every estimand (ATE, ATT,
+ATC, ATO), stabilized or not, and is the recommended option in this
+setting. It is new and still experimental. Fit the MSM on the same rows
+as <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code>, with
 <code>weights = w$ipw.weights</code>:</p>
 <div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">msm.lm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">a</span>, data <span class="op">=</span> <span class="va">simdat</span>, weights <span class="op">=</span> <span class="va">w</span><span class="op">$</span><span class="va">ipw.weights</span><span class="op">)</span></span>
@@ -661,13 +689,16 @@ the same rows as <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code
 <span><span class="va">se.mest</span></span>
 <span><span class="co">#&gt; (Intercept)           a </span></span>
 <span><span class="co">#&gt;    1.052322    1.086986</span></span></code></pre></div>
-<p><code>lmtest::coeftest(msm.lm, vcov. = ipwvcov(w, msm.lm))</code>
-gives Wald tests and <code><a href="https://rdrr.io/pkg/lmtest/man/coeftest.html" class="external-link">lmtest::coefci()</a></code> confidence
-intervals.</p>
+<p>For this model,
+<code>lmtest::coeftest(msm.lm, vcov. = ipwvcov(w, msm.lm))</code> gives
+the Wald tests.</p>
 <p>For a survival outcome, the MSM can be a weighted Cox model with one
 row per person and <code>Surv(time, status)</code>. Below, a time to
-event is simulated for <code>simdat</code> with a hazard ratio of
-exp(-0.5) for <code>a</code>. The robust standard error of
+event is simulated for <code>simdat</code> with a conditional hazard
+ratio of exp(-0.5) for <code>a</code> given <code>l</code>. The MSM
+estimates the marginal hazard ratio, which for a Cox model is closer to
+1 even without confounding (hazard ratios are not collapsible), so the
+estimate is not expected to equal -0.5. The robust standard error of
 <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code> treats the weights as known; <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code>
 accounts for their estimation:</p>
 <div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
@@ -681,6 +712,27 @@ accounts for their estimation:</p>
 <span>  ipwvcov.se <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="../reference/ipwvcov.html">ipwvcov</a></span><span class="op">(</span><span class="va">w</span>, <span class="va">msm.cox</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     log.hr  robust.se ipwvcov.se </span></span>
 <span><span class="co">#&gt; -0.3949927  0.1635881  0.1499562</span></span></code></pre></div>
+<p>The <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> standard error (0.150) is 8% smaller than
+the robust one (0.164). For the ATE, theory predicts a smaller standard
+error: estimating the weights from the data reduces the variance of the
+effect estimate, and the robust standard error ignores that gain. The
+95% confidence intervals for the log hazard ratio (estimate ± 1.96 × SE)
+are (-0.72, -0.07) with the robust standard error and (-0.69, -0.10)
+with <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code>. Both exclude 0, so the gain is precision,
+not a different conclusion. In other data, a difference of this size
+could decide whether an interval crosses 0. Neither interval is expected
+to contain -0.5, because the MSM targets the marginal hazard ratio, not
+the conditional exp(-0.5).</p>
+<p>One data set cannot show which standard error is right. That needs a
+simulation in which the true effect is known and the study is repeated
+on many data sets. In the Cox simulation of the article <a href="https://tranhung93.github.io/ipw/articles/ipw-and-weightit.html#a-cox-outcome-model">ipw,
+WeightIt and PSweight side by side</a> (1000 data sets of 500 people),
+the variance from <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> matched the true variance of
+the estimates on average (ratio 1.00 for both estimands studied) and its
+95% intervals covered the truth in about 95% of the data sets. The
+robust variance was 1.12 to 1.20 times the true variance (the standard
+error 6 to 10% too large). The <a href="https://tranhung93.github.io/ipw/articles/methods.html#how-the-simulations-judge-a-standard-error">methods
+article</a> explains how a simulation judges a standard error.</p>
 <p>With tied event times, fit the Cox model with
 <code>ties = "breslow"</code>.</p>
 <p><code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> also accepts <strong>time-varying
@@ -709,12 +761,10 @@ for dropout:</p>
 <span><span class="co">#&gt;            log.hr robust.cluster.se        ipwvcov.se </span></span>
 <span><span class="co">#&gt;        -1.0277768         0.4633263         0.4585489</span></span></code></pre></div>
 <p>The robust standard error with <code>cluster(patient)</code> treats
-the weights as known; here the two are close. <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code>
-needs logistic exposure models (<code>link = "logit"</code>), and does
-not handle truncated weights, smooth terms, other exposure families
-(including the Cox exposure models of section 3,
-<code>family = "survival"</code>), or Cox MSMs with
-<code><a href="https://rdrr.io/pkg/survival/man/strata.html" class="external-link">strata()</a></code>; for these, use the bootstrap below.</p>
+the weights as known; here the two are close. For the cases
+<code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> does not cover (listed at the start of this
+subsection), such as the Cox exposure models of section 3, use the
+bootstrap below.</p>
 </div>
 <div class="section level3">
 <h3 id="robust-and-bootstrap-standard-errors">Robust and bootstrap standard errors<a class="anchor" aria-label="anchor" href="#robust-and-bootstrap-standard-errors"></a>
@@ -779,8 +829,9 @@ samples in practice; 20 keep this vignette quick):</p>
 study</a> gives a mixed answer:</p>
 <ul>
 <li>For a point treatment with <strong>good overlap</strong>, the
-bootstrap standard error was accurate, while robust standard errors were
-about 12% too large.</li>
+bootstrap standard error was accurate, while the variance from robust
+standard errors was 1.25 times the true variance (the standard error 12%
+too large).</li>
 <li>For a <strong>weighted Cox model</strong> with good overlap, naive,
 robust and bootstrap standard errors were all close to correct.</li>
 <li>When some <strong>weights are extreme</strong>, through poor overlap

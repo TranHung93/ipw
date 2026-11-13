@@ -162,7 +162,8 @@ About 200 bootstrap samples are usually enough to estimate a standard
 error. Time-varying weights are products over time, so a few subjects
 can get very large weights. In the package's simulation study (500
 subjects, 4 visits), bootstrap and robust standard errors were then both
-too small, with 95% confidence intervals covering the truth in only 72
+too small (mean estimated variance 0.49 and 0.60 times the true
+variance), with 95% confidence intervals covering the truth in only 72
 to 80% of samples. Check the weights with
 [`summary()`](https://rdrr.io/r/base/summary.html) and
 [`ipwplot`](https://tranhung93.github.io/ipw/reference/ipwplot.md),
