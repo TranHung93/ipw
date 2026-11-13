@@ -732,6 +732,85 @@ exposure models in `ipwtm(family = "survival")`), Cox MSMs with strata or
 frailties, and Efron ties with tied event times are not covered, and the
 bootstrap remains the advice there.
 
+## How the simulations judge a standard error
+
+```{r cox-sim-numbers, include = FALSE}
+# Cox simulation of the comparison article, made once with
+# data-raw/make-ipwvcov-cox-simulation.R
+cox_sim <- readRDS("ipwvcov-cox-simulation.rds")
+s <- cox_sim$summary
+rownames(s) <- s$estimand
+R <- s["ATE", "replications"]
+R_boot <- s["ATE", "bootstrap.replications"]
+f <- function(x, d = 3) formatC(x, format = "f", digits = d)
+pct <- function(est, type) {
+  sprintf("%+.1f", 100 * (s[est, paste0("mean.se.", type)] / s[est, "empirical.sd"] - 1))
+}
+cvg <- function(est, type) f(100 * s[est, paste0("coverage.", type)], 1)
+mcse <- function(r) f(100 * sqrt(0.95 * 0.05 / r), 1)
+```
+
+The main vignette and the [comparison article](ipw-and-weightit.html)
+say that, in a simulation, `ipwvcov()` gave correct standard errors and the
+robust standard error did not. This section explains how such a simulation
+works and how to read its numbers. The example is the Cox simulation of the
+comparison article (section "A Cox outcome model").
+
+**What a simulation does.** We set up a world in which the true effect is
+known: how the confounder is generated, how treatment depends on it and how
+the outcome depends on both. Then we repeat the same study on many data
+sets, here `r R` data sets of `r cox_sim$n` people. In each data set we
+estimate the effect as in a real analysis and compute its robust and its
+`ipwvcov()` standard error.
+
+**The true variability.** The estimate changes from one data set to the
+next. The standard deviation of the estimates across the data sets (the
+empirical SD) is the true standard error: exactly what a standard error
+computed from one data set tries to estimate. A real study cannot measure
+it, because it has only one data set. A good standard error is, on average
+across the data sets, equal to the empirical SD. In the Cox simulation the
+empirical SD of the log hazard ratio was `r f(s["ATE", "empirical.sd"])` for
+the ATE and `r f(s["ATO", "empirical.sd"])` for overlap weights (ATO). The
+mean `ipwvcov()` standard error was `r f(s["ATE", "mean.se.ipwvcov"])` and
+`r f(s["ATO", "mean.se.ipwvcov"])` (`r pct("ATE", "ipwvcov")`% and
+`r pct("ATO", "ipwvcov")`%), about equal. The mean robust standard error was
+`r f(s["ATE", "mean.se.robust"])` and `r f(s["ATO", "mean.se.robust"])`
+(`r pct("ATE", "robust")`% and `r pct("ATO", "robust")`%), too large.
+
+**How precise that is.** The empirical SD is itself estimated from a finite
+number of data sets. With *R* data sets it is uncertain by about
+SD / sqrt(2*R*), which is `r f(100 / sqrt(2 * R), 1)`% of the SD for
+*R* = `r R`. A difference of under 1% between the mean standard error and
+the empirical SD is therefore no detectable difference, while a difference
+of 6 to 10% is a real one.
+
+**Coverage, an independent check.** Because the true effect is known, we
+can count how often the 95% interval (estimate ± 1.96 × SE) contains it.
+This check does not use the empirical SD at all. Coverage is also estimated
+from a finite number of data sets: near 95%, its Monte Carlo standard error
+is sqrt(0.95 × 0.05 / *R*), about `r mcse(R)` percentage points for
+*R* = `r R` and `r mcse(R_boot)` for *R* = `r R_boot` (the number of data
+sets with a bootstrap). Intervals that are too wide cover the truth more
+often than 95%, and correct ones about 95% of the time. The robust intervals
+covered it in `r cvg("ATE", "robust")`% (ATE) and `r cvg("ATO", "robust")`%
+(ATO) of the data sets, the `ipwvcov()` intervals in
+`r cvg("ATE", "ipwvcov")`% and `r cvg("ATO", "ipwvcov")`%.
+
+**Why the truth is the marginal log hazard ratio.** The data are simulated
+from a model given the confounder, with a conditional hazard ratio of
+exp(-0.5) for treatment. The MSM, a Cox model with treatment only, targets
+something else: the marginal hazard ratio, which compares the whole target
+population treated with the whole population untreated. For hazard ratios
+the two differ even without confounding (hazard ratios are not
+collapsible), and the marginal one is closer to 1. So the truth is computed
+directly. For every person in a very large simulated sample, both potential
+survival times (treated and untreated) are generated, and a Cox model of
+time on treatment is fitted to these data (for the ATO weighted by
+e(1 − e), with e the propensity score).
+This gives a true log hazard ratio of `r f(s["ATE", "truth"])` for the ATE
+and `r f(s["ATO", "truth"])` for the ATO, not -0.5. Counting how often the intervals contain -0.5
+would wrongly count correct intervals as misses.
+
 # References
 
 * Binder DA (1992). Fitting Cox's proportional hazards models from survey

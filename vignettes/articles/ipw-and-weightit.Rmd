@@ -213,7 +213,9 @@ The robust standard error, which treats the weights as known, is about 10%
 simulation error of 95% (the Monte Carlo standard error of a coverage near
 95% is about 0.7 percentage points with 1000 data sets and 1.3 with 300).
 Coverage does not depend on the empirical standard deviation: it counts how
-often the interval contains the known true value.
+often the interval contains the known true value. The
+[methods article](methods.html#how-the-simulations-judge-a-standard-error)
+explains these checks in more detail.
 
 `ipwvcov()` covers binary exposures with logistic exposure models: point
 treatments with `lm()`, `glm()` or `coxph()` outcome models, and
