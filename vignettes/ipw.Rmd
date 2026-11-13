@@ -43,18 +43,18 @@ An analysis has three steps:
 | `ipwpoint()` | Weights for an exposure measured once (point treatment) |
 | `ipwtm()` | Weights for an exposure that changes over time, and censoring weights |
 | `ipwprobtm()` | Time-varying weights from probabilities you estimated yourself **(new)** |
-| `ipwvcov()` | Standard errors for the MSM that account for the estimated weights (binary exposures, logistic models) **(new)** |
+| `ipwvcov()` | Standard errors for the MSM that account for the estimated weights (binary exposures, logistic models) **(new, experimental)** |
 | `ipwplot()` | Plot the distribution of the weights |
-| `ipwdiag()` | Diagnostic plots: overlap, weight share, tail index, truncation sensitivity **(new)** |
+| `ipwdiag()` | Diagnostic plots: overlap, weight share, tail index, truncation sensitivity **(new, experimental)** |
 | `tstartfun()` | Interval start times for counting-process (Cox) data |
 
 > **New in ipw 1.4.0.** Sections marked **New** describe
 > features added after ipw 1.3.2: count, gamma and log-normal exposures,
 > smooth terms with mgcv, ATT, ATC and overlap weights (also for
 > categorical exposures), standard errors that account for the estimated
-> weights (`ipwvcov()`), `type = "all"` for
+> weights (`ipwvcov()`, experimental), `type = "all"` for
 > categorical and survival exposures in `ipwtm()`, `ipwprobtm()`, and
-> diagnostic plots for the weights (`ipwdiag()`).
+> diagnostic plots for the weights (`ipwdiag()`, experimental).
 > Existing calls give the same results as before.
 > The formulas, code and rationale behind each new feature are in the
 > [methods article](https://tranhung93.github.io/ipw/articles/methods.html).
@@ -500,7 +500,13 @@ to 0 or 1 and therefore extreme weights. Check the weights and consider
 
 # 5. Standard errors: M-estimation, robust and bootstrap
 
-## New: `ipwvcov()` for a binary point treatment and for time-varying weights
+## New: `ipwvcov()` for a binary point treatment and for time-varying weights (experimental)
+
+**Experimental.** `ipwvcov()` is new in ipw 1.4.0: its interface and output
+may change in future versions, and the methods are still being evaluated.
+The bootstrap with the weights re-estimated in each sample (next
+subsection) remains the established way to obtain standard errors,
+especially with heavy-tailed weights.
 
 **What a variance-covariance matrix is.** The variance-covariance matrix
 (vcov) `V` of a model describes the uncertainty of its coefficients. Its
@@ -536,7 +542,7 @@ MSM and the exposure model(s) are solved together as one set of estimating
 equations (M-estimation, Lunceford & Davidian 2004), and the sandwich
 variance of all parameters is computed. It works for every estimand (ATE,
 ATT, ATC, ATO), stabilized or not, and is the recommended option in this
-setting. It is new and still experimental. Fit the MSM on the same rows as
+setting. Fit the MSM on the same rows as
 `ipwpoint()`, with `weights = w$ipw.weights`:
 
 ```{r ipwvcov}
@@ -733,7 +739,12 @@ any standard error.
   positivity, consistency and correctly specified exposure (and censoring)
   models.
 
-## New: checking the weights with `ipwdiag()` {#ipwdiag}
+## New: checking the weights with `ipwdiag()` (experimental) {#ipwdiag}
+
+**Experimental.** `ipwdiag()` is new in ipw 1.4.0: its interface and output
+may change in future versions, and the methods are still being evaluated.
+Covariate balance with cobalt (below) and `ipwplot()` remain the
+established tools for checking the weights.
 
 Cole & Hernán (2008) and Austin & Stuart (2015) recommend looking closely
 at the weights before trusting a weighted analysis. `ipwdiag()` draws four

@@ -84,6 +84,10 @@ Invisibly, a list of class \code{"ipwdiag"} with one element per
   for the plots that were computed.}
 }
 \description{
+\strong{Experimental:} this function is new in ipw 1.4.0. Its interface
+and output may change in future versions, and the methods are still being
+evaluated.
+
 Plots that check whether inverse probability weights can be trusted:
 overlap of the estimated exposure probabilities (positivity), the share of
 the total weight held by the people with the largest weights, the tail of

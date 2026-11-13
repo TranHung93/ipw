@@ -19,9 +19,9 @@ without any warning in 1.3.1 and 1.3.2:
 * New features: ATT, ATC and overlap weights in `ipwpoint()` (also for
   categorical exposures); count and skewed exposure families; smooth terms
   via mgcv; `type = "all"` for more families in `ipwtm()`; new exported
-  functions `ipwvcov()` (M-estimation standard errors, marked experimental),
-  `ipwprobtm()` and `ipwdiag()` (diagnostic plots for the weights, base
-  graphics). Existing calls give the same weights as before, checked
+  functions `ipwprobtm()`, `ipwvcov()` (M-estimation standard errors) and
+  `ipwdiag()` (diagnostic plots for the weights, base graphics); the last
+  two are marked experimental. Existing calls give the same weights as before, checked
   by regression tests against ipw 1.2.1.1.
 * License changed back to GPL (>= 2), the license of ipw before 1.3.0
   (1.3.0 to 1.3.2 were MIT). All authors agree to the change.

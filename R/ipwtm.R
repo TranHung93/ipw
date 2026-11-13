@@ -11,7 +11,7 @@
 #' For \code{family = "binomial"} with \code{link = "logit"} (any \code{type}, no
 #' smooth terms, no truncation) and a marginal structural model fitted on the
 #' long data with \code{lm()}, \code{glm()} or \code{coxph()} on counting-process
-#' data, \code{\link{ipwvcov}} (new, experimental) gives standard errors that take
+#' data, \code{\link{ipwvcov}} (experimental) gives standard errors that take
 #' the estimation of the weights into account, with the scores summed within
 #' subject; pass a list to combine, for example, treatment and censoring weights.
 #' For Cox (\code{family = "survival"}), multinomial, ordinal and gaussian

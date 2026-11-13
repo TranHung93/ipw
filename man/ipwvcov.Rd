@@ -24,7 +24,13 @@ Variance-covariance matrix of the coefficients of \code{msm}, with
   example, to \code{lmtest::coeftest(msm, vcov. = ...)}.
 }
 \description{
-\strong{New, experimental.} Variance-covariance matrix of the coefficients
+\strong{Experimental:} this function is new in ipw 1.4.0. Its interface
+and output may change in future versions, and the methods are still being
+evaluated. The bootstrap, re-estimating the weights in
+each bootstrap sample, remains the established alternative, especially
+with heavy-tailed weights.
+
+Variance-covariance matrix of the coefficients
 of a marginal structural model fitted with \code{lm()}, \code{glm()} or
 \code{survival::coxph()} and
 weights from \code{\link{ipwpoint}} for a binary point treatment, or with

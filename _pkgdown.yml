@@ -32,17 +32,16 @@ reference:
   - ipwpoint
   - ipwtm
   - ipwprobtm
-- title: Standard errors
-  desc: >
-    Standard errors for a marginal structural model that take the estimation
-    of the weights into account.
-  contents:
-  - ipwvcov
 - title: Diagnostics
   desc: >
     Plots to check the weights.
   contents:
   - ipwplot
+- title: Experimental
+  desc: >
+    New in ipw 1.4.0 and still being evaluated; the interface and output may change.
+  contents:
+  - ipwvcov
   - ipwdiag
 - title: Data preparation
   contents:

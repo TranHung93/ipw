@@ -9,7 +9,7 @@ feature, the formula, the code in the package and why that approach was
 chosen. Section 6 covers recurrent exposure events (Graffeo et al. 2018),
 section 7 `ipwprobtm()`, which turns probabilities you estimated
 yourself into time-varying weights, and section 8 the standard errors of
-`ipwvcov()`. How to use the features is shown in the
+`ipwvcov()` (experimental). How to use the features is shown in the
 [main vignette](ipw.html); whether they recover known effects is
 checked in the [simulation study](simulations.html).
 
@@ -507,7 +507,7 @@ the probabilities are only approximate.
 
 # 8. `ipwvcov()`: standard errors that account for the estimated weights
 
-`ipwvcov()` (new, experimental) gives the variance of the coefficients of a
+`ipwvcov()` (experimental) gives the variance of the coefficients of a
 marginal structural model fitted with `lm()`, `glm()` or `coxph()` and
 weights from `ipwpoint(family = "binomial")`, with the estimation of the
 weights taken
