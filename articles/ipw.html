@@ -88,8 +88,8 @@ Brumback 2000; van der Wal &amp; Geskus 2011).</p>
 over time), or from your own probabilities with
 <code><a href="../reference/ipwprobtm.html">ipwprobtm()</a></code>.</li>
 <li>
-<strong>Check the weights</strong> with <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> and
-<code><a href="../reference/ipwplot.html">ipwplot()</a></code>.</li>
+<strong>Check the weights</strong> with <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>,
+<code><a href="../reference/ipwplot.html">ipwplot()</a></code> and <code><a href="../reference/ipwdiag.html">ipwdiag()</a></code>.</li>
 <li>
 <strong>Fit the MSM</strong> with the weights, and get
 <strong>standard errors</strong>: with <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> for binary
@@ -125,7 +125,8 @@ weights</td>
 <tr class="even">
 <td><code><a href="../reference/ipwvcov.html">ipwvcov()</a></code></td>
 <td>Standard errors for the MSM that account for the estimated weights
-(binary exposures, logistic models) <strong>(new)</strong>
+(binary exposures, logistic models) <strong>(new,
+experimental)</strong>
 </td>
 </tr>
 <tr class="odd">
@@ -133,6 +134,12 @@ weights</td>
 <td>Plot the distribution of the weights</td>
 </tr>
 <tr class="even">
+<td><code><a href="../reference/ipwdiag.html">ipwdiag()</a></code></td>
+<td>Diagnostic plots: overlap, weight share, tail index, truncation
+sensitivity <strong>(new, experimental)</strong>
+</td>
+</tr>
+<tr class="odd">
 <td><code><a href="../reference/tstartfun.html">tstartfun()</a></code></td>
 <td>Interval start times for counting-process (Cox) data</td>
 </tr>
@@ -143,11 +150,12 @@ weights</td>
 <strong>New</strong> describe features added after ipw 1.3.2: count,
 gamma and log-normal exposures, smooth terms with mgcv, ATT, ATC and
 overlap weights (also for categorical exposures), standard errors that
-account for the estimated weights (<code><a href="../reference/ipwvcov.html">ipwvcov()</a></code>),
-<code>type = "all"</code> for categorical and survival exposures in
-<code><a href="../reference/ipwtm.html">ipwtm()</a></code>, and <code><a href="../reference/ipwprobtm.html">ipwprobtm()</a></code>. Existing calls give
-the same results as before. The formulas, code and rationale behind each
-new feature are in the <a href="https://tranhung93.github.io/ipw/articles/methods.html">methods
+account for the estimated weights (<code><a href="../reference/ipwvcov.html">ipwvcov()</a></code>,
+experimental), <code>type = "all"</code> for categorical and survival
+exposures in <code><a href="../reference/ipwtm.html">ipwtm()</a></code>, <code><a href="../reference/ipwprobtm.html">ipwprobtm()</a></code>, and
+diagnostic plots for the weights (<code><a href="../reference/ipwdiag.html">ipwdiag()</a></code>, experimental).
+Existing calls give the same results as before. The formulas, code and
+rationale behind each new feature are in the <a href="https://tranhung93.github.io/ipw/articles/methods.html">methods
 article</a>.</p>
 </blockquote>
 <p><strong>ipw or WeightIt?</strong> For point treatments, <a href="https://ngreifer.github.io/WeightIt/" class="external-link">WeightIt</a> offers many
@@ -641,9 +649,14 @@ extreme weights. Check the weights and consider <code>trunc</code>.</p>
 <h2 id="standard-errors-m-estimation-robust-and-bootstrap">5. Standard errors: M-estimation, robust and bootstrap<a class="anchor" aria-label="anchor" href="#standard-errors-m-estimation-robust-and-bootstrap"></a>
 </h2>
 <div class="section level3">
-<h3 id="new-ipwvcov-for-a-binary-point-treatment-and-for-time-varying-weights">New: <code>ipwvcov()</code> for a binary point treatment and for
-time-varying weights<a class="anchor" aria-label="anchor" href="#new-ipwvcov-for-a-binary-point-treatment-and-for-time-varying-weights"></a>
+<h3 id="new-ipwvcov-for-a-binary-point-treatment-and-for-time-varying-weights-experimental">New: <code>ipwvcov()</code> for a binary point treatment and for
+time-varying weights (experimental)<a class="anchor" aria-label="anchor" href="#new-ipwvcov-for-a-binary-point-treatment-and-for-time-varying-weights-experimental"></a>
 </h3>
+<p><strong>Experimental.</strong> <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> is new in ipw
+1.4.0: its interface and output may change in future versions, and the
+methods are still being evaluated. The bootstrap with the weights
+re-estimated in each sample (next subsection) remains the established
+way to obtain standard errors, especially with heavy-tailed weights.</p>
 <p><strong>What a variance-covariance matrix is.</strong> The
 variance-covariance matrix (vcov) <code>V</code> of a model describes
 the uncertainty of its coefficients. Its diagonal holds the variances of
@@ -670,9 +683,30 @@ weights, smooth terms (mgcv), exposures that are not binary
 <code><a href="https://rdrr.io/pkg/survival/man/strata.html" class="external-link">strata()</a></code>. For these, use the bootstrap (next subsection).
 With heavy-tailed weights, where a few people carry much of the weight,
 neither <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> nor the bootstrap can be trusted. Check
-<code><a href="../reference/ipwplot.html">ipwplot()</a></code> and the effective sample size (section 6) first
-(see “Heavy-tailed weights” in the <a href="https://tranhung93.github.io/ipw/articles/methods.html">methods
+the weights with <code><a href="../reference/ipwdiag.html">ipwdiag()</a></code> (section 6) first (see
+“Heavy-tailed weights” in the <a href="https://tranhung93.github.io/ipw/articles/methods.html">methods
 article</a>).</p>
+<p>The <code>simdat</code> weights of section 1 are too extreme for that
+(see <a href="#ipwdiag">Checking the weights</a>), so the examples below
+use a new data set with moderate confounding: a confounder
+<code>l</code>, a binary exposure <code>a</code> that depends on it, an
+outcome <code>y</code> with a true effect of 1, and a time to event
+further below.</p>
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
+<span><span class="va">simdat.good</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>l <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">1000</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">simdat.good</span><span class="op">$</span><span class="va">a</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="fl">1000</span>, <span class="fl">1</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Logistic.html" class="external-link">plogis</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.2</span> <span class="op">+</span> <span class="fl">0.6</span> <span class="op">*</span> <span class="va">simdat.good</span><span class="op">$</span><span class="va">l</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">simdat.good</span><span class="op">$</span><span class="va">y</span> <span class="op">&lt;-</span> <span class="fl">1</span> <span class="op">+</span> <span class="fl">1</span> <span class="op">*</span> <span class="va">simdat.good</span><span class="op">$</span><span class="va">a</span> <span class="op">+</span> <span class="fl">0.8</span> <span class="op">*</span> <span class="va">simdat.good</span><span class="op">$</span><span class="va">l</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">1000</span><span class="op">)</span></span>
+<span><span class="va">w.good</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwpoint.html">ipwpoint</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">a</span>, family <span class="op">=</span> <span class="st">"binomial"</span>, link <span class="op">=</span> <span class="st">"logit"</span>,</span>
+<span>                   numerator <span class="op">=</span> <span class="op">~</span> <span class="fl">1</span>, denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l</span>, data <span class="op">=</span> <span class="va">simdat.good</span><span class="op">)</span></span>
+<span><span class="va">diag.good</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwdiag.html">ipwdiag</a></span><span class="op">(</span><span class="va">w.good</span>, which <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"share"</span>, <span class="st">"tail"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p><img src="ipw_files/figure-html/simdat-good-1.png" class="r-plt" alt="" width="100%"></p>
+<p>These weights pass the checks: the tail index is 4.9 (above 4),
+Kish’s effective sample size is 89% of n, the largest weight is 3.2, and
+none of the 1000 estimated probabilities are below 0.05 or above 0.95.
+The confounding still matters: the unweighted regression of
+<code>y</code> on <code>a</code> gives 1.40, the weighted one 0.93 (true
+effect 1).</p>
 <p><code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> handles a binary point treatment with an MSM
 fitted with <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code>, <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> or
 <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code>, and time-varying weights (below). The MSM and the
@@ -680,49 +714,52 @@ exposure model(s) are solved together as one set of estimating equations
 (M-estimation, Lunceford &amp; Davidian 2004), and the sandwich variance
 of all parameters is computed. It works for every estimand (ATE, ATT,
 ATC, ATO), stabilized or not, and is the recommended option in this
-setting. It is new and still experimental. Fit the MSM on the same rows
-as <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code>, with
-<code>weights = w$ipw.weights</code>:</p>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">msm.lm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">a</span>, data <span class="op">=</span> <span class="va">simdat</span>, weights <span class="op">=</span> <span class="va">w</span><span class="op">$</span><span class="va">ipw.weights</span><span class="op">)</span></span>
-<span><span class="va">se.mest</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fu"><a href="../reference/ipwvcov.html">ipwvcov</a></span><span class="op">(</span><span class="va">w</span>, <span class="va">msm.lm</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+setting. Fit the MSM on the same rows as <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code>, with
+<code>weights = w.good$ipw.weights</code>:</p>
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">msm.good</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">a</span>, data <span class="op">=</span> <span class="va">simdat.good</span>, weights <span class="op">=</span> <span class="va">w.good</span><span class="op">$</span><span class="va">ipw.weights</span><span class="op">)</span></span>
+<span><span class="va">se.mest</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fu"><a href="../reference/ipwvcov.html">ipwvcov</a></span><span class="op">(</span><span class="va">w.good</span>, <span class="va">msm.good</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">se.mest</span></span>
 <span><span class="co">#&gt; (Intercept)           a </span></span>
-<span><span class="co">#&gt;    1.052322    1.086986</span></span></code></pre></div>
+<span><span class="co">#&gt;  0.04944754  0.06540414</span></span></code></pre></div>
 <p>For this model,
-<code>lmtest::coeftest(msm.lm, vcov. = ipwvcov(w, msm.lm))</code> gives
-the Wald tests.</p>
+<code>lmtest::coeftest(msm.good, vcov. = ipwvcov(w.good, msm.good))</code>
+gives the Wald tests.</p>
 <p>For a survival outcome, the MSM can be a weighted Cox model with one
 row per person and <code>Surv(time, status)</code>. Below, a time to
-event is simulated for <code>simdat</code> with a conditional hazard
-ratio of exp(-0.5) for <code>a</code> given <code>l</code>. The MSM
-estimates the marginal hazard ratio, which for a Cox model is closer to
-1 even without confounding (hazard ratios are not collapsible), so the
-estimate is not expected to equal -0.5. The robust standard error of
-<code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code> treats the weights as known; <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code>
-accounts for their estimation:</p>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+event is simulated for <code>simdat.good</code> with a conditional
+hazard ratio of exp(-0.5) for <code>a</code> given <code>l</code>; a
+higher <code>l</code> also shortens the time to event, so <code>l</code>
+confounds the effect. The MSM estimates the marginal hazard ratio, which
+for a Cox model is closer to 1 even without confounding (hazard ratios
+are not collapsible), so the estimate is not expected to equal -0.5. The
+robust standard error of <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code> treats the weights as
+known; <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> accounts for their estimation:</p>
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">5</span><span class="op">)</span></span>
-<span><span class="va">simdat</span><span class="op">$</span><span class="va">time</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Exponential.html" class="external-link">rexp</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">simdat</span><span class="op">)</span>, <span class="fl">0.1</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.5</span> <span class="op">*</span> <span class="va">simdat</span><span class="op">$</span><span class="va">a</span> <span class="op">+</span> <span class="fl">0.05</span> <span class="op">*</span> <span class="va">simdat</span><span class="op">$</span><span class="va">l</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">simdat</span><span class="op">$</span><span class="va">status</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">simdat</span><span class="op">$</span><span class="va">time</span> <span class="op">&lt;</span> <span class="fl">10</span><span class="op">)</span></span>
-<span><span class="va">simdat</span><span class="op">$</span><span class="va">time</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmin</a></span><span class="op">(</span><span class="va">simdat</span><span class="op">$</span><span class="va">time</span>, <span class="fl">10</span><span class="op">)</span></span>
-<span><span class="va">msm.cox</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">time</span>, <span class="va">status</span><span class="op">)</span> <span class="op">~</span> <span class="va">a</span>, data <span class="op">=</span> <span class="va">simdat</span>, weights <span class="op">=</span> <span class="va">w</span><span class="op">$</span><span class="va">ipw.weights</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>log.hr <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">msm.cox</span><span class="op">)</span><span class="op">)</span>,</span>
+<span><span class="va">simdat.good</span><span class="op">$</span><span class="va">time</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Exponential.html" class="external-link">rexp</a></span><span class="op">(</span><span class="fl">1000</span>, <span class="fl">0.1</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.5</span> <span class="op">*</span> <span class="va">simdat.good</span><span class="op">$</span><span class="va">a</span> <span class="op">+</span> <span class="fl">0.5</span> <span class="op">*</span> <span class="va">simdat.good</span><span class="op">$</span><span class="va">l</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">simdat.good</span><span class="op">$</span><span class="va">status</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">simdat.good</span><span class="op">$</span><span class="va">time</span> <span class="op">&lt;</span> <span class="fl">10</span><span class="op">)</span>   <span class="co"># administrative censoring</span></span>
+<span><span class="va">simdat.good</span><span class="op">$</span><span class="va">time</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmin</a></span><span class="op">(</span><span class="va">simdat.good</span><span class="op">$</span><span class="va">time</span>, <span class="fl">10</span><span class="op">)</span></span>
+<span><span class="va">msm.cox</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">time</span>, <span class="va">status</span><span class="op">)</span> <span class="op">~</span> <span class="va">a</span>, data <span class="op">=</span> <span class="va">simdat.good</span>, weights <span class="op">=</span> <span class="va">w.good</span><span class="op">$</span><span class="va">ipw.weights</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>log.hr.unweighted <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">time</span>, <span class="va">status</span><span class="op">)</span> <span class="op">~</span> <span class="va">a</span>, data <span class="op">=</span> <span class="va">simdat.good</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  log.hr <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">msm.cox</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  robust.se <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="va">msm.cox</span><span class="op">$</span><span class="va">var</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">]</span><span class="op">)</span>,</span>
-<span>  ipwvcov.se <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="../reference/ipwvcov.html">ipwvcov</a></span><span class="op">(</span><span class="va">w</span>, <span class="va">msm.cox</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;     log.hr  robust.se ipwvcov.se </span></span>
-<span><span class="co">#&gt; -0.3949927  0.1635881  0.1499562</span></span></code></pre></div>
-<p>The <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> standard error (0.150) is 8% smaller than
-the robust one (0.164). For the ATE, theory predicts a smaller standard
+<span>  ipwvcov.se <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="../reference/ipwvcov.html">ipwvcov</a></span><span class="op">(</span><span class="va">w.good</span>, <span class="va">msm.cox</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; log.hr.unweighted            log.hr         robust.se        ipwvcov.se </span></span>
+<span><span class="co">#&gt;       -0.22263950       -0.46511063        0.09194463        0.08754488</span></span></code></pre></div>
+<p>The <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> standard error (0.088) is 5% smaller than
+the robust one (0.092). For the ATE, theory predicts a smaller standard
 error: estimating the weights from the data reduces the variance of the
 effect estimate, and the robust standard error ignores that gain. The
 95% confidence intervals for the log hazard ratio (estimate ± 1.96 × SE)
-are (-0.72, -0.07) with the robust standard error and (-0.69, -0.10)
+are (-0.65, -0.28) with the robust standard error and (-0.64, -0.29)
 with <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code>. Both exclude 0, so the gain is precision,
 not a different conclusion. In other data, a difference of this size
-could decide whether an interval crosses 0. Neither interval is expected
-to contain -0.5, because the MSM targets the marginal hazard ratio, not
-the conditional exp(-0.5).</p>
+could decide whether an interval crosses 0. The MSM targets the marginal
+hazard ratio, not the conditional exp(-0.5); the marginal log hazard
+ratio is closer to 0, but with the moderate effect of <code>l</code>
+here the two differ little, and both intervals happen to contain
+-0.5.</p>
 <p>One data set cannot show which standard error is right. That needs a
 simulation in which the true effect is known and the study is repeated
 on many data sets. In the Cox simulation of the article <a href="https://tranhung93.github.io/ipw/articles/ipw-and-weightit.html#a-cox-outcome-model">ipw,
@@ -745,7 +782,7 @@ fitted on all rows of the long data, with <code><a href="https://rdrr.io/r/stats
 are summed within each person. Below, the HAART analysis of section 3
 with pooled logistic models instead of Cox models for starting HAART and
 for dropout:</p>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">w.start.bin</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwtm.html">ipwtm</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">haartind</span>, family <span class="op">=</span> <span class="st">"binomial"</span>, link <span class="op">=</span> <span class="st">"logit"</span>,</span>
 <span>                     numerator <span class="op">=</span> <span class="op">~</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">age</span>, denominator <span class="op">=</span> <span class="op">~</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">cd4.sqrt</span>,</span>
 <span>                     id <span class="op">=</span> <span class="va">patient</span>, timevar <span class="op">=</span> <span class="va">fuptime</span>, type <span class="op">=</span> <span class="st">"first"</span>, data <span class="op">=</span> <span class="va">haartdat</span><span class="op">)</span></span>
@@ -778,22 +815,24 @@ errors are not always too large, though: they can be too small for a
 continuous exposure and for time-varying weights (see below), and the
 bootstrap is then preferred.</p>
 <p>A bootstrap takes a few lines: draw a sample with replacement,
-re-estimate the weights and the MSM on it, and repeat.</p>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+re-estimate the weights and the MSM on it, and repeat. Here for
+<code>simdat.good</code>, so that it can be compared with the
+<code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> standard error above:</p>
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">msm.effect</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">d</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">wt</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwpoint.html">ipwpoint</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">a</span>, family <span class="op">=</span> <span class="st">"binomial"</span>, link <span class="op">=</span> <span class="st">"logit"</span>,</span>
 <span>                 numerator <span class="op">=</span> <span class="op">~</span> <span class="fl">1</span>, denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">)</span><span class="op">$</span><span class="va">ipw.weights</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">a</span>, data <span class="op">=</span> <span class="va">d</span>, weights <span class="op">=</span> <span class="va">wt</span><span class="op">)</span><span class="op">)</span><span class="op">[</span><span class="st">"a"</span><span class="op">]</span></span>
 <span><span class="op">}</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
-<span><span class="va">boot.est</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">replicate</a></span><span class="op">(</span><span class="fl">200</span>, <span class="fu">msm.effect</span><span class="op">(</span><span class="va">simdat</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">simdat</span><span class="op">)</span>, replace <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>estimate <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="fu">msm.effect</span><span class="op">(</span><span class="va">simdat</span><span class="op">)</span><span class="op">)</span>, bootstrap.se <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/sd.html" class="external-link">sd</a></span><span class="op">(</span><span class="va">boot.est</span><span class="op">)</span>,</span>
+<span><span class="va">boot.est</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">replicate</a></span><span class="op">(</span><span class="fl">200</span>, <span class="fu">msm.effect</span><span class="op">(</span><span class="va">simdat.good</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fl">1000</span>, replace <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>estimate <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="fu">msm.effect</span><span class="op">(</span><span class="va">simdat.good</span><span class="op">)</span><span class="op">)</span>, bootstrap.se <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/sd.html" class="external-link">sd</a></span><span class="op">(</span><span class="va">boot.est</span><span class="op">)</span>,</span>
 <span>  m.estimation.se <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="va">se.mest</span><span class="op">[</span><span class="st">"a"</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;        estimate    bootstrap.se m.estimation.se </span></span>
-<span><span class="co">#&gt;       10.646610        1.113812        1.086986</span></span>
+<span><span class="co">#&gt;      0.93493428      0.06796690      0.06540414</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">boot.est</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.025</span>, <span class="fl">0.975</span><span class="op">)</span><span class="op">)</span>   <span class="co"># percentile 95% confidence interval</span></span>
-<span><span class="co">#&gt;      2.5%     97.5% </span></span>
-<span><span class="co">#&gt;  8.867114 12.850280</span></span></code></pre></div>
+<span><span class="co">#&gt;     2.5%    97.5% </span></span>
+<span><span class="co">#&gt; 0.787695 1.049291</span></span></code></pre></div>
 <p>For data with several rows per person, resample
 <strong>people</strong>, not rows: keep all rows of a sampled person and
 give each sampled copy a new identifier, so that someone drawn twice
@@ -801,7 +840,7 @@ counts as two people. Here both sets of weights for the HAART example of
 section 3, which use Cox exposure models and so are not covered by
 <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code>, are re-estimated in each sample (use about 200
 samples in practice; 20 keep this vignette quick):</p>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">haart.effect</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">d</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">w1</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwtm.html">ipwtm</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">haartind</span>, family <span class="op">=</span> <span class="st">"survival"</span>, numerator <span class="op">=</span> <span class="op">~</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">age</span>,</span>
 <span>              denominator <span class="op">=</span> <span class="op">~</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">cd4.sqrt</span>, id <span class="op">=</span> <span class="va">patient</span>,</span>
@@ -835,10 +874,10 @@ too large).</li>
 <li>For a <strong>weighted Cox model</strong> with good overlap, naive,
 robust and bootstrap standard errors were all close to correct.</li>
 <li>When some <strong>weights are extreme</strong>, through poor overlap
-(the <code>simdat</code> example above) or through products of
-time-varying weights over several visits, all standard errors were too
-small, the bootstrap ones included, and 95% confidence intervals covered
-the truth in only 57 to 80% of samples.</li>
+(the <code>simdat</code> example of section 1; see section 6) or through
+products of time-varying weights over several visits, all standard
+errors were too small, the bootstrap ones included, and 95% confidence
+intervals covered the truth in only 57 to 80% of samples.</li>
 </ul>
 <p>So the bootstrap does not repair unstable weights. Check the weights
 first (section 6), and if some are extreme, consider truncation
@@ -856,8 +895,8 @@ about 1; a mean far from 1 suggests a misspecified exposure model.</li>
 <li>
 <strong>Extreme weights.</strong> Very large weights point to
 <strong>positivity</strong> problems: some kinds of people (almost)
-never receive one of the exposures. Look at <code><a href="../reference/ipwplot.html">ipwplot()</a></code>,
-reconsider the model, use overlap weights
+never receive one of the exposures. Look at <code><a href="../reference/ipwdiag.html">ipwdiag()</a></code> and
+<code><a href="../reference/ipwplot.html">ipwplot()</a></code>, reconsider the model, use overlap weights
 (<code>estimand = "ATO"</code>) or truncate (<code>trunc</code>),
 keeping in mind that truncation slightly changes what is estimated.</li>
 <li>
@@ -866,18 +905,169 @@ unmeasured confounding, positivity, consistency and correctly specified
 exposure (and censoring) models.</li>
 </ul>
 <div class="section level3">
+<h3 id="ipwdiag">New: checking the weights with <code>ipwdiag()</code>
+(experimental)<a class="anchor" aria-label="anchor" href="#ipwdiag"></a>
+</h3>
+<p><strong>Experimental.</strong> <code><a href="../reference/ipwdiag.html">ipwdiag()</a></code> is new in ipw
+1.4.0: its interface and output may change in future versions, and the
+methods are still being evaluated. Covariate balance with cobalt (below)
+and <code><a href="../reference/ipwplot.html">ipwplot()</a></code> remain the established tools for checking the
+weights.</p>
+<p>Cole &amp; Hernán (2008) and Austin &amp; Stuart (2015) recommend
+looking closely at the weights before trusting a weighted analysis.
+<code><a href="../reference/ipwdiag.html">ipwdiag()</a></code> draws four plots for a result of
+<code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> or <code><a href="../reference/ipwtm.html">ipwtm()</a></code> (or a list of them whose
+weights multiply, such as treatment and censoring weights), prints a
+short summary and returns the numbers behind every plot, so they can be
+redrawn with any graphics package. Checking that the weights balance the
+confounders is a separate step, done with cobalt (see <a href="#covariate-balance">Covariate balance</a> below);
+<code><a href="../reference/ipwplot.html">ipwplot()</a></code> shows how time-varying weights change over
+follow-up.</p>
+<p>For the point treatment of section 1 (<code>simdat</code>), a
+deliberately difficult case with poor overlap, and its weighted MSM
+(section 5 shows the well-behaved weights of <code>simdat.good</code>
+for comparison):</p>
+<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">msm.lm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">a</span>, data <span class="op">=</span> <span class="va">simdat</span>, weights <span class="op">=</span> <span class="va">w</span><span class="op">$</span><span class="va">ipw.weights</span><span class="op">)</span></span>
+<span><span class="va">diag.point</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwdiag.html">ipwdiag</a></span><span class="op">(</span><span class="va">w</span>, msm <span class="op">=</span> <span class="va">msm.lm</span><span class="op">)</span></span></code></pre></div>
+<p><img src="ipw_files/figure-html/ipwdiag-point-1.png" class="r-plt" alt="" width="100%"></p>
+<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">diag.point</span></span>
+<span><span class="co">#&gt; Weight diagnostics for 1000 people </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Overlap:    51.9% of 1000 people have an estimated probability &lt; 0.05 or &gt; 0.95</span></span>
+<span><span class="co">#&gt; Weights:    mean 0.909, largest 74.7</span></span>
+<span><span class="co">#&gt; Share:      top 1% hold 21.4%, top 5% hold 37.2% of the total weight</span></span>
+<span><span class="co">#&gt; Kish ESS:   84.6 (8.5% of n)</span></span>
+<span><span class="co">#&gt; Tail index: 1.22 (Hill estimate from the largest 50 weights)</span></span>
+<span><span class="co">#&gt;             Warning: tail index &lt; 2: the weights have an infinite variance;</span></span>
+<span><span class="co">#&gt;             no normal-theory interval can be trusted (see ?ipwvcov,</span></span>
+<span><span class="co">#&gt;             "Heavy-tailed weights").</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Truncation sensitivity for 'a' (95% CI: robust, weights treated as known):</span></span>
+<span><span class="co">#&gt;      q estimate    se lower upper</span></span>
+<span><span class="co">#&gt;  0.000     10.6 1.190  8.31  13.0</span></span>
+<span><span class="co">#&gt;  0.010     12.2 0.516 11.14  13.2</span></span>
+<span><span class="co">#&gt;  0.025     12.3 0.472 11.41  13.3</span></span>
+<span><span class="co">#&gt;  0.050     12.8 0.394 12.01  13.6</span></span>
+<span><span class="co">#&gt;  0.100     13.3 0.351 12.64  14.0</span></span></code></pre></div>
+<p>What to look for in each plot:</p>
+<ul>
+<li>
+<strong>Overlap (positivity).</strong> The densities of the
+estimated probability of exposure, from the denominator model, in the
+unexposed and the exposed. Shaded ranges contain people from one group
+only: they have (almost) no counterparts with the other exposure, and
+their weights become extreme. Here 52% of the people have a probability
+below 0.05 or above 0.95, which confirms the poor overlap that the large
+ATT weights showed in section 1. The plot needs a binomial exposure
+model; for other families it is skipped.</li>
+<li>
+<strong>Weight share.</strong> The people sorted from the largest
+weight to the smallest, against the cumulative share of the total
+weight. With equal weights the curve lies on the diagonal. Here the top
+1% of the people carry 21% of the total weight and the top 5% carry 37%;
+Kish’s effective sample size is 85, 8% of the 1000 people. The summary
+also gives the <strong>mean</strong> weight, which should be close to 1
+for stabilized weights; here it is 0.91. A mean well below 1 is typical
+of poor overlap: the rare people who would get very large weights are
+mostly missing from the sample (ATT, ATC and overlap weights have no
+such target).</li>
+<li>
+<strong>Tail index.</strong> For the largest 5% of the weights, the
+log of rank / n (the proportion of weights at least this large) against
+the log of the weight. A straight line means a Pareto-type tail, P(W
+&gt; x) proportional to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>x</mi><mrow><mi>−</mi><mi>α</mi></mrow></msup><annotation encoding="application/x-tex">x^{-\alpha}</annotation></semantics></math>;
+the Hill estimate of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+is drawn as a dashed line with slope
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mi>α</mi></mrow><annotation encoding="application/x-tex">-\alpha</annotation></semantics></math>.
+With
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>&lt;</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">\alpha &lt; 2</annotation></semantics></math>
+the weights have an infinite variance; with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+between 2 and 4, normal-theory intervals can be too narrow, whether the
+standard error comes from <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> or from the bootstrap
+(see “Heavy-tailed weights” in <code><a href="../reference/ipwvcov.html">?ipwvcov</a></code> and in the article
+<a href="https://tranhung93.github.io/ipw/articles/ipw-and-weightit.html">ipw,
+WeightIt and PSweight side by side</a>). Here the estimate is 1.22, and
+no standard error for this MSM can be trusted.</li>
+<li>
+<strong>Truncation sensitivity.</strong> The MSM is refitted with
+the weights truncated at their q and 1 - q quantiles (as
+<code>ipwpoint(..., trunc = q)</code> would), and the estimate is shown
+with a 95% robust confidence interval for each q. A stable estimate
+means that the extreme weights do not drive the result. Here the
+estimate moves from 10.6 without truncation to 12.2 at q = 0.01 and 13.3
+at q = 0.1, while the true effect is 10: the few people with extreme
+weights are needed to remove the confounding, and truncating their
+weights brings bias back. The intervals treat the (truncated) weights as
+known; for proper intervals with truncated weights, use the bootstrap
+(section 5) and truncate the weights in each bootstrap sample.</li>
+</ul>
+<p>For <code><a href="../reference/ipwtm.html">ipwtm()</a></code> the weight share and the tail use each
+person’s final cumulative weight. For the HAART analysis of section 3
+(Cox models for starting HAART and for dropout, so there is no overlap
+plot), with the Cox MSM <code>msm.haart</code>:</p>
+<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">diag.haart</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwdiag.html">ipwdiag</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">w.haart</span>, <span class="va">w.cens</span><span class="op">)</span>, which <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"share"</span>, <span class="st">"tail"</span>, <span class="st">"trunc"</span><span class="op">)</span>,</span>
+<span>                      msm <span class="op">=</span> <span class="va">msm.haart</span><span class="op">)</span></span></code></pre></div>
+<p><img src="ipw_files/figure-html/ipwdiag-haart-1.png" class="r-plt" alt="" width="100%"></p>
+<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">diag.haart</span></span>
+<span><span class="co">#&gt; Weight diagnostics for 1200 people (final cumulative weight of each person) </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Weights:    mean 1.01, largest 5.26</span></span>
+<span><span class="co">#&gt; Share:      top 1% hold 3.0%, top 5% hold 10.3% of the total weight</span></span>
+<span><span class="co">#&gt; Kish ESS:   1076.4 (89.7% of n)</span></span>
+<span><span class="co">#&gt; Tail index: 4.01 (Hill estimate from the largest 60 weights)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Truncation sensitivity for 'haartind' (95% CI: robust, weights treated as known):</span></span>
+<span><span class="co">#&gt;      q estimate    se lower   upper</span></span>
+<span><span class="co">#&gt;  0.000   -0.936 0.453 -1.82 -0.0491</span></span>
+<span><span class="co">#&gt;  0.010   -0.898 0.452 -1.78 -0.0123</span></span>
+<span><span class="co">#&gt;  0.025   -0.870 0.452 -1.76  0.0154</span></span>
+<span><span class="co">#&gt;  0.050   -0.794 0.447 -1.67  0.0816</span></span>
+<span><span class="co">#&gt;  0.100   -0.723 0.439 -1.58  0.1367</span></span></code></pre></div>
+<p>These weights are well behaved: the mean is 1.01, the largest weight
+5.3, the top 1% of the patients carry 3.0% of the total weight, and the
+effective sample size is 90% of the 1200 patients. The tail index, 4.0,
+is at the border of the range where intervals may be too narrow. The log
+hazard ratio of HAART moves from -0.94 to -0.90 with 1% truncation and
+to -0.72 with 10% truncation, changes of up to half its standard error
+of 0.45. For a list of weight objects the product of the weights is
+truncated. The overlap plot needs a binomial exposure model, for example
+<code>ipwtm(..., family = "binomial")</code> (pooled logistic
+regression). Its probabilities are per interval, and small when the
+intervals are short, so look at whether the two groups overlap rather
+than at the proportion below 0.05.</p>
+<p><strong>Calibration of the exposure model.</strong> A complementary
+check, not part of <code><a href="../reference/ipwdiag.html">ipwdiag()</a></code>, compares the observed
+proportion exposed with the mean predicted probability within deciles of
+the prediction; the points should lie near the diagonal.</p>
+<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">p</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted</a></span><span class="op">(</span><span class="va">w</span><span class="op">$</span><span class="va">den.mod</span><span class="op">)</span></span>
+<span><span class="va">decile</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cut.html" class="external-link">cut</a></span><span class="op">(</span><span class="va">p</span>, <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">p</span>, <span class="fl">0</span><span class="op">:</span><span class="fl">10</span> <span class="op">/</span> <span class="fl">10</span><span class="op">)</span>, include.lowest <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="va">p</span>, <span class="va">decile</span>, <span class="va">mean</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="va">simdat</span><span class="op">$</span><span class="va">a</span>, <span class="va">decile</span>, <span class="va">mean</span><span class="op">)</span>,</span>
+<span>     xlab <span class="op">=</span> <span class="st">"Mean predicted probability"</span>, ylab <span class="op">=</span> <span class="st">"Observed proportion exposed"</span>,</span>
+<span>     xlim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span>, ylim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span>, pch <span class="op">=</span> <span class="fl">19</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/graphics/abline.html" class="external-link">abline</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span>, lty <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span></code></pre></div>
+<p><img src="ipw_files/figure-html/calibration-1.png" class="r-plt" alt="" width="50%"></p>
+</div>
+<div class="section level3">
 <h3 id="covariate-balance">Covariate balance<a class="anchor" aria-label="anchor" href="#covariate-balance"></a>
 </h3>
 <p>Good weights make the confounders unrelated to the exposure, so after
 weighting their distribution should be the same in the exposure groups.
-Check this directly: it tests the exposure model where it matters. The
-cobalt package (Greifer) computes balance statistics for any weights;
-ipw’s weights are passed as a plain vector, with
-<code>method = "weighting"</code>. The standardized mean difference
-(SMD) uses the pooled standard deviation of the unweighted groups
-(<code>s.d.denom = "pooled"</code>); absolute SMDs below 0.1 are a
-common rule of thumb.</p>
-<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
+Check this directly: it tests the exposure model where it matters, and
+it complements the plots of <a href="#ipwdiag"><code>ipwdiag()</code></a> above. The cobalt package
+(Greifer) computes balance statistics for any weights; ipw’s weights are
+passed as a plain vector, with <code>method = "weighting"</code>. The
+standardized mean difference (SMD) uses the pooled standard deviation of
+the unweighted groups (<code>s.d.denom = "pooled"</code>); absolute SMDs
+below 0.1 are a common rule of thumb.</p>
+<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">cobalt</span><span class="fu">::</span><span class="fu"><a href="https://ngreifer.github.io/cobalt/reference/bal.tab.html" class="external-link">bal.tab</a></span><span class="op">(</span><span class="va">a</span> <span class="op">~</span> <span class="va">l</span>, data <span class="op">=</span> <span class="va">simdat</span>, weights <span class="op">=</span> <span class="va">w</span><span class="op">$</span><span class="va">ipw.weights</span>,</span>
 <span>                method <span class="op">=</span> <span class="st">"weighting"</span>, s.d.denom <span class="op">=</span> <span class="st">"pooled"</span>, un <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Balance Measures</span></span></span>
@@ -891,10 +1081,10 @@ common rule of thumb.</p>
 <p>Several sets of weights can be compared at once;
 <code>love.plot()</code> draws the SMDs before and after weighting. Here
 the stabilized ATE weights and the overlap weights from section 1:</p>
-<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb35"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">w.ato</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ipwpoint.html">ipwpoint</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="va">a</span>, family <span class="op">=</span> <span class="st">"binomial"</span>, link <span class="op">=</span> <span class="st">"logit"</span>,</span>
 <span>                  denominator <span class="op">=</span> <span class="op">~</span> <span class="va">l</span>, data <span class="op">=</span> <span class="va">simdat</span>, estimand <span class="op">=</span> <span class="st">"ATO"</span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb36"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">bal</span> <span class="op">&lt;-</span> <span class="fu">cobalt</span><span class="fu">::</span><span class="fu"><a href="https://ngreifer.github.io/cobalt/reference/bal.tab.html" class="external-link">bal.tab</a></span><span class="op">(</span><span class="va">a</span> <span class="op">~</span> <span class="va">l</span>, data <span class="op">=</span> <span class="va">simdat</span>, method <span class="op">=</span> <span class="st">"weighting"</span>,</span>
 <span>                       weights <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>ATE <span class="op">=</span> <span class="va">w</span><span class="op">$</span><span class="va">ipw.weights</span>, ATO <span class="op">=</span> <span class="va">w.ato</span><span class="op">$</span><span class="va">ipw.weights</span><span class="op">)</span>,</span>
 <span>                       s.d.denom <span class="op">=</span> <span class="st">"pooled"</span>, un <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -916,7 +1106,7 @@ interval), and the groups are those who start HAART in that interval and
 those who do not; the weight of each row is the cumulative weight up to
 and including that interval. The censoring weights do not depend on
 whether HAART is started, so only the HAART weights are used here.</p>
-<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb37"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">at.risk</span> <span class="op">&lt;-</span> <span class="va">w.haart</span><span class="op">$</span><span class="va">selvar</span> <span class="op">==</span> <span class="fl">1</span> <span class="op">&amp;</span> <span class="va">haartdat</span><span class="op">$</span><span class="va">fuptime</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">100</span>, <span class="fl">500</span><span class="op">)</span></span>
 <span><span class="va">haart.sub</span> <span class="op">&lt;-</span> <span class="va">haartdat</span><span class="op">[</span><span class="va">at.risk</span>, <span class="op">]</span></span>
 <span><span class="fu">cobalt</span><span class="fu">::</span><span class="fu"><a href="https://ngreifer.github.io/cobalt/reference/bal.tab.html" class="external-link">bal.tab</a></span><span class="op">(</span><span class="va">haartind</span> <span class="op">~</span> <span class="va">cd4.sqrt</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">age</span>, data <span class="op">=</span> <span class="va">haart.sub</span>,</span>
@@ -977,7 +1167,7 @@ price of more variable weights.</p>
 squared weights), is the size of an unweighted sample with about the
 same precision. Compute it overall and by exposure group; a large drop
 in one group means a few people carry most of the weight there.</p>
-<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb38"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ess</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">w</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">w</span><span class="op">)</span><span class="op">^</span><span class="fl">2</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">w</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>n <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>all <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">simdat</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">simdat</span><span class="op">$</span><span class="va">a</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>      ATE <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu">ess</span><span class="op">(</span><span class="va">w</span><span class="op">$</span><span class="va">ipw.weights</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="va">w</span><span class="op">$</span><span class="va">ipw.weights</span>, <span class="va">simdat</span><span class="op">$</span><span class="va">a</span>, <span class="va">ess</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -994,6 +1184,10 @@ under “Effective sample sizes”.</p>
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
 <ul>
+<li>Austin PC, Stuart EA (2015). Moving towards best practice when using
+inverse probability of treatment weighting (IPTW) using the propensity
+score to estimate causal treatment effects in observational studies.
+<em>Statistics in Medicine</em> 34, 3661-3679. <a href="doi:10.1002/sim.6607" class="uri">doi:10.1002/sim.6607</a>.</li>
 <li>Austin PC (2016). Variance estimation when using inverse probability
 of treatment weighting (IPTW) with survival analysis. <em>Statistics in
 Medicine</em> 35, 5642-5655. <a href="doi:10.1002/sim.7084" class="uri">doi:10.1002/sim.7084</a>.</li>

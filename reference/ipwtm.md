@@ -136,8 +136,8 @@ the long data with [`lm()`](https://rdrr.io/r/stats/lm.html),
 [`glm()`](https://rdrr.io/r/stats/glm.html) or
 [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) on
 counting-process data,
-[`ipwvcov`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) (new,
-experimental) gives standard errors that take the estimation of the
+[`ipwvcov`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+(experimental) gives standard errors that take the estimation of the
 weights into account, with the scores summed within subject; pass a list
 to combine, for example, treatment and censoring weights. For Cox
 (`family = "survival"`), multinomial, ordinal and gaussian exposure

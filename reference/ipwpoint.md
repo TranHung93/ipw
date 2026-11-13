@@ -136,8 +136,8 @@ for ATC), containing:
 Standard errors: `ipwpoint` only estimates the weights. Standard errors
 for the marginal structural model have to be obtained when that model is
 fitted.
-[`ipwvcov`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) (new,
-experimental) gives standard errors that take the estimation of the
+[`ipwvcov`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+(experimental) gives standard errors that take the estimation of the
 weights into account (M-estimation), and is the recommended option where
 it applies: weights from `ipwpoint()` with `family = "binomial"` and
 `link = "logit"` (any `estimand`, stabilized or not, no smooth terms, no
@@ -502,12 +502,11 @@ if (requireNamespace("survey", quietly = TRUE)) {
 #> Number of Fisher Scoring iterations: 2
 #> 
 
-# Standard errors that take the estimation of the weights into account
-# (M-estimation; binomial exposure, lm() or glm() MSM)
-msm.lm <- lm(y ~ a, data = simdat, weights = temp$ipw.weights)
-sqrt(diag(ipwvcov(temp, msm.lm)))
-#> (Intercept)           a 
-#>    1.052322    1.086986 
+# Check the weights before trusting any standard error. These weights are
+# extreme (poor overlap): ipwdiag(temp) shows a tail index below 2. For
+# standard errors that take the estimation of the weights into account
+# (ipwvcov(), M-estimation), see the example on well-behaved weights in
+# ?ipwvcov.
 
 # Bootstrap standard error and percentile confidence interval for the MSM.
 # The robust standard error from svyglm() treats the weights as known and

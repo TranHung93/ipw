@@ -13,35 +13,6 @@
   & Li 2019). For the effect in the controls of a categorical exposure,
   use `"ATT"` with `focal` set to the control level.
 - New
-  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
-  (**experimental**): the variance-covariance matrix of the coefficients
-  of a marginal structural model, taking the estimation of the weights
-  into account (M-estimation with stacked estimating equations).
-  Supported:
-  - [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
-    weights for a binary exposure with a logistic model (any
-    `estimand`), with an [`lm()`](https://rdrr.io/r/stats/lm.html),
-    [`glm()`](https://rdrr.io/r/stats/glm.html) or
-    [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) model
-    (right-censored data, one row per person);
-  - [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
-    weights with `family = "binomial"`, `link = "logit"` and any `type`,
-    or a list of
-    [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)/[`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
-    results whose weights multiply (e.g. treatment times censoring
-    weights), with an [`lm()`](https://rdrr.io/r/stats/lm.html),
-    [`glm()`](https://rdrr.io/r/stats/glm.html) or counting-process
-    [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) model on
-    the long data. Scores are summed within subject.
-
-  Other cases (other families or links, truncated weights, smooth terms)
-  give an error; use the bootstrap there. Checked against numerical
-  derivatives of the estimating equations,
-  [`WeightIt::glm_weightit()`](https://ngreifer.github.io/WeightIt/reference/glm_weightit.html)
-  and PSweight. With heavy-tailed weights no normal-theory interval is
-  reliable, whichever method gives the standard error (see
-  [`?ipwvcov`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)).
-- New
   [`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md):
   time-varying weights from probabilities estimated elsewhere (for
   example with machine learning), multiplied over time within each
@@ -66,6 +37,57 @@
   [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
   results carry the attributes `"family"`, `"type"`, `"id"` and
   `"sort.order"`. The list elements and weights are unchanged.
+
+### Experimental features
+
+These functions are new in ipw 1.4.0. Their interface and output may
+change in future versions, and the methods are still being evaluated.
+
+- New
+  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md):
+  the variance-covariance matrix of the coefficients of a marginal
+  structural model, taking the estimation of the weights into account
+  (M-estimation with stacked estimating equations). Supported:
+  - [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+    weights for a binary exposure with a logistic model (any
+    `estimand`), with an [`lm()`](https://rdrr.io/r/stats/lm.html),
+    [`glm()`](https://rdrr.io/r/stats/glm.html) or
+    [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) model
+    (right-censored data, one row per person);
+  - [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
+    weights with `family = "binomial"`, `link = "logit"` and any `type`,
+    or a list of
+    [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)/[`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+    results whose weights multiply (e.g. treatment times censoring
+    weights), with an [`lm()`](https://rdrr.io/r/stats/lm.html),
+    [`glm()`](https://rdrr.io/r/stats/glm.html) or counting-process
+    [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) model on
+    the long data. Scores are summed within subject.
+
+  Other cases (other families or links, truncated weights, smooth terms)
+  give an error; use the bootstrap there. Checked against numerical
+  derivatives of the estimating equations,
+  [`WeightIt::glm_weightit()`](https://ngreifer.github.io/WeightIt/reference/glm_weightit.html)
+  and PSweight. With heavy-tailed weights no normal-theory interval is
+  reliable, whichever method gives the standard error (see
+  [`?ipwvcov`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)).
+- New
+  [`ipwdiag()`](https://tranhung93.github.io/ipw/reference/ipwdiag.md):
+  diagnostic plots for the weights of
+  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  and [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
+  (or a list of them whose weights multiply), in base graphics: overlap
+  of the estimated exposure probabilities by exposure group
+  (positivity), the share of the total weight held by the people with
+  the largest weights (with the mean weight and Kish’s effective sample
+  size), the tail of the weights with the Hill estimate of the tail
+  index, and the sensitivity of a marginal structural model’s estimate
+  ([`lm()`](https://rdrr.io/r/stats/lm.html),
+  [`glm()`](https://rdrr.io/r/stats/glm.html) or
+  [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html)) to
+  truncating the weights. The numbers behind every plot are returned.
+  See “Checking the weights” in
+  [`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md).
 
 ### Changes
 

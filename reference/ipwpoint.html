@@ -193,7 +193,7 @@ always the exposed (1).</p></dd>
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Standard errors: <code>ipwpoint</code> only estimates the weights. Standard errors
 for the marginal structural model have to be obtained when that model is fitted.
-<code><a href="ipwvcov.html">ipwvcov</a></code> (new, experimental) gives standard errors that take the
+<code><a href="ipwvcov.html">ipwvcov</a></code> (experimental) gives standard errors that take the
 estimation of the weights into account (M-estimation), and is the recommended
 option where it applies: weights from <code>ipwpoint()</code> with
 <code>family = "binomial"</code> and <code>link = "logit"</code> (any <code>estimand</code>,
@@ -522,12 +522,11 @@ truncation (<code>trunc</code>) or overlap weights (<code>estimand = "ATO"</code
 <span class="r-out co"><span class="r-pr">#&gt;</span> Number of Fisher Scoring iterations: 2</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Standard errors that take the estimation of the weights into account</span></span></span>
-<span class="r-in"><span><span class="co"># (M-estimation; binomial exposure, lm() or glm() MSM)</span></span></span>
-<span class="r-in"><span><span class="va">msm.lm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">a</span>, data <span class="op">=</span> <span class="va">simdat</span>, weights <span class="op">=</span> <span class="va">temp</span><span class="op">$</span><span class="va">ipw.weights</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fu"><a href="ipwvcov.html">ipwvcov</a></span><span class="op">(</span><span class="va">temp</span>, <span class="va">msm.lm</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)           a </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    1.052322    1.086986 </span>
+<span class="r-in"><span><span class="co"># Check the weights before trusting any standard error. These weights are</span></span></span>
+<span class="r-in"><span><span class="co"># extreme (poor overlap): ipwdiag(temp) shows a tail index below 2. For</span></span></span>
+<span class="r-in"><span><span class="co"># standard errors that take the estimation of the weights into account</span></span></span>
+<span class="r-in"><span><span class="co"># (ipwvcov(), M-estimation), see the example on well-behaved weights in</span></span></span>
+<span class="r-in"><span><span class="co"># ?ipwvcov.</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Bootstrap standard error and percentile confidence interval for the MSM.</span></span></span>
 <span class="r-in"><span><span class="co"># The robust standard error from svyglm() treats the weights as known and</span></span></span>

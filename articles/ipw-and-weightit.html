@@ -162,8 +162,8 @@ its ATT weights with the untreated as the “treated” group
 coefficient of <code>a</code>:</p>
 <ul>
 <li>
-<strong>ipwvcov()</strong>: ipw’s M-estimation standard error (new),
-which accounts for the estimation of the weights;</li>
+<strong>ipwvcov()</strong>: ipw’s M-estimation standard error
+(experimental), which accounts for the estimation of the weights;</li>
 <li>
 <strong>glm_weightit(vcov = “asympt”)</strong>: WeightIt’s
 M-estimation standard error;</li>
@@ -660,13 +660,13 @@ intervals directly.</p>
 </h3>
 <p>With pooled logistic models
 (<code>ipwtm(family = "binomial", link = "logit")</code>, any
-<code>type</code>), <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> gives M-estimation standard
-errors for an MSM fitted on the long data with <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code>,
-<code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> or a Cox model on counting-process data, summing all
-scores within each person; a list of weight objects, such as treatment
-and censoring weights, can be passed. For the Cox exposure models used
-above (<code>family = "survival"</code>) it is not available, and the
-cluster bootstrap remains the option.</p>
+<code>type</code>), <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> (experimental) gives
+M-estimation standard errors for an MSM fitted on the long data with
+<code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code>, <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> or a Cox model on counting-process
+data, summing all scores within each person; a list of weight objects,
+such as treatment and censoring weights, can be passed. For the Cox
+exposure models used above (<code>family = "survival"</code>) it is not
+available, and the cluster bootstrap remains the option.</p>
 <p>When the visits are at the same times for everyone, the two packages
 can be compared exactly: with time-specific columns in the pooled model
 the weights equal those of <code>weightitMSM()</code>, and the package
@@ -1247,8 +1247,8 @@ for the time to the first switch or to censoring
 and forth or recur (<code>type = "all"</code>); count and skewed
 continuous exposures (Poisson, negative binomial, gamma, log-normal);
 and analyses with few dependencies. With pooled logistic exposure
-models, <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> gives M-estimation standard errors on the
-long data.</li>
+models, <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> (experimental) gives M-estimation
+standard errors on the long data.</li>
 <li>
 <strong>PSweight</strong> for point treatments when you want
 overlap, matching or entropy weights with built-in sandwich standard

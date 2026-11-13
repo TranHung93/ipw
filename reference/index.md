@@ -13,18 +13,22 @@ weights.
   : Time-Varying Inverse Probability Weights From User-Supplied
   Probabilities
 
-## Standard errors
-
-Standard errors for a marginal structural model that take the estimation
-of the weights into account.
-
-- [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) :
-  Standard Errors that Account for Estimated Weights (M-estimation)
-
 ## Diagnostics
+
+Plots to check the weights.
 
 - [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md) :
   Plot Inverse Probability Weights
+
+## Experimental
+
+New in ipw 1.4.0 and still being evaluated; the interface and output may
+change.
+
+- [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) :
+  Standard Errors that Account for Estimated Weights (M-estimation)
+- [`ipwdiag()`](https://tranhung93.github.io/ipw/reference/ipwdiag.md) :
+  Diagnostic Plots for Inverse Probability Weights
 
 ## Data preparation
 

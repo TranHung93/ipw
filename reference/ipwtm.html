@@ -171,7 +171,7 @@ for the marginal structural model have to be obtained when that model is fitted.
 For <code>family = "binomial"</code> with <code>link = "logit"</code> (any <code>type</code>, no
 smooth terms, no truncation) and a marginal structural model fitted on the
 long data with <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code>, <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> or <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code> on counting-process
-data, <code><a href="ipwvcov.html">ipwvcov</a></code> (new, experimental) gives standard errors that take
+data, <code><a href="ipwvcov.html">ipwvcov</a></code> (experimental) gives standard errors that take
 the estimation of the weights into account, with the scores summed within
 subject; pass a list to combine, for example, treatment and censoring weights.
 For Cox (<code>family = "survival"</code>), multinomial, ordinal and gaussian

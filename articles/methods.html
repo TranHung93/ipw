@@ -77,9 +77,9 @@ for each new feature, the formula, the code in the package and why that
 approach was chosen. Section 6 covers recurrent exposure events (Graffeo
 et al. 2018), section 7 <code><a href="../reference/ipwprobtm.html">ipwprobtm()</a></code>, which turns
 probabilities you estimated yourself into time-varying weights, and
-section 8 the standard errors of <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code>. How to use the
-features is shown in the <a href="ipw.html">main vignette</a>; whether
-they recover known effects is checked in the <a href="simulations.html">simulation study</a>.</p>
+section 8 the standard errors of <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> (experimental).
+How to use the features is shown in the <a href="ipw.html">main
+vignette</a>; whether they recover known effects is checked in the <a href="simulations.html">simulation study</a>.</p>
 <div class="section level2">
 <h2 id="notation-and-the-shared-formula">Notation and the shared formula<a class="anchor" aria-label="anchor" href="#notation-and-the-shared-formula"></a>
 </h2>
@@ -622,7 +622,7 @@ probabilities are only approximate.</p>
 <h2 id="ipwvcov-standard-errors-that-account-for-the-estimated-weights">8. <code>ipwvcov()</code>: standard errors that account for the
 estimated weights<a class="anchor" aria-label="anchor" href="#ipwvcov-standard-errors-that-account-for-the-estimated-weights"></a>
 </h2>
-<p><code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> (new, experimental) gives the variance of the
+<p><code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> (experimental) gives the variance of the
 coefficients of a marginal structural model fitted with
 <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code>, <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> or <code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code> and
 weights from <code>ipwpoint(family = "binomial")</code>, with the

@@ -1,8 +1,13 @@
 # Standard Errors that Account for Estimated Weights (M-estimation)
 
-**New, experimental.** Variance-covariance matrix of the coefficients of
-a marginal structural model fitted with
-[`lm()`](https://rdrr.io/r/stats/lm.html),
+**Experimental:** this function is new in ipw 1.4.0. Its interface and
+output may change in future versions, and the methods are still being
+evaluated. The bootstrap, re-estimating the weights in each bootstrap
+sample, remains the established alternative, especially with
+heavy-tailed weights.
+
+Variance-covariance matrix of the coefficients of a marginal structural
+model fitted with [`lm()`](https://rdrr.io/r/stats/lm.html),
 [`glm()`](https://rdrr.io/r/stats/glm.html) or
 [`survival::coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) and
 weights from
@@ -242,11 +247,13 @@ independent comparison.)
 ## Examples
 
 ``` r
-set.seed(16)
+# Moderate confounding, so the weights are well behaved (check them with
+# ipwdiag() before trusting any standard error). True effect of a: 1.
+set.seed(2026)
 n <- 1000
-simdat <- data.frame(l = rnorm(n, 10, 5))
-simdat$a <- rbinom(n, 1, plogis(simdat$l - 10))
-simdat$y <- 10 * simdat$a + 0.5 * simdat$l + rnorm(n, -10, 5)
+simdat <- data.frame(l = rnorm(n))
+simdat$a <- rbinom(n, 1, plogis(-0.2 + 0.6 * simdat$l))
+simdat$y <- 1 + 1 * simdat$a + 0.8 * simdat$l + rnorm(n)
 
 w <- ipwpoint(exposure = a, family = "binomial", link = "logit",
               numerator = ~ 1, denominator = ~ l, data = simdat)
@@ -255,7 +262,7 @@ msm <- lm(y ~ a, data = simdat, weights = w$ipw.weights)
 # standard errors that account for the estimated weights
 sqrt(diag(ipwvcov(w, msm)))
 #> (Intercept)           a 
-#>    1.052322    1.086986 
+#>  0.04944754  0.06540414 
 
 # overlap weights
 w.ato <- ipwpoint(exposure = a, family = "binomial", link = "logit",
@@ -263,7 +270,7 @@ w.ato <- ipwpoint(exposure = a, family = "binomial", link = "logit",
 msm.ato <- lm(y ~ a, data = simdat, weights = w.ato$ipw.weights)
 sqrt(diag(ipwvcov(w.ato, msm.ato)))
 #> (Intercept)           a 
-#>   0.4309341   0.6040691 
+#>  0.04913073  0.06295543 
 
 # Wald tests and confidence intervals
 if (requireNamespace("lmtest", quietly = TRUE)) {
@@ -274,25 +281,25 @@ if (requireNamespace("lmtest", quietly = TRUE)) {
 #> t test of coefficients:
 #> 
 #>             Estimate Std. Error t value  Pr(>|t|)    
-#> (Intercept)  -4.3755     1.0523 -4.1579 3.487e-05 ***
-#> a            10.6466     1.0870  9.7946 < 2.2e-16 ***
+#> (Intercept) 1.049651   0.049448  21.228 < 2.2e-16 ***
+#> a           0.934934   0.065404  14.295 < 2.2e-16 ***
 #> ---
 #> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 #> 
 #>                 2.5 %   97.5 %
-#> (Intercept) -6.440496 -2.31046
-#> a            8.513571 12.77965
+#> (Intercept) 0.9526177 1.146684
+#> a           0.8065889 1.063280
 
 # Cox marginal structural model for a survival outcome
 library(survival)
-simdat$time <- rexp(n, 0.1 * exp(-0.5 * simdat$a + 0.05 * simdat$l))
+simdat$time <- rexp(n, 0.1 * exp(-0.5 * simdat$a + 0.5 * simdat$l))
 simdat$status <- as.numeric(simdat$time < 10)
 simdat$time <- pmin(simdat$time, 10)
 msm.cox <- coxph(Surv(time, status) ~ a, data = simdat, weights = w$ipw.weights)
 cbind(robust = sqrt(diag(msm.cox$var)),          # weights treated as known
       ipwvcov = sqrt(diag(ipwvcov(w, msm.cox))))  # weights estimated
-#>     robust   ipwvcov
-#> a 0.184859 0.1646684
+#>       robust    ipwvcov
+#> a 0.09201763 0.08487011
 
 # Time-varying weights: treatment (type = "first") times censoring
 # (type = "cens") weights from pooled logistic models, and a Cox MSM on

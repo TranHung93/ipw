@@ -102,8 +102,8 @@ sapply(estimands, function(est) {
 The marginal structural model is the weighted regression of `y` on `a`.
 Five standard errors of the coefficient of `a`:
 
-- **ipwvcov()**: ipw’s M-estimation standard error (new), which accounts
-  for the estimation of the weights;
+- **ipwvcov()**: ipw’s M-estimation standard error (experimental), which
+  accounts for the estimation of the weights;
 - **glm_weightit(vcov = “asympt”)**: WeightIt’s M-estimation standard
   error;
 - **PSweight**: the sandwich standard error of the weighted difference
@@ -547,8 +547,8 @@ each person’s own intervals directly.
 With pooled logistic models
 (`ipwtm(family = "binomial", link = "logit")`, any `type`),
 [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
-gives M-estimation standard errors for an MSM fitted on the long data
-with [`lm()`](https://rdrr.io/r/stats/lm.html),
+(experimental) gives M-estimation standard errors for an MSM fitted on
+the long data with [`lm()`](https://rdrr.io/r/stats/lm.html),
 [`glm()`](https://rdrr.io/r/stats/glm.html) or a Cox model on
 counting-process data, summing all scores within each person; a list of
 weight objects, such as treatment and censoring weights, can be passed.
@@ -743,7 +743,7 @@ weight model or a different estimand.
   log-normal); and analyses with few dependencies. With pooled logistic
   exposure models,
   [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
-  gives M-estimation standard errors on the long data.
+  (experimental) gives M-estimation standard errors on the long data.
 - **PSweight** for point treatments when you want overlap, matching or
   entropy weights with built-in sandwich standard errors, augmented
   (doubly robust) estimators, ratio estimands for binary outcomes, or

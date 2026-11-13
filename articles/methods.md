@@ -9,8 +9,8 @@ et al. 2018), section 7
 [`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md),
 which turns probabilities you estimated yourself into time-varying
 weights, and section 8 the standard errors of
-[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md).
-How to use the features is shown in the [main
+[`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+(experimental). How to use the features is shown in the [main
 vignette](https://tranhung93.github.io/ipw/articles/ipw.md); whether
 they recover known effects is checked in the [simulation
 study](https://tranhung93.github.io/ipw/articles/simulations.md).
@@ -546,7 +546,7 @@ of the probabilities are only approximate.
 ## 8. `ipwvcov()`: standard errors that account for the estimated weights
 
 [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
-(new, experimental) gives the variance of the coefficients of a marginal
+(experimental) gives the variance of the coefficients of a marginal
 structural model fitted with [`lm()`](https://rdrr.io/r/stats/lm.html),
 [`glm()`](https://rdrr.io/r/stats/glm.html) or
 [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) and weights
