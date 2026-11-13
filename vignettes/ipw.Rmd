@@ -61,7 +61,7 @@ An analysis has three steps:
 [WeightIt](https://ngreifer.github.io/WeightIt/) offers many more weighting
 methods (machine learning, entropy and energy balancing, CBPS, ...),
 estimands, balance diagnostics through cobalt and outcome models with
-M-estimation standard errors. ipw is designed for exposures that change
+M-estimation standard errors. [ipw](https://tranhung93.github.io/ipw/) is designed for exposures that change
 over time in long data with each person's own visit times, Cox models for
 the time to the first switch or to censoring, exposures that switch back
 and forth or recur, count and skewed continuous exposures, and analyses

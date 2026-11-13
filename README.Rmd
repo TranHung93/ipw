@@ -128,7 +128,7 @@ overlap (and matching or entropy) weights with built-in sandwich standard
 errors that account for the estimated propensity score, augmented (doubly
 robust) estimators, and survey or clustered data.
 
-**Use ipw** for
+**Use [ipw](https://tranhung93.github.io/ipw/)** for
 
 * exposures that change over time in **long (counting-process) data**,
   where each person has their own visit times: `ipwtm()` fits one model

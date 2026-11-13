@@ -25,8 +25,8 @@ library(ipw)
 library(survival)
 ```
 
-[WeightIt](https://ngreifer.github.io/WeightIt/) (Greifer) and ipw both
-estimate weights for marginal structural models;
+[WeightIt](https://ngreifer.github.io/WeightIt/) (Greifer) and
+[ipw](https://tranhung93.github.io/ipw/) (Tran, van der Wal & Geskus) both estimate weights for marginal structural models;
 [PSweight](https://CRAN.R-project.org/package=PSweight) (Zhou, Tong, Li,
 Thomas & Li) estimates propensity score weighted treatment effects for
 point treatments. This article runs the packages on the same data: a
