@@ -9,7 +9,29 @@
   effect is targeted, and `"ATO"` (generalized overlap weights; Li & Li
   2019). For the effect in the controls of a categorical exposure, use
   `"ATT"` with `focal` set to the control level.
-* New `ipwvcov()` (**experimental**): the variance-covariance matrix of the
+* New `ipwprobtm()`: time-varying weights from probabilities estimated
+  elsewhere (for example with machine learning), multiplied over time within
+  each subject. For a point treatment the weights are simply `num / den`.
+* `ipwpoint()`: new families for count exposures (`"poisson"`, `"negbin"`)
+  and skewed continuous exposures (`"gamma"`, `"lognormal"`).
+* `ipwtm()`: `type = "all"` (exposures that switch back and forth) now works
+  for `family = "multinomial"`, `"ordinal"` and `"survival"` (recurrent
+  exposure events, Graffeo et al. 2018).
+* Smooth terms (`s()`, `te()`, `ti()`, `t2()`) in model formulas are fitted
+  with `mgcv::gam()`: in `ipwpoint()` for the binomial, gaussian and poisson
+  families, and in `ipwtm()` for the binomial family. Without smooth terms
+  the models are still fitted with `glm()`.
+* `ipwpoint()` results carry the attributes `"estimand"`, `"exposure"` and
+  (for ATT and ATC) `"focal"`. `ipwtm()` results carry the attributes
+  `"family"`, `"type"`, `"id"` and `"sort.order"`. The list elements and
+  weights are unchanged.
+
+## Experimental features
+
+These functions are new in ipw 1.4.0. Their interface and output may change
+in future versions, and the methods are still being evaluated.
+
+* New `ipwvcov()`: the variance-covariance matrix of the
   coefficients of a marginal structural model, taking the estimation of the
   weights into account (M-estimation with stacked estimating equations).
   Supported:
@@ -27,22 +49,15 @@
   derivatives of the estimating equations, `WeightIt::glm_weightit()` and
   PSweight. With heavy-tailed weights no normal-theory interval is reliable,
   whichever method gives the standard error (see `?ipwvcov`).
-* New `ipwprobtm()`: time-varying weights from probabilities estimated
-  elsewhere (for example with machine learning), multiplied over time within
-  each subject. For a point treatment the weights are simply `num / den`.
-* `ipwpoint()`: new families for count exposures (`"poisson"`, `"negbin"`)
-  and skewed continuous exposures (`"gamma"`, `"lognormal"`).
-* `ipwtm()`: `type = "all"` (exposures that switch back and forth) now works
-  for `family = "multinomial"`, `"ordinal"` and `"survival"` (recurrent
-  exposure events, Graffeo et al. 2018).
-* Smooth terms (`s()`, `te()`, `ti()`, `t2()`) in model formulas are fitted
-  with `mgcv::gam()`: in `ipwpoint()` for the binomial, gaussian and poisson
-  families, and in `ipwtm()` for the binomial family. Without smooth terms
-  the models are still fitted with `glm()`.
-* `ipwpoint()` results carry the attributes `"estimand"`, `"exposure"` and
-  (for ATT and ATC) `"focal"`. `ipwtm()` results carry the attributes
-  `"family"`, `"type"`, `"id"` and `"sort.order"`. The list elements and
-  weights are unchanged.
+* New `ipwdiag()`: diagnostic plots for the weights of `ipwpoint()` and
+  `ipwtm()` (or a list of them whose weights multiply), in base graphics:
+  overlap of the estimated exposure probabilities by exposure group
+  (positivity), the share of the total weight held by the people with the
+  largest weights (with the mean weight and Kish's effective sample size),
+  the tail of the weights with the Hill estimate of the tail index, and the
+  sensitivity of a marginal structural model's estimate (`lm()`, `glm()` or
+  `coxph()`) to truncating the weights. The numbers behind every plot are
+  returned. See "Checking the weights" in `vignette("ipw")`.
 
 ## Changes
 

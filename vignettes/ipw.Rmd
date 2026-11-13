@@ -32,7 +32,7 @@ An analysis has three steps:
 1. **Estimate the weights** with `ipwpoint()` (exposure measured once) or
    `ipwtm()` (exposure that changes over time), or from your own
    probabilities with `ipwprobtm()`.
-2. **Check the weights** with `summary()` and `ipwplot()`.
+2. **Check the weights** with `summary()`, `ipwplot()` and `ipwdiag()`.
 3. **Fit the MSM** with the weights, and get **standard errors**: with
    `ipwvcov()` for binary exposures with logistic models (point treatment
    or time-varying), otherwise with a bootstrap that re-estimates the
@@ -43,16 +43,18 @@ An analysis has three steps:
 | `ipwpoint()` | Weights for an exposure measured once (point treatment) |
 | `ipwtm()` | Weights for an exposure that changes over time, and censoring weights |
 | `ipwprobtm()` | Time-varying weights from probabilities you estimated yourself **(new)** |
-| `ipwvcov()` | Standard errors for the MSM that account for the estimated weights (binary exposures, logistic models) **(new)** |
+| `ipwvcov()` | Standard errors for the MSM that account for the estimated weights (binary exposures, logistic models) **(new, experimental)** |
 | `ipwplot()` | Plot the distribution of the weights |
+| `ipwdiag()` | Diagnostic plots: overlap, weight share, tail index, truncation sensitivity **(new, experimental)** |
 | `tstartfun()` | Interval start times for counting-process (Cox) data |
 
 > **New in ipw 1.4.0.** Sections marked **New** describe
 > features added after ipw 1.3.2: count, gamma and log-normal exposures,
 > smooth terms with mgcv, ATT, ATC and overlap weights (also for
 > categorical exposures), standard errors that account for the estimated
-> weights (`ipwvcov()`), `type = "all"` for
-> categorical and survival exposures in `ipwtm()`, and `ipwprobtm()`.
+> weights (`ipwvcov()`, experimental), `type = "all"` for
+> categorical and survival exposures in `ipwtm()`, `ipwprobtm()`, and
+> diagnostic plots for the weights (`ipwdiag()`, experimental).
 > Existing calls give the same results as before.
 > The formulas, code and rationale behind each new feature are in the
 > [methods article](https://tranhung93.github.io/ipw/articles/methods.html).
@@ -498,7 +500,13 @@ to 0 or 1 and therefore extreme weights. Check the weights and consider
 
 # 5. Standard errors: M-estimation, robust and bootstrap
 
-## New: `ipwvcov()` for a binary point treatment and for time-varying weights
+## New: `ipwvcov()` for a binary point treatment and for time-varying weights (experimental)
+
+**Experimental.** `ipwvcov()` is new in ipw 1.4.0: its interface and output
+may change in future versions, and the methods are still being evaluated.
+The bootstrap with the weights re-estimated in each sample (next
+subsection) remains the established way to obtain standard errors,
+especially with heavy-tailed weights.
 
 **What a variance-covariance matrix is.** The variance-covariance matrix
 (vcov) `V` of a model describes the uncertainty of its coefficients. Its
@@ -524,9 +532,42 @@ smooth terms (mgcv), exposures that are not binary (categorical, ordinal,
 continuous, counts), or Cox MSMs with `strata()`. For these, use the
 bootstrap (next subsection). With heavy-tailed weights, where a few people
 carry much of the weight, neither `ipwvcov()` nor the bootstrap can be
-trusted. Check `ipwplot()` and the effective sample size (section 6) first
+trusted. Check the weights with `ipwdiag()` (section 6) first
 (see "Heavy-tailed weights" in the
 [methods article](https://tranhung93.github.io/ipw/articles/methods.html)).
+
+The `simdat` weights of section 1 are too extreme for that (see
+[Checking the weights](#ipwdiag)), so the examples below use a new data set
+with moderate confounding: a confounder `l`, a binary exposure `a` that
+depends on it, an outcome `y` with a true effect of 1, and a time to event
+further below.
+
+```{r simdat-good, fig.height = 3.4}
+set.seed(2026)
+simdat.good <- data.frame(l = rnorm(1000))
+simdat.good$a <- rbinom(1000, 1, plogis(-0.2 + 0.6 * simdat.good$l))
+simdat.good$y <- 1 + 1 * simdat.good$a + 0.8 * simdat.good$l + rnorm(1000)
+w.good <- ipwpoint(exposure = a, family = "binomial", link = "logit",
+                   numerator = ~ 1, denominator = ~ l, data = simdat.good)
+diag.good <- ipwdiag(w.good, which = c("share", "tail"))
+```
+
+```{r simdat-good-numbers, include = FALSE}
+p.good <- fitted(w.good$den.mod)
+est.good <- c(unweighted = unname(coef(lm(y ~ a, data = simdat.good))["a"]),
+              weighted = unname(coef(lm(y ~ a, data = simdat.good,
+                                        weights = w.good$ipw.weights))["a"]))
+```
+
+These weights pass the checks: the tail index is
+`r sprintf("%.1f", diag.good$tail$alpha)` (above 4), Kish's effective
+sample size is `r sprintf("%.0f%%", 100 * diag.good$summary$share[["ess.fraction"]])`
+of n, the largest weight is
+`r sprintf("%.1f", diag.good$summary$share[["max"]])`, and
+`r n.ext <- sum(p.good < 0.05 | p.good > 0.95); if (n.ext == 0) "none" else n.ext` of the 1000 estimated probabilities
+are below 0.05 or above 0.95. The confounding still matters: the unweighted
+regression of `y` on `a` gives `r sprintf("%.2f", est.good[["unweighted"]])`,
+the weighted one `r sprintf("%.2f", est.good[["weighted"]])` (true effect 1).
 
 `ipwvcov()` handles a binary point treatment with an MSM fitted with
 `lm()`, `glm()` or `coxph()`, and time-varying weights (below). The
@@ -534,21 +575,23 @@ MSM and the exposure model(s) are solved together as one set of estimating
 equations (M-estimation, Lunceford & Davidian 2004), and the sandwich
 variance of all parameters is computed. It works for every estimand (ATE,
 ATT, ATC, ATO), stabilized or not, and is the recommended option in this
-setting. It is new and still experimental. Fit the MSM on the same rows as
-`ipwpoint()`, with `weights = w$ipw.weights`:
+setting. Fit the MSM on the same rows as
+`ipwpoint()`, with `weights = w.good$ipw.weights`:
 
 ```{r ipwvcov}
-msm.lm <- lm(y ~ a, data = simdat, weights = w$ipw.weights)
-se.mest <- sqrt(diag(ipwvcov(w, msm.lm)))
+msm.good <- lm(y ~ a, data = simdat.good, weights = w.good$ipw.weights)
+se.mest <- sqrt(diag(ipwvcov(w.good, msm.good)))
 se.mest
 ```
 
-For this model, `lmtest::coeftest(msm.lm, vcov. = ipwvcov(w, msm.lm))` gives
-the Wald tests.
+For this model, `lmtest::coeftest(msm.good, vcov. = ipwvcov(w.good, msm.good))`
+gives the Wald tests.
 
 For a survival outcome, the MSM can be a weighted Cox model with one row per
 person and `Surv(time, status)`. Below, a time to event is simulated for
-`simdat` with a conditional hazard ratio of exp(-0.5) for `a` given `l`.
+`simdat.good` with a conditional hazard ratio of exp(-0.5) for `a` given
+`l`; a higher `l` also shortens the time to event, so `l` confounds the
+effect.
 The MSM estimates the marginal hazard ratio, which for a Cox model is closer
 to 1 even without confounding (hazard ratios are not collapsible), so the
 estimate is not expected to equal -0.5. The robust standard error
@@ -557,18 +600,20 @@ estimation:
 
 ```{r ipwvcov-cox}
 set.seed(5)
-simdat$time <- rexp(nrow(simdat), 0.1 * exp(-0.5 * simdat$a + 0.05 * simdat$l))
-simdat$status <- as.numeric(simdat$time < 10)
-simdat$time <- pmin(simdat$time, 10)
-msm.cox <- coxph(Surv(time, status) ~ a, data = simdat, weights = w$ipw.weights)
-c(log.hr = unname(coef(msm.cox)),
+simdat.good$time <- rexp(1000, 0.1 * exp(-0.5 * simdat.good$a + 0.5 * simdat.good$l))
+simdat.good$status <- as.numeric(simdat.good$time < 10)   # administrative censoring
+simdat.good$time <- pmin(simdat.good$time, 10)
+msm.cox <- coxph(Surv(time, status) ~ a, data = simdat.good, weights = w.good$ipw.weights)
+c(log.hr.unweighted = unname(coef(coxph(Surv(time, status) ~ a, data = simdat.good))),
+  log.hr = unname(coef(msm.cox)),
   robust.se = sqrt(msm.cox$var[1, 1]),
-  ipwvcov.se = sqrt(ipwvcov(w, msm.cox)[1, 1]))
+  ipwvcov.se = sqrt(ipwvcov(w.good, msm.cox)[1, 1]))
 ```
 
 ```{r ipwvcov-cox-numbers, include = FALSE}
 cox.est <- unname(coef(msm.cox))
-cox.se <- c(robust = sqrt(msm.cox$var[1, 1]), ipwvcov = sqrt(ipwvcov(w, msm.cox)[1, 1]))
+cox.se <- c(robust = sqrt(msm.cox$var[1, 1]),
+            ipwvcov = sqrt(ipwvcov(w.good, msm.cox)[1, 1]))
 cox.ci <- lapply(cox.se, function(se) cox.est + c(-1, 1) * 1.96 * se)
 fmt <- function(x, d) formatC(x, format = "f", digits = d)
 show.ci <- function(ci) paste0("(", fmt(ci[1], 2), ", ", fmt(ci[2], 2), ")")
@@ -583,6 +628,16 @@ zero.text <- if (all(excludes.0)) {
 } else {
   "Here the robust interval excludes 0 and the `ipwvcov()` one does not"
 }
+has.cond <- vapply(cox.ci, function(ci) ci[1] < -0.5 && ci[2] > -0.5, logical(1))
+cond.text <- if (all(has.cond)) {
+  "both intervals happen to contain -0.5"
+} else if (!any(has.cond)) {
+  "neither interval contains -0.5"
+} else if (has.cond[["ipwvcov"]]) {
+  "only the `ipwvcov()` interval contains -0.5"
+} else {
+  "only the robust interval contains -0.5"
+}
 ```
 
 The `ipwvcov()` standard error (`r fmt(cox.se[["ipwvcov"]], 3)`) is
@@ -594,8 +649,10 @@ ignores that gain. The 95% confidence intervals for the log hazard ratio
 (estimate ± 1.96 × SE) are `r show.ci(cox.ci$robust)` with the robust standard
 error and `r show.ci(cox.ci$ipwvcov)` with `ipwvcov()`. `r zero.text`. In
 other data, a difference of this size could decide whether an interval
-crosses 0. Neither interval is expected to contain -0.5, because the MSM
-targets the marginal hazard ratio, not the conditional exp(-0.5).
+crosses 0. The MSM targets the marginal hazard ratio, not the conditional
+exp(-0.5); the marginal log hazard ratio is closer to 0, but with the
+moderate effect of `l` here the two differ little, and
+`r cond.text`.
 
 One data set cannot show which standard error is right. That needs a
 simulation in which the true effect is known and the study is repeated on
@@ -651,7 +708,8 @@ too large, though: they can be too small for a continuous exposure and for
 time-varying weights (see below), and the bootstrap is then preferred.
 
 A bootstrap takes a few lines: draw a sample with replacement, re-estimate
-the weights and the MSM on it, and repeat.
+the weights and the MSM on it, and repeat. Here for `simdat.good`, so that
+it can be compared with the `ipwvcov()` standard error above:
 
 ```{r boot-point}
 msm.effect <- function(d) {
@@ -660,8 +718,8 @@ msm.effect <- function(d) {
   coef(lm(y ~ a, data = d, weights = wt))["a"]
 }
 set.seed(1)
-boot.est <- replicate(200, msm.effect(simdat[sample(nrow(simdat), replace = TRUE), ]))
-c(estimate = unname(msm.effect(simdat)), bootstrap.se = sd(boot.est),
+boot.est <- replicate(200, msm.effect(simdat.good[sample(1000, replace = TRUE), ]))
+c(estimate = unname(msm.effect(simdat.good)), bootstrap.se = sd(boot.est),
   m.estimation.se = unname(se.mest["a"]))
 quantile(boot.est, c(0.025, 0.975))   # percentile 95% confidence interval
 ```
@@ -707,7 +765,7 @@ gives a mixed answer:
 * For a **weighted Cox model** with good overlap, naive, robust and bootstrap
   standard errors were all close to correct.
 * When some **weights are extreme**, through poor overlap (the `simdat`
-  example above) or through products of time-varying weights over several
+  example of section 1; see section 6) or through products of time-varying weights over several
   visits, all standard errors were too small, the bootstrap ones included,
   and 95% confidence intervals covered the truth in only 57 to 80% of
   samples.
@@ -723,18 +781,147 @@ any standard error.
   from 1 suggests a misspecified exposure model.
 * **Extreme weights.** Very large weights point to **positivity** problems:
   some kinds of people (almost) never receive one of the exposures. Look at
-  `ipwplot()`, reconsider the model, use overlap weights (`estimand = "ATO"`)
+  `ipwdiag()` and `ipwplot()`, reconsider the model, use overlap weights
+  (`estimand = "ATO"`)
   or truncate (`trunc`), keeping in mind that truncation slightly changes
   what is estimated.
 * **Assumptions.** The weighted analysis assumes no unmeasured confounding,
   positivity, consistency and correctly specified exposure (and censoring)
   models.
 
-## Covariate balance
+## New: checking the weights with `ipwdiag()` (experimental) {#ipwdiag}
+
+**Experimental.** `ipwdiag()` is new in ipw 1.4.0: its interface and output
+may change in future versions, and the methods are still being evaluated.
+Covariate balance with cobalt (below) and `ipwplot()` remain the
+established tools for checking the weights.
+
+Cole & Hernán (2008) and Austin & Stuart (2015) recommend looking closely
+at the weights before trusting a weighted analysis. `ipwdiag()` draws four
+plots for a result of `ipwpoint()` or `ipwtm()` (or a list of them whose
+weights multiply, such as treatment and censoring weights), prints a short
+summary and returns the numbers behind every plot, so they can be redrawn
+with any graphics package. Checking that the weights balance the
+confounders is a separate step, done with cobalt (see
+[Covariate balance](#covariate-balance) below); `ipwplot()` shows how
+time-varying weights change over follow-up.
+
+For the point treatment of section 1 (`simdat`), a deliberately difficult
+case with poor overlap, and its weighted MSM (section 5 shows the
+well-behaved weights of `simdat.good` for comparison):
+
+```{r ipwdiag-point, fig.height = 6.5}
+msm.lm <- lm(y ~ a, data = simdat, weights = w$ipw.weights)
+diag.point <- ipwdiag(w, msm = msm.lm)
+diag.point
+```
+
+```{r ipwdiag-numbers, include = FALSE}
+sp <- diag.point$summary$share
+tp <- diag.point$trunc
+pct <- function(x, d = 0) sprintf(paste0("%.", d, "f%%"), 100 * x)
+```
+
+What to look for in each plot:
+
+* **Overlap (positivity).** The densities of the estimated probability of
+  exposure, from the denominator model, in the unexposed and the exposed.
+  Shaded ranges contain people from one group only: they have (almost) no
+  counterparts with the other exposure, and their weights become extreme.
+  Here `r pct(diag.point$summary$overlap[["proportion"]])` of the people
+  have a probability below 0.05 or above 0.95, which confirms the poor
+  overlap that the large ATT weights showed in section 1. The plot needs a
+  binomial exposure model; for other families it is skipped.
+* **Weight share.** The people sorted from the largest weight to the
+  smallest, against the cumulative share of the total weight. With equal
+  weights the curve lies on the diagonal. Here the top 1% of the people
+  carry `r pct(sp[["top1"]])` of the total weight and the top 5% carry
+  `r pct(sp[["top5"]])`; Kish's effective sample size is
+  `r round(sp[["ess"]])`, `r pct(sp[["ess.fraction"]])` of the
+  `r nrow(simdat)` people. The summary also gives the **mean** weight, which
+  should be close to 1 for stabilized weights; here it is
+  `r sprintf("%.2f", sp[["mean"]])`. A mean well below 1 is typical of poor
+  overlap: the rare people who would get very large weights are mostly
+  missing from the sample (ATT, ATC and overlap weights have no such
+  target).
+* **Tail index.** For the largest 5% of the weights, the log of rank / n
+  (the proportion of weights at least this large) against the log of the
+  weight. A straight line means a Pareto-type tail, P(W > x) proportional
+  to $x^{-\alpha}$; the Hill estimate of $\alpha$ is drawn as a dashed line
+  with slope $-\alpha$. With $\alpha < 2$ the weights have an infinite
+  variance; with $\alpha$ between 2 and 4, normal-theory intervals can be
+  too narrow, whether the standard error comes from `ipwvcov()` or from the
+  bootstrap (see "Heavy-tailed weights" in `?ipwvcov` and in the article
+  [ipw, WeightIt and PSweight side by side](https://tranhung93.github.io/ipw/articles/ipw-and-weightit.html)).
+  Here the estimate is `r sprintf("%.2f", diag.point$tail$alpha)`, and no
+  standard error for this MSM can be trusted.
+* **Truncation sensitivity.** The MSM is refitted with the weights truncated
+  at their q and 1 - q quantiles (as `ipwpoint(..., trunc = q)` would), and
+  the estimate is shown with a 95% robust confidence interval for each q. A
+  stable estimate means that the extreme weights do not drive the result.
+  Here the estimate moves from `r sprintf("%.1f", tp$estimate[1])` without
+  truncation to `r sprintf("%.1f", tp$estimate[tp$q == 0.01])` at q = 0.01
+  and `r sprintf("%.1f", tp$estimate[tp$q == 0.1])` at q = 0.1, while the
+  true effect is 10: the few people with extreme weights are needed to
+  remove the confounding, and truncating their weights brings bias back.
+  The intervals treat the (truncated) weights as known; for proper intervals
+  with truncated weights, use the bootstrap (section 5) and truncate the
+  weights in each bootstrap sample.
+
+For `ipwtm()` the weight share and the tail use each person's final
+cumulative weight. For the HAART analysis of section 3 (Cox models for
+starting HAART and for dropout, so there is no overlap plot), with the Cox
+MSM `msm.haart`:
+
+```{r ipwdiag-haart, fig.height = 6.5}
+diag.haart <- ipwdiag(list(w.haart, w.cens), which = c("share", "tail", "trunc"),
+                      msm = msm.haart)
+diag.haart
+```
+
+```{r ipwdiag-haart-numbers, include = FALSE}
+sh <- diag.haart$summary$share
+th <- diag.haart$trunc
+```
+
+These weights are well behaved: the mean is `r sprintf("%.2f", sh[["mean"]])`,
+the largest weight `r sprintf("%.1f", sh[["max"]])`, the top 1% of the
+patients carry `r pct(sh[["top1"]], 1)` of the total weight, and the
+effective sample size is `r pct(sh[["ess.fraction"]])` of the
+`r diag.haart$summary$n` patients. The tail index,
+`r sprintf("%.1f", diag.haart$tail$alpha)`, is at the border of the range
+where intervals may be too narrow. The log hazard ratio of HAART moves from
+`r sprintf("%.2f", th$estimate[1])` to
+`r sprintf("%.2f", th$estimate[th$q == 0.01])` with 1% truncation and to
+`r sprintf("%.2f", th$estimate[th$q == 0.1])` with 10% truncation, changes
+of up to half its standard error of `r sprintf("%.2f", th$se[1])`. For a
+list of weight objects the product of the weights is truncated. The overlap
+plot needs a binomial exposure model, for example
+`ipwtm(..., family = "binomial")` (pooled logistic regression). Its
+probabilities are per interval, and small when the intervals are short, so
+look at whether the two groups overlap rather than at the proportion below
+0.05.
+
+**Calibration of the exposure model.** A complementary check, not part of
+`ipwdiag()`, compares the observed proportion exposed with the mean
+predicted probability within deciles of the prediction; the points should
+lie near the diagonal.
+
+```{r calibration, fig.width = 4.2, fig.height = 4.2, out.width = "50%"}
+p <- fitted(w$den.mod)
+decile <- cut(p, quantile(p, 0:10 / 10), include.lowest = TRUE)
+plot(tapply(p, decile, mean), tapply(simdat$a, decile, mean),
+     xlab = "Mean predicted probability", ylab = "Observed proportion exposed",
+     xlim = c(0, 1), ylim = c(0, 1), pch = 19)
+abline(0, 1, lty = 3)
+```
+
+## Covariate balance {#covariate-balance}
 
 Good weights make the confounders unrelated to the exposure, so after
 weighting their distribution should be the same in the exposure groups.
-Check this directly: it tests the exposure model where it matters. The
+Check this directly: it tests the exposure model where it matters, and it
+complements the plots of [`ipwdiag()`](#ipwdiag) above. The
 cobalt package (Greifer) computes balance statistics for any weights; ipw's
 weights are passed as a plain vector, with `method = "weighting"`. The
 standardized mean difference (SMD) uses the pooled standard deviation of the
@@ -826,6 +1013,10 @@ sample sizes".
 
 # References
 
+* Austin PC, Stuart EA (2015). Moving towards best practice when using
+  inverse probability of treatment weighting (IPTW) using the propensity
+  score to estimate causal treatment effects in observational studies.
+  *Statistics in Medicine* 34, 3661-3679. doi:10.1002/sim.6607.
 * Austin PC (2016). Variance estimation when using inverse probability of
   treatment weighting (IPTW) with survival analysis. *Statistics in
   Medicine* 35, 5642-5655. doi:10.1002/sim.7084.

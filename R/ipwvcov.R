@@ -1,7 +1,13 @@
 #' Standard Errors that Account for Estimated Weights (M-estimation)
 #'
 #' @description
-#' \strong{New, experimental.} Variance-covariance matrix of the coefficients
+#' \strong{Experimental:} this function is new in ipw 1.4.0. Its interface
+#' and output may change in future versions, and the methods are still being
+#' evaluated. The bootstrap, re-estimating the weights in
+#' each bootstrap sample, remains the established alternative, especially
+#' with heavy-tailed weights.
+#'
+#' Variance-covariance matrix of the coefficients
 #' of a marginal structural model fitted with \code{lm()}, \code{glm()} or
 #' \code{survival::coxph()} and
 #' weights from \code{\link{ipwpoint}} for a binary point treatment, or with
@@ -180,11 +186,13 @@
 #' @export
 #'
 #' @examples
-#' set.seed(16)
+#' # Moderate confounding, so the weights are well behaved (check them with
+#' # ipwdiag() before trusting any standard error). True effect of a: 1.
+#' set.seed(2026)
 #' n <- 1000
-#' simdat <- data.frame(l = rnorm(n, 10, 5))
-#' simdat$a <- rbinom(n, 1, plogis(simdat$l - 10))
-#' simdat$y <- 10 * simdat$a + 0.5 * simdat$l + rnorm(n, -10, 5)
+#' simdat <- data.frame(l = rnorm(n))
+#' simdat$a <- rbinom(n, 1, plogis(-0.2 + 0.6 * simdat$l))
+#' simdat$y <- 1 + 1 * simdat$a + 0.8 * simdat$l + rnorm(n)
 #'
 #' w <- ipwpoint(exposure = a, family = "binomial", link = "logit",
 #'               numerator = ~ 1, denominator = ~ l, data = simdat)
@@ -207,7 +215,7 @@
 #'
 #' # Cox marginal structural model for a survival outcome
 #' library(survival)
-#' simdat$time <- rexp(n, 0.1 * exp(-0.5 * simdat$a + 0.05 * simdat$l))
+#' simdat$time <- rexp(n, 0.1 * exp(-0.5 * simdat$a + 0.5 * simdat$l))
 #' simdat$status <- as.numeric(simdat$time < 10)
 #' simdat$time <- pmin(simdat$time, 10)
 #' msm.cox <- coxph(Surv(time, status) ~ a, data = simdat, weights = w$ipw.weights)

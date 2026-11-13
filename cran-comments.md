@@ -19,8 +19,9 @@ without any warning in 1.3.1 and 1.3.2:
 * New features: ATT, ATC and overlap weights in `ipwpoint()` (also for
   categorical exposures); count and skewed exposure families; smooth terms
   via mgcv; `type = "all"` for more families in `ipwtm()`; new exported
-  functions `ipwvcov()` (M-estimation standard errors, marked experimental)
-  and `ipwprobtm()`. Existing calls give the same weights as before, checked
+  functions `ipwprobtm()`, `ipwvcov()` (M-estimation standard errors) and
+  `ipwdiag()` (diagnostic plots for the weights, base graphics); the last
+  two are marked experimental. Existing calls give the same weights as before, checked
   by regression tests against ipw 1.2.1.1.
 * License changed back to GPL (>= 2), the license of ipw before 1.3.0
   (1.3.0 to 1.3.2 were MIT). All authors agree to the change.
@@ -42,8 +43,10 @@ without any warning in 1.3.1 and 1.3.2:
 
 0 errors | 0 warnings | 0 notes
 
-* local: `devtools::check(remote = TRUE, manual = TRUE)` and
-  `R CMD check --as-cran` (including the CRAN incoming checks).
+* local (rerun on 2026-11-13 after adding `ipwdiag()`):
+  `devtools::check(remote = TRUE, manual = TRUE)` and
+  `R CMD check --as-cran` (including the CRAN incoming checks). All
+  examples run in under 2.1 s (`ipwdiag()`: 0.3 s).
 * The package also passes `R CMD check` with only the packages in Depends
   and Imports installed (`_R_CHECK_DEPENDS_ONLY_=true`); all packages in
   Suggests are used conditionally.
@@ -54,6 +57,6 @@ update: 12"; the reason is given at the top). -->
 
 We checked 1 reverse dependency (ipeval 0.1.2), comparing R CMD check results
 across the CRAN and development versions of this package
-(`revdepcheck::revdep_check()`).
+(`revdepcheck::revdep_check()`, rerun on 2026-11-13).
 * We saw 0 new problems.
 * We failed to check 0 packages.
