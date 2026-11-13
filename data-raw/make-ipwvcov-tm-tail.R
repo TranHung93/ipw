@@ -7,9 +7,12 @@
 # Also a milder version of the strong scenario. A tail index below 2 means
 # the weights have infinite variance.
 # Needs: sandwich, parallel and the installed development ipw.
-# Results: vignettes/articles/ipwvcov-tm-tail.rds
+# Results: vignettes/articles/ipwvcov-tm-tail.rds: the weight distribution
+# (`weights`), the standard errors on the variance scale (`summary`, see
+# data-raw/se-performance.R) and the results of every data set (`replicates`).
 
 stopifnot(requireNamespace("sandwich"))
+source(file.path("data-raw", "se-performance.R"))
 out_file <- file.path("vignettes", "articles", "ipwvcov-tm-tail.rds")
 
 scenarios <- list(strong = c(b_l = 0.8, b_lag = 1.0, b_int = -0.5),
@@ -76,29 +79,33 @@ one_rep <- function(r, sc, n, R_boot, B) {
     hill = hill(w_final))
 }
 
-cl <- parallel::makeCluster(max(1, parallel::detectCores() - 2))
+# The results depend on the number of workers (each worker has its own
+# random number stream and gets a fixed block of data sets). The saved
+# results used 18 workers (20 cores - 2); set IPW_SIM_WORKERS to reproduce
+# them on another machine.
+workers <- as.integer(Sys.getenv("IPW_SIM_WORKERS", max(1, parallel::detectCores() - 2)))
+cl <- parallel::makeCluster(workers)
 parallel::clusterExport(cl, c("gen", "hill"))
 parallel::clusterSetRNGStream(cl, 2027)
-rows <- list()
+rows <- list()        # weight distribution, one row per scenario and n
+se_rows <- list()     # standard errors on the variance scale, one row per method
+replicates <- list()  # per-data-set results, saved so that summaries can be recomputed
 for (nm in names(scenarios)) {
   for (i in seq_len(nrow(design))) {
     n <- design$n[i]
-    res <- do.call(rbind, parallel::parLapply(cl, seq_len(design$R[i]), one_rep,
-                                              sc = scenarios[[nm]], n = n,
-                                              R_boot = design$R_boot[i], B = B))
-    cover <- function(se, keep = rep(TRUE, nrow(res))) {
-      mean(abs(res[keep, "est"] - truth) < stats::qnorm(0.975) * se[keep])
-    }
-    bk <- !is.na(res[, "se_boot"])
+    res <- as.data.frame(do.call(rbind, parallel::parLapply(cl, seq_len(design$R[i]), one_rep,
+                                                            sc = scenarios[[nm]], n = n,
+                                                            R_boot = design$R_boot[i], B = B)))
+    replicates[[paste(nm, n)]] <- cbind(scenario = nm, n = n, res)
     rows[[length(rows) + 1]] <- data.frame(
       scenario = nm, n = n,
-      max.weight = stats::median(res[, "w_max"]), q999.weight = stats::median(res[, "w_q999"]),
-      ess.fraction = mean(res[, "ess_frac"]), hill.tail.index = stats::median(res[, "hill"]),
-      empirical.sd = stats::sd(res[, "est"]), mean.se.ipwvcov = mean(res[, "se_ipwvcov"]),
-      mean.se.bootstrap = mean(res[bk, "se_boot"]),
-      coverage.ipwvcov = cover(res[, "se_ipwvcov"]), coverage.bootstrap = cover(res[, "se_boot"], bk),
-      coverage.robust = cover(res[, "se_robust"]),
-      replications = nrow(res), bootstrap.replications = sum(bk))
+      max.weight = stats::median(res$w_max), q999.weight = stats::median(res$w_q999),
+      ess.fraction = mean(res$ess_frac), hill.tail.index = stats::median(res$hill))
+    se_col <- c(ipwvcov = "se_ipwvcov", bootstrap = "se_boot", robust = "se_robust")
+    for (type in names(se_col)) {
+      se_rows[[length(se_rows) + 1]] <- data.frame(
+        scenario = nm, n = n, method = type, se_performance(res$est, res[[se_col[[type]]]], truth))
+    }
     cat(nm, n, "done\n")
   }
 }
@@ -120,9 +127,12 @@ hill_big <- vapply(tail_scenarios, function(sc) {
     ess.fraction = sum(w_final)^2 / sum(w_final^2) / length(w_final))
 }, numeric(5))
 
-saveRDS(list(summary = do.call(rbind, rows), hill_big = hill_big, scenarios = scenarios,
-             B = B, ipw_version = as.character(utils::packageVersion("ipw")), date = Sys.Date()),
+saveRDS(list(weights = do.call(rbind, rows), summary = do.call(rbind, se_rows),
+             replicates = replicates, hill_big = hill_big, scenarios = scenarios,
+             design = design, B = B, workers = workers,
+             ipw_version = as.character(utils::packageVersion("ipw")), date = Sys.Date()),
         out_file)
 cat("Saved", out_file, "\n")
 print(do.call(rbind, rows))
+print(do.call(rbind, se_rows))
 print(hill_big)

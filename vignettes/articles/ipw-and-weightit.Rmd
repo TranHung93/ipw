@@ -18,6 +18,34 @@ tm_sim <- readRDS("ipwvcov-tm-simulation.rds")
 # Tail index of the cumulative weights and coverage by n (section 3), made
 # once with data-raw/make-ipwvcov-tm-tail.R
 tm_tail <- readRDS("ipwvcov-tm-tail.rds")
+# Standard errors are judged on the variance scale (Morris, White & Crowther
+# 2019, Table 6). The summaries were computed from the saved per-data-set
+# results (`replicates` in each file) with data-raw/se-performance.R.
+sim_table <- function(s, keys) {
+  tab <- data.frame(s[keys], Method = s$method,
+                    `Empirical SE` = round(s$emp.se, 4), `Model SE` = round(s$model.se, 4),
+                    `Variance ratio` = round(s$var.ratio, 2),
+                    `Relative error in model SE, % (MCSE)` =
+                      sprintf("%+.1f (%.1f)", s$rel.error, s$mcse.rel.error),
+                    Coverage = round(s$coverage, 3), `MCSE of coverage` = round(s$mcse.coverage, 3),
+                    `Data sets` = s$replications, check.names = FALSE)
+  knitr::kable(tab, row.names = FALSE, digits = 4)
+}
+f2 <- function(x) formatC(x, format = "f", digits = 2)
+fr <- function(r) sprintf("%+.0f%% (MCSE %.0f)", r$rel.error, r$mcse.rel.error)
+cx <- function(est, m) cox_sim$summary[cox_sim$summary$estimand == est & cox_sim$summary$method == m, ]
+tx <- function(sc, m) tm_sim$summary[tm_sim$summary$scenario == sc & tm_sim$summary$method == m, ]
+# Range of a summary column over sample sizes (and scenarios) of the tail
+# simulation, as text: "0.84 to 0.93"; coverage in %, MCSE of coverage in
+# percentage points.
+trng <- function(sc, m, col = "var.ratio", digits = 2) {
+  s <- tm_tail$summary
+  x <- s[s$scenario %in% sc & s$method == m, col]
+  if (col == "coverage") return(paste0(paste(unique(sprintf("%.1f", 100 * range(x))), collapse = " to "), "%"))
+  if (col == "mcse.coverage") { x <- 100 * x; digits <- 1 }
+  fmt <- if (col == "rel.error") paste0("%+.", digits, "f") else paste0("%.", digits, "f")
+  paste(unique(sprintf(fmt, range(x))), collapse = " to ")
+}
 ```
 
 ```{r packages, message = FALSE}
@@ -194,28 +222,42 @@ treatment depending on a confounder, conditional hazard ratio exp(-0.5),
 administrative censoring) of 95% Wald intervals for the marginal log hazard
 ratio. The truth is the marginal log hazard ratio in the target population,
 computed from both potential outcomes of a very large sample. The bootstrap
-(`r cox_sim$B` samples, weights re-estimated in each) was run on a subset
-of the data sets.
+(`r cox_sim$B` samples, weights re-estimated in each) was run on
+`r cox_sim$R_boot` of the `r cox_sim$R` data sets. Standard errors are
+judged on the variance scale (Morris, White & Crowther 2019): the variance
+ratio is the mean estimated variance, mean(SE²), divided by the empirical
+variance of the estimates (1 is ideal), and the model SE, sqrt(mean(SE²)),
+is compared with the empirical SE.
 
 ```{r cox-sim}
-knitr::kable(cox_sim$summary, digits = 3, row.names = FALSE)
+sim_table(cox_sim$summary, c(Estimand = "estimand", Truth = "truth"))
 ```
 
-The empirical standard deviation of the estimates is what a standard error
-should estimate, but with 1000 data sets it is itself uncertain by about
-2% (roughly SD / sqrt(2 x 1000)). The mean `ipwvcov()` standard error is
-within 1% of it for both estimands, and so is the bootstrap's: no detectable
-difference.
-The robust standard error, which treats the weights as known, is about 10%
-(ATE) and 6% (ATO) too large here, so its intervals cover more often than
-95%: conservative, but wider than needed. The coverages of `ipwvcov()`
-(1000 data sets) and of the bootstrap (300 data sets) are both within
-simulation error of 95% (the Monte Carlo standard error of a coverage near
-95% is about 0.7 percentage points with 1000 data sets and 1.3 with 300).
-Coverage does not depend on the empirical standard deviation: it counts how
-often the interval contains the known true value. The
+The empirical variance of the estimates is what a variance estimator should
+estimate, but with `r cox_sim$R` data sets it is itself uncertain by about
+`r sprintf("%.1f", 100 * sqrt(2 / (cox_sim$R - 1)))`% (relative Monte Carlo
+standard error sqrt(2 / (*R* − 1))). The variance ratio of `ipwvcov()` is
+`r f2(cx("ATE", "ipwvcov")$var.ratio)` (ATE) and
+`r f2(cx("ATO", "ipwvcov")$var.ratio)` (ATO), and that of the bootstrap
+`r f2(cx("ATE", "bootstrap")$var.ratio)` and
+`r f2(cx("ATO", "bootstrap")$var.ratio)`; the relative errors in the model SE
+are all under 1% with Monte Carlo standard errors above 2%: no detectable
+difference. The robust variance, which treats the weights as known, is too
+large here: variance ratio `r f2(cx("ATE", "robust")$var.ratio)` (ATE) and
+`r f2(cx("ATO", "robust")$var.ratio)` (ATO), model SE
+`r fr(cx("ATE", "robust"))` and `r fr(cx("ATO", "robust"))`. Its intervals
+therefore cover more often than 95%: conservative, but wider than needed.
+The coverages of `ipwvcov()` (`r cox_sim$R` data sets) and of the bootstrap
+(`r cox_sim$R_boot` data sets) are both within simulation error of 95% (the
+Monte Carlo standard error of a coverage near 95% is about
+`r sprintf("%.1f", 100 * sqrt(0.95 * 0.05 / cox_sim$R))` percentage points
+with `r cox_sim$R` data sets and
+`r sprintf("%.1f", 100 * sqrt(0.95 * 0.05 / cox_sim$R_boot))` with
+`r cox_sim$R_boot`). Coverage does not depend on the empirical variance: it
+counts how often the interval contains the known true value. The
 [methods article](methods.html#how-the-simulations-judge-a-standard-error)
-explains these checks in more detail.
+explains these checks in more detail, including why variances rather than
+standard errors are compared.
 
 `ipwvcov()` covers binary exposures with logistic exposure models: point
 treatments with `lm()`, `glm()` or `coxph()` outcome models, and
@@ -479,20 +521,30 @@ person (HC0) and treats the weights as known; the cluster bootstrap
 a subset of the data sets.
 
 ```{r tm-sim}
-knitr::kable(tm_sim$summary, digits = 3, row.names = FALSE)
+sim_table(tm_sim$summary, c(Scenario = "scenario", `Median largest weight` = "median.max.weight"))
 ```
 
 With moderate weights, `ipwvcov()` and the cluster bootstrap agree with
-each other and with the empirical standard deviation of the estimates, and
-their intervals cover about 95%. The robust standard error, which treats the
-weights as known, is about 40% too large here, so its intervals are much
-wider than needed. With strongly dependent treatment, `ipwvcov()` and the
-bootstrap give almost the same standard error, but both are about 17%
-smaller than the empirical standard deviation, and coverage drops to about
-93% (the bootstrap's 94.5% is based on 200 data sets). The robust standard
-error is conservative in both scenarios here, but that is not guaranteed;
-the package's simulation study found settings where it was too small as
-well.
+each other and with the empirical variance of the estimates (variance ratio
+`r f2(tx("moderate", "ipwvcov")$var.ratio)` and
+`r f2(tx("moderate", "bootstrap")$var.ratio)`; model SE
+`r fr(tx("moderate", "ipwvcov"))` and `r fr(tx("moderate", "bootstrap"))`),
+and their intervals cover about 95%. The robust variance, which treats the
+weights as known, is `r f2(tx("moderate", "robust")$var.ratio)` times the
+empirical variance here (model SE `r fr(tx("moderate", "robust"))`), so its
+intervals are much wider than needed. With strongly dependent treatment,
+`ipwvcov()` and the bootstrap give similar standard errors, but they are
+too small: the variance ratio of `ipwvcov()` is
+`r f2(tx("strong", "ipwvcov")$var.ratio)` (model SE
+`r fr(tx("strong", "ipwvcov"))`), and coverage drops to
+`r sprintf("%.1f%%", 100 * tx("strong", "ipwvcov")$coverage)`. The
+bootstrap's variance ratio, `r f2(tx("strong", "bootstrap")$var.ratio)`
+(model SE `r fr(tx("strong", "bootstrap"))`), and coverage,
+`r sprintf("%.1f%%", 100 * tx("strong", "bootstrap")$coverage)`, rest on
+`r tx("strong", "bootstrap")$replications` data sets and are much less
+precise. The robust standard error is conservative in both scenarios here,
+but that is not guaranteed; the package's simulation study found settings
+where it was too small as well.
 
 ### Heavy-tailed weights
 
@@ -512,20 +564,23 @@ distribution refers to the final cumulative weight of each person: the
 largest weight and the 99.9th percentile (medians over data sets), the
 Kish effective sample size as a fraction of *n* (mean), and the Hill
 estimate of the tail index from the top 5% (median). There were
-`r tm_tail$summary$replications[1]`, `r tm_tail$summary$replications[2]`
-and `r tm_tail$summary$replications[3]` data sets per size, of which
-`r tm_tail$summary$bootstrap.replications[1]`,
-`r tm_tail$summary$bootstrap.replications[2]` and
-`r tm_tail$summary$bootstrap.replications[3]` were bootstrapped
-(B = `r tm_tail$B`).
+`r tm_tail$design$R[1]`, `r tm_tail$design$R[2]` and
+`r tm_tail$design$R[3]` data sets for *n* = `r tm_tail$design$n[1]`,
+`r tm_tail$design$n[2]` and `r tm_tail$design$n[3]`, of which
+`r tm_tail$design$R_boot[1]`, `r tm_tail$design$R_boot[2]` and
+`r tm_tail$design$R_boot[3]` were bootstrapped (B = `r tm_tail$B`).
+
+```{r tm-tail-weights}
+knitr::kable(setNames(tm_tail$weights,
+                      c("Scenario", "n", "Largest weight", "99.9th percentile",
+                        "ESS fraction", "Hill tail index")),
+             digits = c(0, 0, 1, 1, 2, 2), row.names = FALSE)
+```
+
+The standard errors, judged as above:
 
 ```{r tm-tail}
-tail_tab <- tm_tail$summary[, c("scenario", "n", "max.weight", "q999.weight",
-                                "ess.fraction", "hill.tail.index",
-                                "empirical.sd", "mean.se.ipwvcov",
-                                "mean.se.bootstrap", "coverage.ipwvcov",
-                                "coverage.bootstrap", "coverage.robust")]
-knitr::kable(tail_tab, digits = c(0, 0, 1, 1, 2, 2, 4, 4, 4, 3, 3, 3), row.names = FALSE)
+sim_table(tm_tail$summary, c(Scenario = "scenario", n = "n"))
 ```
 
 The Hill estimate from one sample of 200,000 people per scenario, at three
@@ -539,14 +594,32 @@ knitr::kable(tm_tail$hill_big, digits = 2)
 The tail index is above 2 in every scenario, so the weights have a finite
 variance and the intervals are valid in the limit. It is, however, about
 2.3 in the strong scenario and 2.8 in the milder one, compared with 3.9 in
-the moderate scenario. Coverage of `ipwvcov()` intervals follows the tail
-index: about 95% (moderate), about 94% (milder) and 92 to 93% (strong). In
-the strong scenario coverage does not improve from 300 to 4800 people,
-while the largest weight roughly doubles with every fourfold increase in
-*n* and the effective sample size fraction keeps falling. The cluster
-bootstrap gives about the same standard errors as `ipwvcov()` and does no
-better (its coverage rests on 100 to 200 data sets, so it is uncertain by
-about 2 to 3 percentage points).
+the moderate scenario. The variance from `ipwvcov()` is too small in both
+heavy-tailed scenarios, and by about the same amount at every sample size:
+its ratio to the empirical variance is `r trng("strong", "ipwvcov")` in the
+strong scenario and `r trng("milder", "ipwvcov")` in the milder one
+(relative error in model SE `r trng("strong", "ipwvcov", "rel.error", 0)`% and
+`r trng("milder", "ipwvcov", "rel.error", 0)`%, with MCSEs of
+`r trng(c("strong", "milder"), "ipwvcov", "mcse.rel.error", 0)` points), against
+`r f2(tx("moderate", "ipwvcov")$var.ratio)` in the moderate scenario.
+Coverage follows the tail index: about
+`r sprintf("%.0f%%", 100 * tx("moderate", "ipwvcov")$coverage)` (moderate),
+`r trng("milder", "ipwvcov", "coverage")` (milder) and
+`r trng("strong", "ipwvcov", "coverage")` (strong). Neither the variance
+ratio nor the coverage improves from 300 to 4800 people, while the largest
+weight roughly doubles with every fourfold increase in *n* and the
+effective sample size fraction keeps falling. The cluster bootstrap does no
+better: its variance ratio ranges from
+`r trng(c("strong", "milder"), "bootstrap")`, but it rests on `r min(tm_tail$design$R_boot)` to `r max(tm_tail$design$R_boot)`
+data sets, so the MCSE of its relative error in model SE is
+`r trng(c("strong", "milder"), "bootstrap", "mcse.rel.error", 0)` points
+and that of its coverage
+`r trng(c("strong", "milder"), "bootstrap", "mcse.coverage")` percentage
+points; it cannot be told
+apart from `ipwvcov()`. The robust variance is
+`r trng(c("strong", "milder"), "robust")` times the empirical variance,
+so its intervals over-cover
+(`r trng(c("strong", "milder"), "robust", "coverage")`).
 
 Heavy-tailed weights therefore make normal-theory intervals unreliable for
 any method, the bootstrap included. The variance formula is not the cause:
@@ -592,6 +665,8 @@ has a comparison table.
 * Lunceford JK, Davidian M (2004). Stratification and weighting via the
   propensity score in estimation of causal treatment effects: a comparative
   study. *Statistics in Medicine* 23, 2937–2960.
+* Morris TP, White IR, Crowther MJ (2019). Using simulation studies to
+  evaluate statistical methods. *Statistics in Medicine* 38, 2074–2102.
 * Zhou T, Tong G, Li F, Thomas L, Li F. PSweight: Propensity Score
   Weighting for Causal Inference with Observational Studies and Randomized
   Trials. R package, <https://CRAN.R-project.org/package=PSweight>.

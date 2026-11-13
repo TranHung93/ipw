@@ -5,10 +5,13 @@
 #   robust     - coxph's robust SE, treats the weights as known;
 #   bootstrap  - weights and MSM re-estimated in each bootstrap sample.
 # Rerun when the design changes. Needs: survival and the installed
-# development ipw. Takes about 20-30 minutes.
+# development ipw. Takes about 20-30 minutes. Saves the estimate and the
+# three standard errors of every data set (`replicates`) and a summary on the
+# variance scale (`summary`, see data-raw/se-performance.R).
 
 library(ipw)
 library(survival)
+source(file.path("data-raw", "se-performance.R"))
 out_file <- file.path("vignettes", "articles", "ipwvcov-cox-simulation.rds")
 
 # Treatment depends on l; the treated potential time is the untreated one
@@ -66,23 +69,24 @@ res <- lapply(seq_len(R_sim), function(r) {
   out
 })
 
+# Per-data-set results, saved so that any summary can be recomputed
+replicates <- lapply(c(ATE = "ATE", ATO = "ATO"), function(est) {
+  as.data.frame(do.call(rbind, lapply(res, `[[`, est)))
+})
+# Summary on the variance scale (data-raw/se-performance.R): one row per
+# estimand and standard error
 summarise <- function(est) {
-  m <- do.call(rbind, lapply(res, `[[`, est))
-  cover <- function(se, rows = seq_len(nrow(m))) {
-    mean(abs(m[rows, "est"] - truth[[est]]) < stats::qnorm(0.975) * se[rows])
-  }
-  boot_rows <- which(!is.na(m[, "se_boot"]))
-  data.frame(
-    estimand = est, truth = truth[[est]], mean.estimate = mean(m[, "est"]),
-    empirical.sd = stats::sd(m[, "est"]),
-    mean.se.ipwvcov = mean(m[, "se_ipwvcov"]), mean.se.robust = mean(m[, "se_robust"]),
-    mean.se.bootstrap = mean(m[boot_rows, "se_boot"]),
-    coverage.ipwvcov = cover(m[, "se_ipwvcov"]), coverage.robust = cover(m[, "se_robust"]),
-    coverage.bootstrap = cover(m[, "se_boot"], boot_rows),
-    replications = nrow(m), bootstrap.replications = length(boot_rows))
+  m <- replicates[[est]]
+  se_col <- c(ipwvcov = "se_ipwvcov", robust = "se_robust", bootstrap = "se_boot")
+  do.call(rbind, lapply(names(se_col), function(type) {
+    data.frame(estimand = est, method = type, truth = truth[[est]],
+               mean.estimate = mean(m$est),
+               se_performance(m$est, m[[se_col[[type]]]], truth[[est]]))
+  }))
 }
-saveRDS(list(summary = rbind(summarise("ATE"), summarise("ATO")),
-             n = n, B = B, ipw_version = as.character(utils::packageVersion("ipw")),
+saveRDS(list(summary = rbind(summarise("ATE"), summarise("ATO")), replicates = replicates,
+             truth = truth, n = n, B = B, R = R_sim, R_boot = R_boot_sim,
+             ipw_version = as.character(utils::packageVersion("ipw")),
              date = Sys.Date()),
         out_file)
 cat("Saved", out_file, "\n")

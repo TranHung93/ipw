@@ -14,13 +14,26 @@ show <- function(prefix) {
                              "Empirical SD", "RMSE", "Replications"))
 }
 show_se <- function(prefix) {
-  tab <- se[startsWith(se$scenario, prefix),
-            c("method", "mean.est", "mean.se", "emp.sd", "se.ratio", "coverage", "mcse.cov", "reps")]
-  knitr::kable(tab, row.names = FALSE, digits = 3,
-               col.names = c("Method", "Mean estimate", "Mean SE", "Empirical SD",
-                             "SE / empirical SD", "Coverage of 95% CI", "MCSE of coverage",
-                             "Replications"))
+  tab <- se[startsWith(se$scenario, prefix), ]
+  tab <- data.frame(tab$method, round(tab$mean.est, 3), round(tab$emp.se, 3),
+                    round(tab$model.se, 3), round(tab$var.ratio, 2),
+                    sprintf("%+.1f (%.1f)", tab$rel.error, tab$mcse.rel.error),
+                    round(tab$coverage, 3), round(tab$mcse.cov, 3), tab$reps)
+  knitr::kable(tab, row.names = FALSE, align = c("l", rep("r", 8)),
+               col.names = c("Method", "Mean estimate", "Empirical SE", "Model SE",
+                             "Variance ratio", "Relative error in model SE, % (MCSE)",
+                             "Coverage of 95% CI", "MCSE of coverage", "Replications"))
 }
+# one row of the standard-error results, for the text
+pick <- function(prefix, method) {
+  se[startsWith(se$scenario, prefix) & startsWith(se$method, method), ][1, ]
+}
+vr <- function(prefix, method) formatC(pick(prefix, method)$var.ratio, format = "f", digits = 2)
+re <- function(prefix, method) {
+  p <- pick(prefix, method)
+  sprintf("%+.0f%% (MCSE %.0f)", p$rel.error, p$mcse.rel.error)
+}
+cv <- function(prefix, method) sprintf("%.1f%%", 100 * pick(prefix, method)$coverage)
 ```
 
 This article checks, by simulation, whether the new features of ipw do what
@@ -40,7 +53,10 @@ the simulated example in the JSS paper (van der Wal & Geskus 2011).
   gamma doses and for counts, and for smooth terms and ordinal exposures the
   bias shrinks as the sample grows.
 * **A bootstrap that re-estimates the weights gives accurate standard
-  errors when the weights are well behaved**, where robust standard errors are 10 to 12% too large. It does
+  errors when the weights are well behaved**, where the variance from robust
+  standard errors is `r vr("7c", "robust")` to `r vr("7a", "robust")` times the true
+  variance (model-based SE `r sprintf("%.0f", pick("7c", "robust")$rel.error)` to
+  `r sprintf("%.0f", pick("7a", "robust")$rel.error)`% too large). It does
   **not** fix analyses with extreme weights: with poor overlap or long
   products of time-varying weights, no standard error reaches 95% coverage,
   and the bootstrap is then not better than the robust standard error.
@@ -338,10 +354,21 @@ shows that the approximation works for estimating a causal effect.
 
 # 7. Standard errors: bootstrap, robust and naive
 
-Each table shows the mean estimated standard error divided by the actual
-spread of the estimates (1 is ideal) and the coverage of 95% confidence
-intervals. The bootstrap re-estimates the weights and the MSM in each of
-200 bootstrap samples (function `boot_sim()` in the script).
+Standard errors are judged on the variance scale (Morris, White & Crowther
+2019): the *variance ratio* is the mean estimated variance, mean(SE²),
+divided by the empirical variance of the estimates (1 is ideal). The
+*model SE*, sqrt(mean(SE²)), is shown next to the *empirical SE*, the
+standard deviation of the estimates, with the relative error in the model
+SE, 100 × (model SE / empirical SE − 1), and its Monte Carlo standard error
+(Morris et al., Table 6). Variances are compared rather than standard
+errors because a correct variance estimator is unbiased for the variance,
+while its square root underestimates the standard error on average (see
+"How the simulations judge a standard error" in the
+[methods article](methods.html#how-the-simulations-judge-a-standard-error)).
+The tables also give the coverage of 95% confidence intervals. The
+bootstrap re-estimates the weights and the MSM in each of 200 bootstrap
+samples (function `boot_sim()` in the script). The estimates and standard
+errors of every data set are saved in `simulation-se-replicates.rds`.
 
 ## 7a and 7b. Linear MSM for a binary exposure
 
@@ -366,12 +393,20 @@ show_se("7a")
 show_se("7b")
 ```
 
-With good overlap the bootstrap standard error is accurate (ratio 1.02, Wald
-coverage 95.5%), while the robust standard error is 12% too large (coverage
-97.2%), in line with Austin (2016); percentile intervals cover slightly less
-than 95%. In the JSS example the estimate itself is biased (11.1 instead of
-10) and all standard errors are 38% too small, so coverage is 60% or less
-whatever method is used.
+With good overlap the bootstrap standard error is accurate (variance ratio
+`r vr("7a", "bootstrap SE")`, relative error in the model SE
+`r re("7a", "bootstrap SE")`, Wald coverage `r cv("7a", "bootstrap SE")`),
+while the robust variance is too large (variance ratio `r vr("7a", "robust")`,
+model SE `r re("7a", "robust")`, coverage `r cv("7a", "robust")`), in line
+with Austin (2016); percentile intervals cover slightly less than 95%. In
+the JSS example the estimate itself is biased
+(`r sprintf("%.1f", pick("7b", "robust")$mean.est)` instead of 10) and all
+standard errors are much too small (variance ratio
+`r vr("7b", "robust")` to `r vr("7b", "bootstrap SE")`, model SE
+`r sprintf("%.0f", pick("7b", "robust")$rel.error)` to
+`r sprintf("%.0f", pick("7b", "bootstrap SE")$rel.error)`%), so coverage is
+`r sprintf("%.0f%%", 100 * pick("7b", "robust")$coverage)` or less whatever
+method is used.
 
 ## 7c. Weighted Cox MSM
 
@@ -386,9 +421,11 @@ show_se("7c")
 ```
 
 All three standard errors are close to the truth here. The bootstrap
-standard error is accurate (ratio 1.00); the robust one is again too large
-(+10%) and the naive one somewhat too large (+7%), as Austin (2016) found.
-All Wald intervals cover the truth in 94 to 97% of samples, so with
+standard error is accurate (variance ratio `r vr("7c", "bootstrap SE")`); the
+robust variance is again too large (variance ratio `r vr("7c", "robust")`,
+model SE `r re("7c", "robust")`) and the naive one somewhat too large
+(`r vr("7c", "naive")`, model SE `r re("7c", "naive")`), as Austin (2016)
+found. All Wald intervals cover the truth in 94 to 97% of samples, so with
 stabilized weights and good overlap the choice matters little in this
 setting.
 
@@ -405,8 +442,12 @@ boot_sim(long, tv.effect, id = "id", R = 200)
 show_se("7d")
 ```
 
-Neither method is adequate here: the bootstrap standard error is 38% too
-small and the robust one 30% too small, with coverage of 74% and 80%. The
+Neither method is adequate here: the variance ratio is
+`r vr("7d", "bootstrap by person SE")` for the bootstrap and
+`r vr("7d", "robust")` for the robust standard error (model SE
+`r re("7d", "bootstrap by person SE")` and `r re("7d", "robust")`), with
+coverage of `r sprintf("%.0f%%", 100 * pick("7d", "bootstrap by person SE")$coverage)`
+and `r sprintf("%.0f%%", 100 * pick("7d", "robust")$coverage)`. The
 weights are products over 4 visits, so a few people get very large weights
 and the estimate has a heavy-tailed distribution that 500 people do not
 represent well, the same problem as in 7b. Truncation, a larger sample or a
@@ -439,5 +480,7 @@ overlap weights, truncation or a different model.
 * Li F, Morgan KL, Zaslavsky AM (2018). Balancing covariates via propensity
   score weighting. *Journal of the American Statistical Association* 113,
   390-400.
+* Morris TP, White IR, Crowther MJ (2019). Using simulation studies to
+  evaluate statistical methods. *Statistics in Medicine* 38, 2074-2102.
 * van der Wal WM, Geskus RB (2011). ipw: An R package for inverse probability
   weighting. *Journal of Statistical Software* 43(13), 1-23.

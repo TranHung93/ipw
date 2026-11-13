@@ -601,10 +601,11 @@ One data set cannot show which standard error is right. That needs a
 simulation in which the true effect is known and the study is repeated on
 many data sets. In the Cox simulation of the article
 [ipw, WeightIt and PSweight side by side](https://tranhung93.github.io/ipw/articles/ipw-and-weightit.html#a-cox-outcome-model)
-(1000 data sets of 500 people), the mean `ipwvcov()` standard error matched
-the true variability of the estimates and its 95% intervals covered the
-truth in about 95% of the data sets. The robust standard error was 6 to 10%
-too large. The
+(1000 data sets of 500 people), the variance from `ipwvcov()` matched the
+true variance of the estimates on average (ratio 1.00 for both estimands
+studied) and its 95% intervals covered the truth in about 95% of the data
+sets. The robust variance was 1.12 to 1.20 times the true variance (the
+standard error 6 to 10% too large). The
 [methods article](https://tranhung93.github.io/ipw/articles/methods.html#how-the-simulations-judge-a-standard-error)
 explains how a simulation judges a standard error.
 
@@ -701,7 +702,8 @@ c(robust.se = unname(sqrt(diag(vcov(msm.haart)))), bootstrap.se = sd(boot.haart)
 gives a mixed answer:
 
 * For a point treatment with **good overlap**, the bootstrap standard error
-  was accurate, while robust standard errors were about 12% too large.
+  was accurate, while the variance from robust standard errors was 1.25
+  times the true variance (the standard error 12% too large).
 * For a **weighted Cox model** with good overlap, naive, robust and bootstrap
   standard errors were all close to correct.
 * When some **weights are extreme**, through poor overlap (the `simdat`

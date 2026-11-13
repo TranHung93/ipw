@@ -106,6 +106,12 @@
   bootstrap helps, when robust standard errors that treat the weights as
   known can be too small, and which cases `ipwvcov()` supports.
 * New "ipw or WeightIt?" section in the README and the vignette.
+* The simulation summaries judge standard errors on the variance scale
+  (Morris, White & Crowther 2019): the mean estimated variance against the
+  empirical variance of the estimates, their ratio, and the relative error
+  in the model-based standard error with its Monte Carlo standard error. The
+  simulation scripts now save the results of every data set. The methods
+  article explains how the simulations judge a standard error.
 * New articles on the package website (<https://tranhung93.github.io/ipw/>):
   "Methods" (formulas and code for the new features), "Simulation study",
   "Bugs fixed after ipw 1.3.2", "Survival weights and the time grid" and

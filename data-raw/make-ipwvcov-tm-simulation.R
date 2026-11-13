@@ -13,8 +13,11 @@
 #                as known (sandwich::vcovCL);
 #   bootstrap  - persons resampled, ipwtm() and the MSM re-fitted.
 # Needs: sandwich, parallel and the installed development ipw.
+# Saves the results of every data set (`replicates`) and a summary on the
+# variance scale (`summary`, see data-raw/se-performance.R).
 
 stopifnot(requireNamespace("sandwich"))
+source(file.path("data-raw", "se-performance.R"))
 out_file <- file.path("vignettes", "articles", "ipwvcov-tm-simulation.rds")
 
 scenarios <- list(moderate = c(b_l = 0.4, b_lag = 0.5, b_int = -0.3),
@@ -69,28 +72,35 @@ one_rep <- function(r, sc, n, B, R_boot_sim) {
     se_boot = se_boot, max_w = max(f$w$ipw.weights))
 }
 
-cl <- parallel::makeCluster(max(1, parallel::detectCores() - 2))
+# The results depend on the number of workers (each worker has its own
+# random number stream and gets a fixed block of data sets). The saved
+# results used 18 workers (20 cores - 2); set IPW_SIM_WORKERS to reproduce
+# them on another machine.
+workers <- as.integer(Sys.getenv("IPW_SIM_WORKERS", max(1, parallel::detectCores() - 2)))
+cl <- parallel::makeCluster(workers)
 parallel::clusterSetRNGStream(cl, 2026)
-summary <- do.call(rbind, lapply(names(scenarios), function(nm) {
-  res <- do.call(rbind, parallel::parLapply(cl, seq_len(R_sim), one_rep,
-                                            sc = scenarios[[nm]], n = n, B = B,
-                                            R_boot_sim = R_boot_sim))
-  cover <- function(se, rows = seq_len(nrow(res))) {
-    mean(abs(res[rows, "est"] - truth) < stats::qnorm(0.975) * se[rows])
-  }
-  boot_rows <- which(!is.na(res[, "se_boot"]))
-  data.frame(
-    scenario = nm, median.max.weight = stats::median(res[, "max_w"]),
-    mean.estimate = mean(res[, "est"]), empirical.sd = stats::sd(res[, "est"]),
-    mean.se.ipwvcov = mean(res[, "se_ipwvcov"]), mean.se.robust = mean(res[, "se_robust"]),
-    mean.se.bootstrap = mean(res[boot_rows, "se_boot"]),
-    coverage.ipwvcov = cover(res[, "se_ipwvcov"]), coverage.robust = cover(res[, "se_robust"]),
-    coverage.bootstrap = cover(res[, "se_boot"], boot_rows),
-    replications = nrow(res), bootstrap.replications = length(boot_rows))
-}))
+# Per-data-set results, saved so that any summary can be recomputed
+replicates <- lapply(names(scenarios), function(nm) {
+  as.data.frame(do.call(rbind, parallel::parLapply(cl, seq_len(R_sim), one_rep,
+                                                   sc = scenarios[[nm]], n = n, B = B,
+                                                   R_boot_sim = R_boot_sim)))
+})
+names(replicates) <- names(scenarios)
 parallel::stopCluster(cl)
 
-saveRDS(list(summary = summary, n = n, B = B, truth = truth, scenarios = scenarios,
+# Summary on the variance scale (data-raw/se-performance.R): one row per
+# scenario and standard error
+summary <- do.call(rbind, lapply(names(scenarios), function(nm) {
+  res <- replicates[[nm]]
+  se_col <- c(ipwvcov = "se_ipwvcov", robust = "se_robust", bootstrap = "se_boot")
+  do.call(rbind, lapply(names(se_col), function(type) {
+    data.frame(scenario = nm, method = type, median.max.weight = stats::median(res$max_w),
+               mean.estimate = mean(res$est), se_performance(res$est, res[[se_col[[type]]]], truth))
+  }))
+}))
+
+saveRDS(list(summary = summary, replicates = replicates, workers = workers,
+             n = n, B = B, truth = truth, scenarios = scenarios,
              ipw_version = as.character(utils::packageVersion("ipw")), date = Sys.Date()),
         out_file)
 cat("Saved", out_file, "\n")
