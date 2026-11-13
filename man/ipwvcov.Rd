@@ -138,7 +138,7 @@ of the time, with no trend towards 95\% between 300 and 4800 people. The
 cluster bootstrap did no better (variance ratio 0.86 to 1.00 on fewer data
 sets, coverage 90 to 95\%). With a tail index of about 3.9 the variance
 ratios were 1.05 (\code{ipwvcov()}) and 1.04 (bootstrap), and both
-covered about 95\%. Check the weight distribution
+covered 95.8\% and 96.5\% of the time. Check the weight distribution
 (\code{summary()}, \code{\link{ipwplot}} and the effective sample size
 \code{sum(w)^2 / sum(w^2)}) before trusting any standard error.
 
