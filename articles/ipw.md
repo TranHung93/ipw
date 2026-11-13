@@ -41,11 +41,10 @@ An analysis has three steps:
 | [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md) | Plot the distribution of the weights |
 | [`tstartfun()`](https://tranhung93.github.io/ipw/reference/tstartfun.md) | Interval start times for counting-process (Cox) data |
 
-> **New in the development version.** Sections marked **New** describe
-> features added after ipw 1.3.2: count, gamma and log-normal exposures,
-> smooth terms with mgcv, ATT, ATC and overlap weights (also for
-> categorical exposures), standard errors that account for the estimated
-> weights
+> **New in ipw 1.4.0.** Sections marked **New** describe features added
+> after ipw 1.3.2: count, gamma and log-normal exposures, smooth terms
+> with mgcv, ATT, ATC and overlap weights (also for categorical
+> exposures), standard errors that account for the estimated weights
 > ([`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)),
 > `type = "all"` for categorical and survival exposures in
 > [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md), and
@@ -58,7 +57,8 @@ An analysis has three steps:
 [WeightIt](https://ngreifer.github.io/WeightIt/) offers many more
 weighting methods (machine learning, entropy and energy balancing, CBPS,
 …), estimands, balance diagnostics through cobalt and outcome models
-with M-estimation standard errors. ipw is designed for exposures that
+with M-estimation standard errors.
+[ipw](https://tranhung93.github.io/ipw/) is designed for exposures that
 change over time in long data with each person’s own visit times, Cox
 models for the time to the first switch or to censoring, exposures that
 switch back and forth or recur, count and skewed continuous exposures,

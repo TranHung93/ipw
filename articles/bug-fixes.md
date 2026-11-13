@@ -78,9 +78,9 @@ ref_offset <- unname(1 / ifelse(d$a == 1, p, 1 - p))
 
 | Version | Result | Largest relative difference from the correct weights |
 |:---|:---|:---|
-| 1.2.1.1 | Weights | 0 |
+| 1.2.1.1 | Weights | 4.4e-16 |
 | 1.3.2 (CRAN) | Weights | 1.1 |
-| this version (1.3.2.9000) | Weights | 0 |
+| this version (1.4.0) | Weights | 0 |
 
 **Fix:** the model formula is now used exactly as written.
 
@@ -107,9 +107,9 @@ ref_dot <- unname(1 / ifelse(d$a == 1, p, 1 - p))
 
 | Version | Result | Largest relative difference from the correct weights |
 |:---|:---|:---|
-| 1.2.1.1 | Weights | 0 |
+| 1.2.1.1 | Weights | 8.9e-16 |
 | 1.3.2 (CRAN) | Error: Variables not found in data: . |  |
-| this version (1.3.2.9000) | Weights | 0 |
+| this version (1.4.0) | Weights | 0 |
 
 **Fix:** `~ .` works again in
 [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md).
@@ -147,7 +147,7 @@ ref_factor <- unname(1 / ifelse(d$a_num == 1, p, 1 - p))
 |:---|:---|:---|
 | 1.2.1.1 | Weights | 8.7 |
 | 1.3.2 (CRAN) | Weights | 8.7 |
-| this version (1.3.2.9000) | Weights | 0 |
+| this version (1.4.0) | Weights | 0 |
 
 **Fix:** a 0/1 exposure stored as a factor or text is converted by its
 labels, so the order of the levels no longer matters.
@@ -188,7 +188,7 @@ ref_ordinal <- unname(1 / pr[cbind(seq_len(nrow(d)), as.integer(d$dose_ord))])
 |:---|:---|:---|
 | 1.2.1.1 | Error: replacement has 0 rows, data has 500 |  |
 | 1.3.2 (CRAN) | Weights | 1.8 |
-| this version (1.3.2.9000) | Error: Ordinal exposure is a character vector, whose order is not defined (it would be sorted alphabetically). Use an… |  |
+| this version (1.4.0) | Error: Ordinal exposure is a character vector, whose order is not defined (it would be sorted alphabetically). Use an… |  |
 
 **Fix:** a text exposure is now an error that asks for an ordered factor
 or numeric codes, and an unordered factor whose levels are not numbers
@@ -259,7 +259,7 @@ from the risk sets by hand, without
 |:---|:---|:---|
 | 1.2.1.1 | Weights | 25 |
 | 1.3.2 (CRAN) | Weights | 25 |
-| this version (1.3.2.9000) | Weights | 4.4e-16 |
+| this version (1.4.0) | Weights | 4.4e-16 |
 
 On the full grid, as in `haartdat` or the JSS paper’s examples, nothing
 changes: all versions give the same, correct weights.
@@ -302,9 +302,9 @@ ref_selvar <- unname(ave(1 / p_obs, d$id, FUN = cumprod))
 
 | Version | Result | Largest relative difference from the correct weights |
 |:---|:---|:---|
-| 1.2.1.1 | Weights | 4.4e-16 |
+| 1.2.1.1 | Weights | 1.2e-15 |
 | 1.3.2 (CRAN) | Weights | 3.6 |
-| this version (1.3.2.9000) | Weights | 4.4e-16 |
+| this version (1.4.0) | Weights | 4.4e-16 |
 
 **Fix:** the internal column now has a name that does not clash
 (`.ipw_selvar`); the `selvar` element of the result is unchanged.
@@ -330,7 +330,7 @@ sum(duplicated(d[, c("id", "time")]))
 |:---|:---|:---|
 | 1.2.1.1 | Weights |  |
 | 1.3.2 (CRAN) | Weights |  |
-| this version (1.3.2.9000) | Error: Each combination of ‘id’ and ‘timevar’ must occur only once. |  |
+| this version (1.4.0) | Error: Each combination of ‘id’ and ‘timevar’ must occur only once. |  |
 
 **Fix:** duplicated `id`/`timevar` combinations are now an error.
 
@@ -377,7 +377,7 @@ ref_ties <- unname(ave(p_breslow(~ sex + age) / p_breslow(~ sex + age + cd4.sqrt
 |:---|:---|:---|
 | 1.2.1.1 | Weights | 0.064 |
 | 1.3.2 (CRAN) | Weights | 0.064 |
-| this version (1.3.2.9000) | Weights | 1.1e-15 |
+| this version (1.4.0) | Weights | 1.1e-15 |
 
 **Fix:** `ties` is passed on to
 [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html); the default is
@@ -385,7 +385,7 @@ still Efron.
 
 ## Summary
 
-| Case | 1.2.1.1 | 1.3.2 (CRAN) | this version (1.3.2.9000) |
+| Case | 1.2.1.1 | 1.3.2 (CRAN) | this version (1.4.0) |
 |:---|:---|:---|:---|
 | 1\. offset() in a formula | correct | wrong (up to 1.1) | correct |
 | 2\. denominator = ~ . | correct | error (should work) | correct |

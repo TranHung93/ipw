@@ -254,7 +254,7 @@ counting at day 15 and missed that part of the hazard. Patient 1,
 exposed at day 20, gets a weight of 3.414 instead of 2.918.
 
 The same numbers from the package. Every old version gives the old
-weights, and the development version gives the correct ones:
+weights, and this version gives the correct ones:
 
 ``` r
 
@@ -421,7 +421,7 @@ correct weights computed by hand as above:
 | 1.3.0 | correct | correct | incorrect (36) | incorrect (2.3) | incorrect (0.38) | correct |
 | 1.3.1 | correct | correct | incorrect (36) | incorrect (2.3) | incorrect (0.38) | correct |
 | 1.3.2 | correct | correct | incorrect (36) | incorrect (2.3) | incorrect (0.38) | correct |
-| this version (1.3.2.9000) | correct | correct | correct | correct | correct | correct |
+| this version (1.4.0) | correct | correct | correct | correct | correct | correct |
 
 The numbers in brackets are the largest relative difference between a
 version’s weights and the correct weights (2 means one weight is three

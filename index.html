@@ -24,7 +24,7 @@
 
     <a class="navbar-brand me-2" href="index.html">ipw</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.2.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -176,7 +176,7 @@
 <p><a href="https://ngreifer.github.io/WeightIt/" class="external-link">WeightIt</a> (Greifer) is a comprehensive R package for weighting, and for many analyses it is the better choice. The two packages overlap for simple cases (a binary point treatment with a logistic model gives the same weights in both) and are complementary otherwise.</p>
 <p><strong>Use WeightIt</strong> for point treatments when you want machine-learning or balancing methods (generalized boosted models, SuperLearner, BART, CBPS, entropy balancing, energy balancing, and more), a wide choice of estimands, balance diagnostics through cobalt, and outcome models whose standard errors account for the estimation of the weights (<code>glm_weightit()</code>, <code>coxph_weightit()</code>, also for ordinal and multinomial outcomes).</p>
 <p><a href="https://CRAN.R-project.org/package=PSweight" class="external-link">PSweight</a> is another option for point treatments, binary or with several levels: especially for overlap (and matching or entropy) weights with built-in sandwich standard errors that account for the estimated propensity score, augmented (doubly robust) estimators, and survey or clustered data.</p>
-<p><strong>Use ipw</strong> for</p>
+<p><strong>Use <a href="https://tranhung93.github.io/ipw/">ipw</a></strong> for</p>
 <ul>
 <li>exposures that change over time in <strong>long (counting-process) data</strong>, where each person has their own visit times: <code><a href="reference/ipwtm.html">ipwtm()</a></code> fits one model pooled over all rows;</li>
 <li>

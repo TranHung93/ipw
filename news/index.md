@@ -1,322 +1,177 @@
 # Changelog
 
-## ipw (development version)
+## ipw 1.4.0
 
-### Improvements
+### New features
 
-- [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md),
-  `family = "survival"`, `type = "first"` or `"cens"` no longer needs
-  the data on a full time grid. Up to ipw 1.3.2, the probability of each
-  row used the increase in the baseline hazard since the previous time
-  point in the whole data set, so the weights were correct only when all
-  follow-up was split at all times that occur in the data, as in the
-  examples of the JSS paper, `haartdat` and Example 2 of
-  [`?ipwtm`](https://tranhung93.github.io/ipw/reference/ipwtm.md). Each
-  row now uses the baseline hazard over its own interval
-  `(tstart, timevar]`, so data with individual visit times can be used
-  directly. **For data on the full grid the weights are unchanged**; for
-  data that are not, they now differ from earlier versions, which gave
-  incorrect weights for such data. `type = "all"` always used each row’s
-  own interval.
+- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md):
+  new `estimand` argument. For a binomial exposure: `"ATE"` (default),
+  `"ATT"` (effect in the treated), `"ATC"` (effect in the untreated) and
+  `"ATO"` (overlap weights). For `family = "multinomial"` and
+  `"ordinal"`: `"ATT"`, with the new argument `focal` naming the level
+  whose effect is targeted, and `"ATO"` (generalized overlap weights; Li
+  & Li 2019). For the effect in the controls of a categorical exposure,
+  use `"ATT"` with `focal` set to the control level.
+- New
+  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+  (**experimental**): the variance-covariance matrix of the coefficients
+  of a marginal structural model, taking the estimation of the weights
+  into account (M-estimation with stacked estimating equations).
+  Supported:
+  - [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+    weights for a binary exposure with a logistic model (any
+    `estimand`), with an [`lm()`](https://rdrr.io/r/stats/lm.html),
+    [`glm()`](https://rdrr.io/r/stats/glm.html) or
+    [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) model
+    (right-censored data, one row per person);
+  - [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
+    weights with `family = "binomial"`, `link = "logit"` and any `type`,
+    or a list of
+    [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)/[`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+    results whose weights multiply (e.g. treatment times censoring
+    weights), with an [`lm()`](https://rdrr.io/r/stats/lm.html),
+    [`glm()`](https://rdrr.io/r/stats/glm.html) or counting-process
+    [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) model on
+    the long data. Scores are summed within subject.
+
+  Other cases (other families or links, truncated weights, smooth terms)
+  give an error; use the bootstrap there. Checked against numerical
+  derivatives of the estimating equations,
+  [`WeightIt::glm_weightit()`](https://ngreifer.github.io/WeightIt/reference/glm_weightit.html)
+  and PSweight. With heavy-tailed weights no normal-theory interval is
+  reliable, whichever method gives the standard error (see
+  [`?ipwvcov`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)).
+- New
+  [`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md):
+  time-varying weights from probabilities estimated elsewhere (for
+  example with machine learning), multiplied over time within each
+  subject. For a point treatment the weights are simply `num / den`.
+- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md):
+  new families for count exposures (`"poisson"`, `"negbin"`) and skewed
+  continuous exposures (`"gamma"`, `"lognormal"`).
+- [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md):
+  `type = "all"` (exposures that switch back and forth) now works for
+  `family = "multinomial"`, `"ordinal"` and `"survival"` (recurrent
+  exposure events, Graffeo et al. 2018).
+- Smooth terms (`s()`, `te()`, `ti()`, `t2()`) in model formulas are
+  fitted with [`mgcv::gam()`](https://rdrr.io/pkg/mgcv/man/gam.html): in
+  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  for the binomial, gaussian and poisson families, and in
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) for
+  the binomial family. Without smooth terms the models are still fitted
+  with [`glm()`](https://rdrr.io/r/stats/glm.html).
+- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  results carry the attributes `"estimand"`, `"exposure"` and (for ATT
+  and ATC) `"focal"`.
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
+  results carry the attributes `"family"`, `"type"`, `"id"` and
+  `"sort.order"`. The list elements and weights are unchanged.
+
+### Changes
+
+- **Survival weights and the time grid (caution for older versions).**
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) with
+  `family = "survival"` and `type = "first"` or `"cens"` now computes
+  each row’s probability from the baseline hazard over that row’s own
+  interval `(tstart, timevar]`. ipw 1.3.2 and earlier used the increase
+  in the baseline hazard since the previous time point in the whole data
+  set, which is right only when every subject’s follow-up is split at
+  all times that occur in the data (the “full time grid”, as in the JSS
+  paper, `haartdat` and Example 2 of
+  [`?ipwtm`](https://tranhung93.github.io/ipw/reference/ipwtm.md)).
+  **For data on the full grid the weights are unchanged.** Data with
+  individual visit times can now be used directly; if you used such data
+  with an older version, re-run the analysis with this version. The
+  article “Survival weights and the time grid” shows how to check
+  whether your data were on the full grid.
+- License changed back to GPL (\>= 2), the license of ipw before 1.3.0
+  (1.3.0 to 1.3.2 were MIT).
+- Two functions that were only in development versions on GitHub, never
+  on CRAN, changed: `ipwprob()` was renamed
+  [`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md)
+  and now handles time-varying exposures only, and `ipwboot()` was
+  removed (the bootstrap is shown in
+  [`?ipwpoint`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  and
+  [`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md)
+  instead).
+- Existing calls give the same weights as before (except for the
+  time-grid change above), checked by regression tests against ipw
+  1.2.1.1. A covariate named `s`, `te`, `ti` or `t2` is treated as an
+  ordinary variable.
 
 ### Bug fixes
 
 - [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
   and [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md):
   [`offset()`](https://rdrr.io/r/stats/offset.html) terms in the
-  `numerator` and `denominator` formulas were silently dropped, so the
-  models were fitted without the offset and **the weights were wrong**.
-  This affected ipw 1.3.1 and 1.3.2 on CRAN; ipw 1.2.1.1 was fine.
-  Formulas are now used as written.
-- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md):
-  `denominator = ~ .` (all other columns of `data`) failed with
-  “Variables not found in data: .” and works again, as in ipw 1.2.1.1.
-  In [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) a
-  `.` is now a clear error, because it would include the id, time and
-  exposure columns; list the covariates instead.
-- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
-  and [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md),
-  `family = "ordinal"`: an unordered factor exposure whose levels are
-  not numbers now gives a warning, because its levels are used in
-  alphabetical order unless set otherwise (e.g. “high” \< “low” \<
-  “mid”). Use an ordered factor to make the order explicit.
-- [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md),
-  `family = "survival"`: a `ties` argument passed through `...` to
-  [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) was silently
-  ignored (Efron was always used), and `method` gave the error “formal
-  argument matched by multiple actual arguments”. Both are now passed
-  on; the default is still `ties = "efron"`.
-- [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md),
-  `family = "survival"`: rows with `tstart >= timevar` now give a clear
-  error instead of “missing values in object” or no error at all.
-- Clearer errors:
-  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
-  with `family = "gaussian"` and a non-numeric exposure (was “NA/NaN/Inf
-  in ‘y’”);
-  [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md)
-  with missing weights (was “‘x’ contains missing values”) or a
-  `binwidth` of length \> 1.
+  `numerator` and `denominator` formulas were silently dropped, so **the
+  weights were wrong**. This affected ipw 1.3.1 and 1.3.2; ipw 1.2.1.1
+  was fine.
 - [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
   and [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md):
   a binomial (or survival) 0/1 exposure stored as a factor or character
   is now used by its labels. With factor levels in the order
   `c("1", "0")` the probabilities of the two exposure values were
-  swapped, giving wrong weights.
-- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
-  and [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md),
-  `family = "ordinal"`: a character exposure is now an error. It was
-  ordered alphabetically (e.g. “high” \< “low” \< “mid”). Use an ordered
-  factor or numeric codes.
+  swapped, giving **wrong weights**.
+- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md):
+  `denominator = ~ .` works again, as in ipw 1.2.1.1. In
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) a `.`
+  is an error, because it would include the id, time and exposure
+  columns.
+- [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md),
+  `family = "survival"`: `ties` passed through `...` to
+  [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) was ignored
+  (Efron was always used); it is now passed on.
 - [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md): a
   covariate called `selvar` was replaced by the internal selection
   indicator; it is now used as the user’s covariate.
-- [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md):
-  duplicated combinations of `id` and `timevar` are now an error (as in
-  [`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md)).
-- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md):
-  an exposure that takes only one value is now an error instead of
-  returning meaningless weights.
-- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
-  and [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md):
-  infinite values in model variables now give an error that names the
-  variables.
-- [`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md):
-  `den` and `num` larger than 1 are now an error.
-- [`tstartfun()`](https://tranhung93.github.io/ipw/reference/tstartfun.md):
-  warns when follow-up times are \<= -1, because the starting time of -1
-  given to the first record is then not before the follow-up time.
-- [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md):
-  zero or negative weights with `logscale = TRUE` are now an error; they
-  were silently left out of the plot.
-- [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
-  examples: the cluster bootstrap moved to
-  [`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md)
-  (section 5), and the part of Example 2 that needs nlme (in Suggests)
-  only runs when nlme is installed.
-
-### Documentation
-
-- [`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md),
-  section 6: covariate balance with
-  [`cobalt::bal.tab()`](https://ngreifer.github.io/cobalt/reference/bal.tab.html)
-  and `love.plot()` (ipw weights passed as a vector), for the binary
-  point treatment and for the HAART example at two time points, and the
-  Kish effective sample size overall and by exposure group.
-
-- New section “ipw or WeightIt?” in the README (with a comparison table)
-  and a short version near the start of
-  [`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md):
-  when to use which package.
-
-- New article “ipw, WeightIt and PSweight side by side”: the same binary
-  and categorical point treatments in all three packages (weights and
-  standard errors), and longitudinal data with individual visit times in
-  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) and
-  `weightitMSM()`. The README section “ipw or WeightIt?” also names
-  PSweight as an option for point treatments.
-
-- [`?ipwpoint`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
-  and
-  [`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md),
-  section 5:
-  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
-  is the recommended standard error for a binary point treatment; the
-  bootstrap remains the advice otherwise. The methods article has new
-  sections on ATC, categorical ATT/ATO weights and
-  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md).
-
-- New article “Bugs fixed after ipw 1.3.2” on the package website: for
-  each bug above, an example run in ipw 1.2.1.1, ipw 1.3.2 and this
-  version, with the weights compared with weights computed by hand.
-
-- New article “Survival weights and the time grid”: why
-  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
-  survival weights in ipw 1.3.2 and earlier need the data on a full time
-  grid (as in the JSS paper), a worked example, `rows_affected()` to
-  check whether your data were on the full grid, the results of every
-  ipw version on CRAN (1.0 to 1.3.2), a simulation with a known answer,
-  the old and the new code, and the tests.
-
-### New features
-
-- New
-  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
-  (**new, experimental; still under discussion**): the
-  variance-covariance matrix of the coefficients of a marginal
-  structural model fitted with [`lm()`](https://rdrr.io/r/stats/lm.html)
-  or [`glm()`](https://rdrr.io/r/stats/glm.html) and
-  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
-  weights for a binary exposure, taking the estimation of the weights
-  into account (M-estimation with stacked estimating equations,
-  Lunceford & Davidian 2004). Works for `estimand = "ATE"` (stabilized
-  or not), `"ATT"`, `"ATC"` and `"ATO"`, with logistic exposure models
-  (`link = "logit"`). Not for other links, truncated weights, smooth
-  terms, other families or
-  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
-  weights: use the bootstrap there. Agrees with
-  `WeightIt::glm_weightit(vcov = "asympt")` in the tests.
-
-- [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
-  now also accepts a
-  [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) marginal
-  structural model with right-censored data (`Surv(time, status)`, one
-  row per person) and
-  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
-  weights: the weighted partial likelihood score is stacked with the
-  exposure models (Binder 1992; Lin & Wei 1989). Tied event times need
-  `ties = "breslow"`; counting-process data,
-  [`strata()`](https://rdrr.io/pkg/survival/man/strata.html),
-  [`cluster()`](https://rdrr.io/pkg/survival/man/cluster.html),
-  [`frailty()`](https://rdrr.io/pkg/survival/man/frailty.html) and
-  `tt()` are not supported. Checked against a numerical Jacobian of the
-  stacked equations and a coverage simulation. Results for
-  [`lm()`](https://rdrr.io/r/stats/lm.html) and
-  [`glm()`](https://rdrr.io/r/stats/glm.html) models are unchanged.
-
-- [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
-  now also accepts time-varying weights from
-  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) with
-  `family = "binomial"` and `link = "logit"` (`type = "first"`, `"cens"`
-  or `"all"`), or a list of
-  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)/[`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
-  results whose weights multiply (e.g. treatment times censoring
-  weights), with an [`lm()`](https://rdrr.io/r/stats/lm.html),
-  [`glm()`](https://rdrr.io/r/stats/glm.html) or counting-process
-  [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) MSM on the
-  long data. Scores are summed within subject. Checked against a
-  numerical Jacobian of the stacked equations,
-  `WeightIt::glm_weightit(vcov = "asympt")` with `weightitMSM()` for
-  visits at common times, and a coverage simulation. Cox, multinomial,
-  ordinal and gaussian exposure models in
-  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) and
-  truncated weights give an error (use the cluster bootstrap). Results
-  for
-  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
-  weights are unchanged.
-  [`?ipwvcov`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
-  and the articles explain that heavy-tailed cumulative weights (a
-  near-violation of positivity) make normal-theory intervals unreliable
-  for any method, the bootstrap included. A simulation
-  (`data-raw/make-ipwvcov-tm-tail.R`) estimates the tail index and
-  coverage for 300 to 4800 people.
-
-- [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
-  results carry new attributes `"family"`, `"type"`, `"id"` and
-  `"sort.order"` (used by
-  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md));
-  the list elements and weights are unchanged.
-
-- [`?ipwpoint`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
-  and [`?ipwtm`](https://tranhung93.github.io/ipw/reference/ipwtm.md):
-  the “Standard errors” paragraphs list every case that
-  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
-  supports.
-
-- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md):
-  `estimand = "ATC"` (effect in the untreated) for a binomial exposure:
-  treated get weight (1 - p)/p, untreated 1.
-
-- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md):
-  `estimand = "ATT"` and `"ATO"` for `family = "multinomial"` and
-  `"ordinal"`. The new argument `focal` gives the level whose effect the
-  ATT targets: weight P(focal) / P(observed level), 1 at the focal
-  level. `"ATO"` gives generalized overlap weights (Li & Li 2019). For
-  two levels both equal the binomial weights. For the effect in the
-  controls of a categorical exposure use `"ATT"` with `focal` set to the
-  control level.
-
-- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
-  results now carry the attributes `"estimand"`, `"exposure"` and (for
-  ATT and ATC) `"focal"`. The list elements are unchanged.
-
-- [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md):
-  `type = "all"` now works for `family = "multinomial"` and `"ordinal"`
-  (time-varying categorical exposures that switch back and forth).
-
-- [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md):
-  `type = "all"` now works for `family = "survival"`, following Graffeo,
-  Latouche, Geskus & Chevret (2018, *Biometrical Journal*): exposure
-  events may recur, an Andersen-Gill Cox model is fitted on all rows,
-  and each row’s probability uses the cumulative baseline hazard over
-  its own interval.
-
-- New
-  [`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md):
-  time-varying inverse probability weights from probabilities you
-  estimated yourself (for example with machine learning or
-  SuperLearner): the ratios are multiplied over time within each
-  subject, in time order. For a point treatment no function is needed:
-  the weights are `num / den`.
-
-- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md):
-  new families for count exposures (`"poisson"`, `"negbin"`) and skewed
-  continuous exposures (`"gamma"`, `"lognormal"`).
-
-- Smooth terms (`s()`, `te()`, `ti()`, `t2()`) in model formulas are
-  fitted as generalized additive models with mgcv: in
-  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
-  for the binomial, gaussian and poisson families, and in
-  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) for
-  the binomial family.
-
-- [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md):
-  new `estimand` argument for a binomial exposure: `"ATE"` (default),
-  `"ATT"` (effect in the treated) and `"ATO"` (overlap weights).
-
-- Existing calls are unchanged: without smooth terms the models are
-  still fitted with [`glm()`](https://rdrr.io/r/stats/glm.html), and
-  `estimand` defaults to `"ATE"`. A covariate named `s`, `te`, `ti` or
-  `t2` is treated as an ordinary variable.
+- `family = "ordinal"`: a character exposure is now an error, and an
+  unordered factor whose levels are not numbers gives a warning, because
+  the levels would be ordered alphabetically. Use an ordered factor.
+- Clearer errors instead of wrong results or obscure messages:
+  duplicated `id`/`timevar` combinations in
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md),
+  `tstart >= timevar`, an exposure that takes one value, infinite values
+  in model variables, a non-numeric gaussian exposure, `den`/`num` above
+  1 in
+  [`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md),
+  missing or non-positive weights in
+  [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md).
+  [`tstartfun()`](https://tranhung93.github.io/ipw/reference/tstartfun.md)
+  warns when follow-up times are \<= -1.
+- The [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
+  examples no longer call
+  [`graphics.off()`](https://rdrr.io/r/grDevices/dev.html), which closed
+  all of the user’s graphics devices.
 
 ### Documentation
 
 - New vignette, “Inverse probability weighting with ipw”
   ([`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md)),
-  covering every function, with the new models highlighted. Its
-  standard-errors section describes, from the package’s simulation
-  study, when the bootstrap helps (well-behaved weights) and when no
-  standard error is reliable (extreme weights).
-- Bootstrap standard errors. The help pages of
-  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
-  and [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
-  have a new “Standard errors” paragraph in Details.
+  covering every function, with sections on standard errors (bootstrap,
+  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)),
+  covariate balance with cobalt and the effective sample size.
+- “Standard errors” paragraphs in
   [`?ipwpoint`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
-  has a bootstrap example that re-estimates the weights and the marginal
-  structural model in each bootstrap sample; the cluster bootstrap that
-  resamples patients and re-runs both
-  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) calls
-  for the HAART example is in section 5 of
-  [`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md).
-  Robust standard errors
-  ([`svyglm()`](https://rdrr.io/pkg/survey/man/svyglm.html),
-  [`cluster()`](https://rdrr.io/pkg/survival/man/cluster.html)) treat
-  the weights as known. They were conservative for a binary point
-  treatment with good overlap, but can be too small for a continuous
-  exposure and for time-varying weights; Austin (2016,
-  <doi:10.1002/sim.7084>) recommends the bootstrap.
-- [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md):
-  the help page now documents the return value (`NULL`, invisibly).
-- The [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
-  examples no longer call
-  [`graphics.off()`](https://rdrr.io/r/grDevices/dev.html), which closed
-  all of the user’s open graphics devices.
+  and [`?ipwtm`](https://tranhung93.github.io/ipw/reference/ipwtm.md):
+  when the bootstrap helps, when robust standard errors that treat the
+  weights as known can be too small, and which cases
+  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
+  supports.
+- New “ipw or WeightIt?” section in the README and the vignette.
+- New articles on the package website
+  (<https://tranhung93.github.io/ipw/>): “Methods” (formulas and code
+  for the new features), “Simulation study”, “Bugs fixed after ipw
+  1.3.2”, “Survival weights and the time grid” and “ipw, WeightIt and
+  PSweight side by side”.
 
 ### Tests
 
-- New tests against PSweight (in Suggests) as a second independent
-  check:
-  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
-  weights for a binary exposure (ATE, ATT, ATC, ATO) and a three-level
-  multinomial exposure (ATE, ATT with a focal level, overlap weights),
-  and
-  [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)
-  standard errors against PSweight’s sandwich standard errors of the
-  difference in means.
-
-### License
-
-- License changed back to GPL (\>= 2), the license of ipw before version
-  1.3.0.
+- Weights and standard errors are compared with WeightIt and PSweight
+  (both in Suggests), with numerical derivatives of the estimating
+  equations, and with weights computed by hand; regression tests against
+  ipw 1.2.1.1.
 
 ## ipw 1.3.2
 

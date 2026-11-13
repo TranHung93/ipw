@@ -6,8 +6,9 @@ library(ipw)
 library(survival)
 ```
 
-[WeightIt](https://ngreifer.github.io/WeightIt/) (Greifer) and ipw both
-estimate weights for marginal structural models;
+[WeightIt](https://ngreifer.github.io/WeightIt/) (Greifer) and
+[ipw](https://tranhung93.github.io/ipw/) (Tran, van der Wal & Geskus)
+both estimate weights for marginal structural models;
 [PSweight](https://CRAN.R-project.org/package=PSweight) (Zhou, Tong, Li,
 Thomas & Li) estimates propensity score weighted treatment effects for
 point treatments. This article runs the packages on the same data: a
@@ -15,7 +16,7 @@ binary and a categorical point treatment, where all three apply and
 should give the same answer, and longitudinal data with individual visit
 times, where ipw and WeightIt work differently. WeightIt and PSweight
 are used only through their exported functions. This page was built with
-ipw 1.3.2.9000, WeightIt 2.1.0 and PSweight 2.1.2.
+ipw 1.4.0, WeightIt 2.1.0 and PSweight 2.1.2.
 
 **What PSweight offers.** PSweight is designed for point treatments,
 binary or with several levels. It offers inverse probability, ATT,
@@ -64,7 +65,7 @@ sapply(estimands, function(est)
   c(max.abs.difference = max(abs(w_ipw[[est]]$ipw.weights - w_wit[[est]]$weights)),
     max.weight = max(w_ipw[[est]]$ipw.weights)))
 #>                             ATE          ATT          ATC          ATO
-#> max.abs.difference 1.065814e-14 2.220446e-15 8.881784e-15 2.220446e-16
+#> max.abs.difference 1.065814e-14 1.065814e-14 7.105427e-15 3.330669e-16
 #> max.weight         1.180340e+01 8.832774e+00 1.080340e+01 9.152786e-01
 ```
 
@@ -93,7 +94,7 @@ sapply(estimands, function(est) {
           norm_by_group(ss$ps.weights[[psw_args[[est]]$weight]], d$a)))
 })
 #>          ATE          ATT          ATC          ATO 
-#> 1.734723e-18 4.336809e-19 0.000000e+00 1.734723e-18
+#> 0.000000e+00 4.336809e-19 3.469447e-18 8.673617e-19
 ```
 
 ### Standard errors
