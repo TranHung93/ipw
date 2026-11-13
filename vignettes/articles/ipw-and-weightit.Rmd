@@ -201,13 +201,19 @@ of the data sets.
 knitr::kable(cox_sim$summary, digits = 3, row.names = FALSE)
 ```
 
-The mean `ipwvcov()` standard error is within 1% of the empirical standard
-deviation of the estimates for both estimands, and so is the bootstrap's.
+The empirical standard deviation of the estimates is what a standard error
+should estimate, but with 1000 data sets it is itself uncertain by about
+2% (roughly SD / sqrt(2 x 1000)). The mean `ipwvcov()` standard error is
+within 1% of it for both estimands, and so is the bootstrap's: no detectable
+difference.
 The robust standard error, which treats the weights as known, is about 10%
 (ATE) and 6% (ATO) too large here, so its intervals cover more often than
 95%: conservative, but wider than needed. The coverages of `ipwvcov()`
 (1000 data sets) and of the bootstrap (300 data sets) are both within
-simulation error of 95%.
+simulation error of 95% (the Monte Carlo standard error of a coverage near
+95% is about 0.7 percentage points with 1000 data sets and 1.3 with 300).
+Coverage does not depend on the empirical standard deviation: it counts how
+often the interval contains the known true value.
 
 `ipwvcov()` covers binary exposures with logistic exposure models: point
 treatments with `lm()`, `glm()` or `coxph()` outcome models, and

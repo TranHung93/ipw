@@ -521,7 +521,10 @@ se.mest
 
 For a survival outcome, the MSM can be a weighted Cox model with one row per
 person and `Surv(time, status)`. Below, a time to event is simulated for
-`simdat` with a hazard ratio of exp(-0.5) for `a`. The robust standard error
+`simdat` with a conditional hazard ratio of exp(-0.5) for `a` given `l`.
+The MSM estimates the marginal hazard ratio, which for a Cox model is closer
+to 1 even without confounding (hazard ratios are not collapsible), so the
+estimate is not expected to equal -0.5. The robust standard error
 of `coxph()` treats the weights as known; `ipwvcov()` accounts for their
 estimation:
 
@@ -535,6 +538,20 @@ c(log.hr = unname(coef(msm.cox)),
   robust.se = sqrt(msm.cox$var[1, 1]),
   ipwvcov.se = sqrt(ipwvcov(w, msm.cox)[1, 1]))
 ```
+
+Here the `ipwvcov()` standard error is somewhat smaller than the robust one,
+which is typical for the ATE: estimating the weights reduces the variance of
+the effect estimate, and the robust standard error ignores that. A single
+data set cannot show which standard error is right. That needs a simulation:
+the same study repeated on many simulated data sets, where the standard
+deviation of the estimates across data sets is the true standard error and
+the true effect is known. In such a simulation (1000 data sets, see the
+article
+[ipw, WeightIt and PSweight side by side](https://tranhung93.github.io/ipw/articles/ipw-and-weightit.html)),
+the mean `ipwvcov()` standard error showed no detectable difference from the
+standard deviation of the estimates, the robust standard error was 6 to 10%
+too large, and 95% intervals from `ipwvcov()` covered the truth in about 95%
+of the data sets.
 
 With tied event times, fit the Cox model with `ties = "breslow"`.
 
