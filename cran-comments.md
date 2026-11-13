@@ -1,43 +1,59 @@
-## Submission: ipw 1.3.2
+## Submission: ipw 1.4.0
 
-This is a patch release (1.3.1 -> 1.3.2). I am sorry to submit so soon after
-1.3.1 (published 2026-10-30). Version 1.3.1 introduced a bug that returns
-incorrect results: the truncated weights returned by `ipwpoint()` (argument
-`trunc`) were wrong for almost all observations, because each weight was
-replaced by either the lower or the upper truncation bound regardless of its
-value. Versions 1.3.0 and earlier are not affected. Because users may get
-incorrect analysis results, I would like to correct this as soon as possible.
+This is a minor release (1.3.2 -> 1.4.0). It comes soon after 1.3.2
+(published 2026-11-01) because it fixes two bugs that give wrong weights
+without any warning in 1.3.1 and 1.3.2:
 
-### Changes in this version
-* Fixes the incorrect truncated weights in `ipwpoint()` introduced in 1.3.1.
-* `ipwtm()` and `ipwpoint()` now handle two-level multinomial exposures, and
-  `ipwtm()` handles exposure levels absent among the selected rows; 1.3.1
-  stopped with an error in these cases.
-* `ipwtm()` with `type = "first"` for multinomial/ordinal exposures again uses
-  the lowest level in the whole data set as reference, as in ipw <= 1.2.1.1.
-* Clearer input validation and error messages.
-* Expanded tests, including a regression test showing that results match
-  ipw 1.2.1.1.
+* `offset()` terms in the exposure model formulas were silently dropped;
+* a 0/1 exposure stored as a factor with levels `c("1", "0")` had the
+  probabilities of the two exposure values swapped.
+
+### Main changes
+
+* Bug fixes: the two above, plus several smaller ones that now give clear
+  errors instead of wrong results or obscure messages.
+* `ipwtm()` survival weights (`type = "first"` or `"cens"`) now use each
+  row's own interval, so data with individual visit times can be used
+  directly. For data on a full time grid (as in the JSS paper and the
+  package examples) the weights are unchanged.
+* New features: ATT, ATC and overlap weights in `ipwpoint()` (also for
+  categorical exposures); count and skewed exposure families; smooth terms
+  via mgcv; `type = "all"` for more families in `ipwtm()`; new exported
+  functions `ipwvcov()` (M-estimation standard errors, marked experimental)
+  and `ipwprobtm()`. Existing calls give the same weights as before, checked
+  by regression tests against ipw 1.2.1.1.
+* License changed back to GPL (>= 2), the license of ipw before 1.3.0
+  (1.3.0 to 1.3.2 were MIT). All authors agree to the change.
+* A new vignette.
 
 ### Test environments
-* local: Windows 11 x64, R 4.6.1
+
+* local: Windows 11 x64, R 4.6.1 (2026-06-24 ucrt)
 * GitHub Actions: ubuntu-latest (R-devel, R-release, R-oldrel-1),
   macos-latest (R-release), windows-latest (R-release)
-* win-builder: R-devel (2026-10-30 r90805 ucrt), Windows Server 2022 x64
+* win-builder: R-release (R 4.6.2)
+  <!-- add R-devel from devtools::check_win_devel() -->
+* R-hub: linux (R-devel), macos-arm64 (R-devel), windows (R-devel).
+  The R-hub nosuggests container could not install the Suggests
+  (nloptr failed to load: libRlapack.so missing in the container); the
+  depends-only check below covers that case.
 
 ### R CMD check results
-0 errors | 0 warnings | 1 note
 
-* checking CRAN incoming feasibility ... NOTE
-  Days since last update: 1
+0 errors | 0 warnings | 0 notes
 
-  This is a quick fix for a bug in 1.3.1 that returns incorrect results
-  (see above).
-
-Local and GitHub Actions checks: 0 errors | 0 warnings | 0 notes.
+* local: `devtools::check(remote = TRUE, manual = TRUE)` and
+  `R CMD check --as-cran` (including the CRAN incoming checks).
+* The package also passes `R CMD check` with only the packages in Depends
+  and Imports installed (`_R_CHECK_DEPENDS_ONLY_=true`); all packages in
+  Suggests are used conditionally.
+<!-- Add here any NOTE from win-builder or R-hub (e.g. "Days since last
+update: 12"; the reason is given at the top). -->
 
 ### Reverse dependencies
+
 We checked 1 reverse dependency (ipeval 0.1.2), comparing R CMD check results
-across the CRAN and development versions of this package.
+across the CRAN and development versions of this package
+(`revdepcheck::revdep_check()`).
 * We saw 0 new problems.
 * We failed to check 0 packages.
