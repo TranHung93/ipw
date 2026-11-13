@@ -161,10 +161,11 @@
 #'   summary(msm)
 #' }
 #'
-#' # Standard errors that take the estimation of the weights into account
-#' # (M-estimation; binomial exposure, lm() or glm() MSM)
-#' msm.lm <- lm(y ~ a, data = simdat, weights = temp$ipw.weights)
-#' sqrt(diag(ipwvcov(temp, msm.lm)))
+#' # Check the weights before trusting any standard error. These weights are
+#' # extreme (poor overlap): ipwdiag(temp) shows a tail index below 2. For
+#' # standard errors that take the estimation of the weights into account
+#' # (ipwvcov(), M-estimation), see the example on well-behaved weights in
+#' # ?ipwvcov.
 #'
 #' # Bootstrap standard error and percentile confidence interval for the MSM.
 #' # The robust standard error from svyglm() treats the weights as known and
