@@ -8,8 +8,9 @@ actually received, then take a ratio. This article gives, for each new
 feature, the formula, the code in the package and why that approach was
 chosen. Section 6 covers recurrent exposure events (Graffeo et al. 2018),
 section 7 `ipwprobtm()`, which turns probabilities you estimated
-yourself into time-varying weights, and section 8 the standard errors of
-`ipwvcov()` (experimental). How to use the features is shown in the
+yourself into time-varying weights, section 8 the standard errors of
+`ipwvcov()` (experimental), and section 9 the diagnostic plots of
+`ipwdiag()` (experimental). How to use the features is shown in the
 [main vignette](ipw.html); whether they recover known effects is
 checked in the [simulation study](simulations.html).
 
@@ -875,8 +876,194 @@ This gives a true log hazard ratio of `r f(s["ATE", "truth"])` for the ATE
 and `r f(s["ATO", "truth"])` for the ATO, not -0.5. Counting how often the intervals contain -0.5
 would wrongly count correct intervals as misses.
 
+# 9. `ipwdiag()`: diagnostic plots for the weights
+
+`ipwdiag()` (experimental) checks whether a set of weights can be trusted
+before the marginal structural model is interpreted. It follows the checks
+recommended for inverse probability weighting (Cole & Hernán 2008; Austin &
+Stuart 2015): positivity, balance of the propensity score, the size and
+spread of the weights, and how much the result depends on the largest
+weights. Each check is one plot, chosen with `which`; the numbers behind
+every plot are returned. How to read the plots is shown in the
+[main vignette](ipw.html#ipwdiag); this section gives the formulas.
+
+Below, $e_i = \hat P(A_i = 1 \mid L_i)$ is the propensity score from the
+denominator model, $w_i$ the weight, $n$ the number of people, and
+$n_a$ the number with $A = a$. For `ipwtm()` the weight-based plots use
+each person's final cumulative weight $W_i(\tau_i)$, the weight of their
+last row in time order. For a list of weight objects (for example
+treatment times censoring weights) $w_i$ is the product of the weights.
+
+**Overlap (`"overlap"`).** Kernel densities of $e_i$ in the unexposed and
+the exposed (binomial exposure models only). Positivity requires
+$0 < e(L) < 1$; in practice, problems show up as ranges of $e$ where only
+one group has people. The common support is
+
+$$
+\Big[\max\big(\min_{A_i=0} e_i,\ \min_{A_i=1} e_i\big),\
+\min\big(\max_{A_i=0} e_i,\ \max_{A_i=1} e_i\big)\Big],
+$$
+
+and the ranges outside it are shaded. The summary gives the proportion of
+people with $e_i < 0.05$ or $e_i > 0.95$.
+
+**Overlap after weighting (`"psbalance"`).** The propensity score is a
+balancing score: if the weights are right, $A$ and $e(L)$ are independent in
+the weighted sample, so the weighted densities of $e_i$ in the two groups
+coincide. The densities use weights $w_i / \sum_{A_j = a} w_j$ within each
+group, with the bandwidth chosen from the unweighted values (`bw.nrd0`). The
+standardized mean difference of $e$ is
+
+$$
+\text{SMD} = \frac{\bar e^{\,w}_1 - \bar e^{\,w}_0}{s}, \qquad
+\bar e^{\,w}_a = \frac{\sum_{A_i = a} w_i e_i}{\sum_{A_i = a} w_i},
+$$
+
+with the unweighted means for the "before" value. The denominator $s$ is
+always from the *unweighted* groups, so that before and after are on the
+same scale; it follows cobalt's `s.d.denom` for each estimand:
+
+| estimand | $s$ |
+|---|---|
+| ATE, ATO | $\sqrt{(s_1^2 + s_0^2)/2}$ (pooled) |
+| ATT | $s_1$ (exposed) |
+| ATC | $s_0$ (unexposed) |
+
+where $s_a^2$ is the sample variance of $e_i$ among those with $A = a$.
+This plot needs weights from `ipwpoint()` with a binomial exposure model.
+
+**Weights by exposure group (`"weights"`).** Histograms of $w_i$ in each
+exposure group (density scale, common breaks), and per group the number of
+people, the mean, median, minimum, maximum and the sum of the weights. The
+sum is the size of the group in the weighted sample (the
+pseudo-population). If the exposure model is right, its expected value is
+known, and it is printed as `target`. For unstabilized ATE weights,
+
+$$
+E\Big[\sum_i \frac{1(A_i = a)}{P(A_i = a \mid L_i)}\Big]
+= \sum_i E\Big[\frac{P(A_i = a \mid L_i)}{P(A_i = a \mid L_i)}\Big] = n,
+$$
+
+so each group stands for the whole sample. The same argument gives the
+other targets:
+
+| weights | target, $A = 0$ | target, $A = 1$ |
+|---|---|---|
+| ATE, unstabilized: $1 / P(A = a \mid L)$ | $n$ | $n$ |
+| ATE, stabilized: $P(A = a \mid V) / P(A = a \mid L)$ | $n_0$ | $n_1$ |
+| ATT: $1$ and $e / (1 - e)$ | $n_1$ | $n_1$ |
+| ATC: $(1 - e) / e$ and $1$ | $n_0$ | $n_0$ |
+| ATO: $1 - e$ and $e$ | none | none |
+
+For stabilized weights the expected sum in group $a$ is
+$n\,E[P(A = a \mid V)] = n P(A = a)$, whatever $V$ is; the observed $n_a$ is
+used as the target. The targets are given for a single `ipwpoint()` result
+with a binomial exposure model; otherwise only the sums are shown.
+
+**Weight share (`"share"`).** With the weights sorted from largest to
+smallest, $w_{(1)} \ge \dots \ge w_{(n)}$, the curve is the cumulative
+share $\sum_{j \le k} w_{(j)} / \sum_j w_j$ against $k / n$. The summary
+gives the share of the largest $\lceil 0.01 n \rceil$ and
+$\lceil 0.05 n \rceil$ weights, the mean weight, and Kish's effective
+sample size
+
+$$
+n_{\text{eff}} = \frac{(\sum_i w_i)^2}{\sum_i w_i^2}.
+$$
+
+**Tail index (`"tail"`).** For the $k = \lfloor 0.05 n \rfloor$ largest
+weights (`top`), $\log(j / n)$ against $\log w_{(j)}$. A Pareto-type tail,
+$P(W > x) \propto x^{-\alpha}$, gives a line with slope $-\alpha$. The
+Hill (1975) estimate is
+
+$$
+\hat\alpha = \Big\{\frac{1}{k} \sum_{j=1}^{k}
+\log\frac{w_{(j)}}{w_{(k+1)}}\Big\}^{-1},
+$$
+
+and the drawn line is $\log(k/n) - \hat\alpha\{\log x - \log w_{(k+1)}\}$.
+With $\alpha < 2$ the weights have an infinite variance; with
+$2 \le \alpha < 4$ the variance is finite but higher moments are not, and
+normal-theory intervals, from `ipwvcov()` or the bootstrap, can be too
+narrow (section 8). At least 20 weights are needed in the tail.
+
+**Truncation sensitivity (`"trunc"`).** For each level $q$ the weights are
+truncated at their $q$ and $1 - q$ quantiles,
+$w_i^{(q)} = \min\{\max(w_i, Q_q), Q_{1-q}\}$, exactly as the `trunc`
+argument of `ipwpoint()` and `ipwtm()` does, and the MSM is refitted with
+`update()`. The interval uses a sandwich variance that treats the
+truncated weights as known: HC0 with the factor $g/(g-1)$ of
+`survey::svyglm()` for `lm()` and `glm()` ($g$ people; scores summed within
+person for long data), and `coxph()`'s robust variance for Cox models.
+
+**Code.** The new pieces are a few lines each; for example, the propensity
+score balance and the targets:
+
+```r
+# SMD of the propensity score, before and after weighting
+s <- switch(estimand, ATT = sd(p[a == 1]), ATC = sd(p[a == 0]),
+            sqrt((var(p[a == 0]) + var(p[a == 1])) / 2))
+wmean <- function(g, ww) sum(ww[a == g] * p[a == g]) / sum(ww[a == g])
+smd <- c(unweighted = (mean(p[a == 1]) - mean(p[a == 0])) / s,
+         weighted   = (wmean(1, w) - wmean(0, w)) / s)
+
+# expected sum of the weights in each group (unexposed, exposed)
+target <- switch(estimand,
+                 ATE = if (stabilized) c(n0, n1) else c(n, n),
+                 ATT = c(n1, n1), ATC = c(n0, n0), ATO = c(NA, NA))
+
+# Hill estimate of the tail index
+ws <- sort(w, decreasing = TRUE)
+alpha <- 1 / mean(log(ws[1:k] / ws[k + 1]))
+```
+
+The plots use base graphics only, so `ipwdiag()` adds no dependencies.
+
+**Why this approach.**
+
+* **The problem:** weights can look fine in `summary()` and still be
+  untrustworthy. A misspecified exposure model, near-violations of
+  positivity or a handful of extreme weights can each bias the estimate or
+  make its interval too narrow, and each needs a different check.
+* **What it does:** one call runs the standard checks and prints a short
+  summary with rules of thumb (SMD below 0.1, sums close to their targets,
+  a tail index above 4, a stable estimate under truncation).
+* **Why these checks:** they follow the steps taught for IPW: check
+  positivity (overlap), check that the weights balance the propensity
+  score (overlap after weighting), look at the distribution and sum of the
+  weights in each group, and check that the result does not hinge on a few
+  people (share, tail, truncation).
+* **Why the propensity score, not every covariate:** balance of each
+  covariate depends on how covariates are coded (factor levels,
+  interactions, transformations), and cobalt already does it well for any
+  weights (see "Covariate balance" in the [main vignette](ipw.html)). The
+  propensity score needs only the fitted denominator model, which every
+  `ipwpoint()` result carries, so this check always works.
+* **Why the sum of the weights:** it is a check that needs no outcome and
+  no extra assumption. A sum far from its target means that the weighted
+  sample does not represent the population it should, usually because of
+  a misspecified exposure model or because people who would get very large
+  weights are missing from the sample.
+* **Why return the numbers:** the plots are for a first look; the returned
+  data let users redraw them for publication, or use the summaries in
+  their own reports and simulations.
+
+**Caveats.** All checks are on measured confounders: good overlap and
+balance say nothing about unmeasured confounding. Balance of the
+propensity score is necessary, not sufficient: check each confounder too.
+Stabilized weights with covariates $V$ in the numerator leave $V$
+unbalanced on purpose (they must be adjusted for in the MSM), so then the
+weighted densities need not coincide. For `ipwtm()` the overlap plot shows
+probabilities per interval, which are small when intervals are short, and
+balance should be checked at each time point among those at risk, as in
+the main vignette.
+
 # References
 
+* Austin PC, Stuart EA (2015). Moving towards best practice when using
+  inverse probability of treatment weighting (IPTW) using the propensity
+  score to estimate causal treatment effects in observational studies.
+  *Statistics in Medicine* 34, 3661–3679.
 * Binder DA (1992). Fitting Cox's proportional hazards models from survey
   data. *Biometrika* 79, 139–147.
 * Cole SR, Hernán MA (2008). Constructing inverse probability weights for
@@ -885,12 +1072,17 @@ would wrongly count correct intervals as misses.
 * Graffeo N, Latouche A, Geskus RB, Chevret S (2018). Modeling time-varying
   exposure using inverse probability of treatment weights. *Biometrical
   Journal* 60, 323–332.
+* Greifer N. cobalt: Covariate balance tables and plots. R package.
+  <https://ngreifer.github.io/cobalt/>
+* Hill BM (1975). A simple general approach to inference about the tail of
+  a distribution. *Annals of Statistics* 3, 1163–1174.
 * Hirano K, Imbens GW (2004). The propensity score with continuous
   treatments. In Gelman A, Meng XL (eds), *Applied Bayesian Modeling and
   Causal Inference from Incomplete-Data Perspectives*. Wiley.
 * Imai K, van Dyk DA (2004). Causal inference with general treatment
   regimes: generalizing the propensity score. *Journal of the American
   Statistical Association* 99, 854–866.
+* Kish L (1965). *Survey Sampling*. Wiley.
 * Li F, Li F (2019). Propensity score weighting for causal inference with
   multiple treatments. *Annals of Applied Statistics* 13, 2389–2415.
 * Li F, Morgan KL, Zaslavsky AM (2018). Balancing covariates via propensity
