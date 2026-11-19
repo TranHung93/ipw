@@ -75,8 +75,9 @@ each person actually received, then take a ratio. This article gives,
 for each new feature, the formula, the code in the package and why that
 approach was chosen. Section 6 covers recurrent exposure events (Graffeo
 et al. 2018), section 7 <code><a href="../reference/ipwprobtm.html">ipwprobtm()</a></code>, which turns
-probabilities you estimated yourself into time-varying weights, and
-section 8 the standard errors of <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> (experimental).
+probabilities you estimated yourself into time-varying weights, section
+8 the standard errors of <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> (experimental), and
+section 9 the diagnostic plots of <code><a href="../reference/ipwdiag.html">ipwdiag()</a></code> (experimental).
 How to use the features is shown in the <a href="ipw.html">main
 vignette</a>; whether they recover known effects is checked in the <a href="simulations.html">simulation study</a>.</p>
 <div class="section level2">
@@ -1037,9 +1038,326 @@ count correct intervals as misses.</p>
 </div>
 </div>
 <div class="section level2">
+<h2 id="ipwdiag-diagnostic-plots-for-the-weights">9. <code>ipwdiag()</code>: diagnostic plots for the weights<a class="anchor" aria-label="anchor" href="#ipwdiag-diagnostic-plots-for-the-weights"></a>
+</h2>
+<p><code><a href="../reference/ipwdiag.html">ipwdiag()</a></code> (experimental) checks whether a set of weights
+can be trusted before the marginal structural model is interpreted. It
+follows the checks recommended for inverse probability weighting (Cole
+&amp; Hernán 2008; Austin &amp; Stuart 2015): positivity, balance of the
+propensity score, the size and spread of the weights, and how much the
+result depends on the largest weights. Each check is one plot, chosen
+with <code>which</code>; the numbers behind every plot are returned. How
+to read the plots is shown in the <a href="ipw.html#ipwdiag">main
+vignette</a>; this section gives the formulas.</p>
+<p>Below,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>e</mi><mi>i</mi></msub><mo>=</mo><mover><mi>P</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>A</mi><mi>i</mi></msub><mo>=</mo><mn>1</mn><mo>∣</mo><msub><mi>L</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">e_i = \hat P(A_i = 1 \mid L_i)</annotation></semantics></math>
+is the propensity score from the denominator model,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>w</mi><mi>i</mi></msub><annotation encoding="application/x-tex">w_i</annotation></semantics></math>
+the weight,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+the number of people, and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>n</mi><mi>a</mi></msub><annotation encoding="application/x-tex">n_a</annotation></semantics></math>
+the number with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo>=</mo><mi>a</mi></mrow><annotation encoding="application/x-tex">A = a</annotation></semantics></math>.
+For <code><a href="../reference/ipwtm.html">ipwtm()</a></code> the weight-based plots use each person’s final
+cumulative weight
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>τ</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">W_i(\tau_i)</annotation></semantics></math>,
+the weight of their last row in time order. For a list of weight objects
+(for example treatment times censoring weights)
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>w</mi><mi>i</mi></msub><annotation encoding="application/x-tex">w_i</annotation></semantics></math>
+is the product of the weights.</p>
+<p><strong>Overlap (<code>"overlap"</code>).</strong> Kernel densities
+of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>e</mi><mi>i</mi></msub><annotation encoding="application/x-tex">e_i</annotation></semantics></math>
+in the unexposed and the exposed (binomial exposure models only).
+Positivity requires
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0</mn><mo>&lt;</mo><mi>e</mi><mo stretchy="false" form="prefix">(</mo><mi>L</mi><mo stretchy="false" form="postfix">)</mo><mo>&lt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">0 &lt; e(L) &lt; 1</annotation></semantics></math>;
+in practice, problems show up as ranges of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>e</mi><annotation encoding="application/x-tex">e</annotation></semantics></math>
+where only one group has people. The common support is</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo minsize="180%" maxsize="180%" stretchy="true" form="prefix">[</mo><mrow><mi mathvariant="normal">max</mi><mo>⁡</mo></mrow><mo minsize="120%" maxsize="120%" stretchy="true" form="prefix">(</mo><munder><mi mathvariant="normal">min</mi><mrow><msub><mi>A</mi><mi>i</mi></msub><mo>=</mo><mn>0</mn></mrow></munder><msub><mi>e</mi><mi>i</mi></msub><mo>,</mo><mspace width="0.222em"></mspace><munder><mi mathvariant="normal">min</mi><mrow><msub><mi>A</mi><mi>i</mi></msub><mo>=</mo><mn>1</mn></mrow></munder><msub><mi>e</mi><mi>i</mi></msub><mo minsize="120%" maxsize="120%" stretchy="true" form="postfix">)</mo><mo>,</mo><mspace width="0.222em"></mspace><mrow><mi mathvariant="normal">min</mi><mo>⁡</mo></mrow><mo minsize="120%" maxsize="120%" stretchy="true" form="prefix">(</mo><munder><mi mathvariant="normal">max</mi><mrow><msub><mi>A</mi><mi>i</mi></msub><mo>=</mo><mn>0</mn></mrow></munder><msub><mi>e</mi><mi>i</mi></msub><mo>,</mo><mspace width="0.222em"></mspace><munder><mi mathvariant="normal">max</mi><mrow><msub><mi>A</mi><mi>i</mi></msub><mo>=</mo><mn>1</mn></mrow></munder><msub><mi>e</mi><mi>i</mi></msub><mo minsize="120%" maxsize="120%" stretchy="true" form="postfix">)</mo><mo minsize="180%" maxsize="180%" stretchy="true" form="postfix">]</mo><mo>,</mo></mrow><annotation encoding="application/x-tex">
+\Big[\max\big(\min_{A_i=0} e_i,\ \min_{A_i=1} e_i\big),\
+\min\big(\max_{A_i=0} e_i,\ \max_{A_i=1} e_i\big)\Big],
+</annotation></semantics></math></p>
+<p>and the ranges outside it are shaded. The summary gives the
+proportion of people with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>e</mi><mi>i</mi></msub><mo>&lt;</mo><mn>0.05</mn></mrow><annotation encoding="application/x-tex">e_i &lt; 0.05</annotation></semantics></math>
+or
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>e</mi><mi>i</mi></msub><mo>&gt;</mo><mn>0.95</mn></mrow><annotation encoding="application/x-tex">e_i &gt; 0.95</annotation></semantics></math>.</p>
+<p><strong>Overlap after weighting (<code>"psbalance"</code>).</strong>
+The propensity score is a balancing score: if the weights are right,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>A</mi><annotation encoding="application/x-tex">A</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>e</mi><mo stretchy="false" form="prefix">(</mo><mi>L</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">e(L)</annotation></semantics></math>
+are independent in the weighted sample, so the weighted densities of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>e</mi><mi>i</mi></msub><annotation encoding="application/x-tex">e_i</annotation></semantics></math>
+in the two groups coincide. The densities use weights
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mi>i</mi></msub><mi>/</mi><msub><mo>∑</mo><mrow><msub><mi>A</mi><mi>j</mi></msub><mo>=</mo><mi>a</mi></mrow></msub><msub><mi>w</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">w_i / \sum_{A_j = a} w_j</annotation></semantics></math>
+within each group, with the bandwidth chosen from the unweighted values
+(<code>bw.nrd0</code>). The standardized mean difference of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>e</mi><annotation encoding="application/x-tex">e</annotation></semantics></math>
+is</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">SMD</mtext><mo>=</mo><mfrac><mrow><msubsup><mover><mi>e</mi><mo accent="true">‾</mo></mover><mn>1</mn><mrow><mspace width="0.167em"></mspace><mi>w</mi></mrow></msubsup><mo>−</mo><msubsup><mover><mi>e</mi><mo accent="true">‾</mo></mover><mn>0</mn><mrow><mspace width="0.167em"></mspace><mi>w</mi></mrow></msubsup></mrow><mi>s</mi></mfrac><mo>,</mo><mspace width="2.0em"></mspace><msubsup><mover><mi>e</mi><mo accent="true">‾</mo></mover><mi>a</mi><mrow><mspace width="0.167em"></mspace><mi>w</mi></mrow></msubsup><mo>=</mo><mfrac><mrow><munder><mo>∑</mo><mrow><msub><mi>A</mi><mi>i</mi></msub><mo>=</mo><mi>a</mi></mrow></munder><msub><mi>w</mi><mi>i</mi></msub><msub><mi>e</mi><mi>i</mi></msub></mrow><mrow><munder><mo>∑</mo><mrow><msub><mi>A</mi><mi>i</mi></msub><mo>=</mo><mi>a</mi></mrow></munder><msub><mi>w</mi><mi>i</mi></msub></mrow></mfrac><mo>,</mo></mrow><annotation encoding="application/x-tex">
+\text{SMD} = \frac{\bar e^{\,w}_1 - \bar e^{\,w}_0}{s}, \qquad
+\bar e^{\,w}_a = \frac{\sum_{A_i = a} w_i e_i}{\sum_{A_i = a} w_i},
+</annotation></semantics></math></p>
+<p>with the unweighted means for the “before” value. The denominator
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>
+is always from the <em>unweighted</em> groups, so that before and after
+are on the same scale; it follows cobalt’s <code>s.d.denom</code> for
+each estimand:</p>
+<table class="table">
+<thead><tr class="header">
+<th>estimand</th>
+<th><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math></th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>ATE, ATO</td>
+<td>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msqrt><mrow><mo stretchy="false" form="prefix">(</mo><msubsup><mi>s</mi><mn>1</mn><mn>2</mn></msubsup><mo>+</mo><msubsup><mi>s</mi><mn>0</mn><mn>2</mn></msubsup><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mn>2</mn></mrow></msqrt><annotation encoding="application/x-tex">\sqrt{(s_1^2 + s_0^2)/2}</annotation></semantics></math>
+(pooled)</td>
+</tr>
+<tr class="even">
+<td>ATT</td>
+<td>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>s</mi><mn>1</mn></msub><annotation encoding="application/x-tex">s_1</annotation></semantics></math>
+(exposed)</td>
+</tr>
+<tr class="odd">
+<td>ATC</td>
+<td>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>s</mi><mn>0</mn></msub><annotation encoding="application/x-tex">s_0</annotation></semantics></math>
+(unexposed)</td>
+</tr>
+</tbody>
+</table>
+<p>where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>s</mi><mi>a</mi><mn>2</mn></msubsup><annotation encoding="application/x-tex">s_a^2</annotation></semantics></math>
+is the sample variance of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>e</mi><mi>i</mi></msub><annotation encoding="application/x-tex">e_i</annotation></semantics></math>
+among those with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo>=</mo><mi>a</mi></mrow><annotation encoding="application/x-tex">A = a</annotation></semantics></math>.
+This plot needs weights from <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> with a binomial
+exposure model.</p>
+<p><strong>Weights by exposure group (<code>"weights"</code>).</strong>
+Histograms of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>w</mi><mi>i</mi></msub><annotation encoding="application/x-tex">w_i</annotation></semantics></math>
+in each exposure group (density scale, common breaks), and per group the
+number of people, the mean, median, minimum, maximum and the sum of the
+weights. The sum is the size of the group in the weighted sample (the
+pseudo-population). If the exposure model is right, its expected value
+is known, and it is printed as <code>target</code>. For unstabilized ATE
+weights,</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mo minsize="180%" maxsize="180%" stretchy="true" form="prefix">[</mo><munder><mo>∑</mo><mi>i</mi></munder><mfrac><mrow><mn>1</mn><mo stretchy="false" form="prefix">(</mo><msub><mi>A</mi><mi>i</mi></msub><mo>=</mo><mi>a</mi><mo stretchy="false" form="postfix">)</mo></mrow><mrow><mi>P</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>A</mi><mi>i</mi></msub><mo>=</mo><mi>a</mi><mo>∣</mo><msub><mi>L</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow></mfrac><mo minsize="180%" maxsize="180%" stretchy="true" form="postfix">]</mo><mo>=</mo><munder><mo>∑</mo><mi>i</mi></munder><mi>E</mi><mo minsize="180%" maxsize="180%" stretchy="true" form="prefix">[</mo><mfrac><mrow><mi>P</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>A</mi><mi>i</mi></msub><mo>=</mo><mi>a</mi><mo>∣</mo><msub><mi>L</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><mrow><mi>P</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>A</mi><mi>i</mi></msub><mo>=</mo><mi>a</mi><mo>∣</mo><msub><mi>L</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow></mfrac><mo minsize="180%" maxsize="180%" stretchy="true" form="postfix">]</mo><mo>=</mo><mi>n</mi><mo>,</mo></mrow><annotation encoding="application/x-tex">
+E\Big[\sum_i \frac{1(A_i = a)}{P(A_i = a \mid L_i)}\Big]
+= \sum_i E\Big[\frac{P(A_i = a \mid L_i)}{P(A_i = a \mid L_i)}\Big] = n,
+</annotation></semantics></math></p>
+<p>so each group stands for the whole sample. The same argument gives
+the other targets:</p>
+<table class="table">
+<thead><tr class="header">
+<th>weights</th>
+<th>target,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">A = 0</annotation></semantics></math>
+</th>
+<th>target,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">A = 1</annotation></semantics></math>
+</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>ATE, unstabilized:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>P</mi><mo stretchy="false" form="prefix">(</mo><mi>A</mi><mo>=</mo><mi>a</mi><mo>∣</mo><mi>L</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">1 / P(A = a \mid L)</annotation></semantics></math>
+</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td>ATE, stabilized:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mo stretchy="false" form="prefix">(</mo><mi>A</mi><mo>=</mo><mi>a</mi><mo>∣</mo><mi>V</mi><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mi>P</mi><mo stretchy="false" form="prefix">(</mo><mi>A</mi><mo>=</mo><mi>a</mi><mo>∣</mo><mi>L</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">P(A = a \mid V) / P(A = a \mid L)</annotation></semantics></math>
+</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>n</mi><mn>0</mn></msub><annotation encoding="application/x-tex">n_0</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>n</mi><mn>1</mn></msub><annotation encoding="application/x-tex">n_1</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td>ATT:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>e</mi><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>e</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">e / (1 - e)</annotation></semantics></math>
+</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>n</mi><mn>1</mn></msub><annotation encoding="application/x-tex">n_1</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>n</mi><mn>1</mn></msub><annotation encoding="application/x-tex">n_1</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td>ATC:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>e</mi><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mi>e</mi></mrow><annotation encoding="application/x-tex">(1 - e) / e</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math>
+</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>n</mi><mn>0</mn></msub><annotation encoding="application/x-tex">n_0</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>n</mi><mn>0</mn></msub><annotation encoding="application/x-tex">n_0</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td>ATO:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><mi>e</mi></mrow><annotation encoding="application/x-tex">1 - e</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>e</mi><annotation encoding="application/x-tex">e</annotation></semantics></math>
+</td>
+<td>none</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>For stabilized weights the expected sum in group
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">a</annotation></semantics></math>
+is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mspace width="0.167em"></mspace><mi>E</mi><mo stretchy="false" form="prefix">[</mo><mi>P</mi><mo stretchy="false" form="prefix">(</mo><mi>A</mi><mo>=</mo><mi>a</mi><mo>∣</mo><mi>V</mi><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">]</mo><mo>=</mo><mi>n</mi><mi>P</mi><mo stretchy="false" form="prefix">(</mo><mi>A</mi><mo>=</mo><mi>a</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">n\,E[P(A = a \mid V)] = n P(A = a)</annotation></semantics></math>,
+whatever
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>V</mi><annotation encoding="application/x-tex">V</annotation></semantics></math>
+is; the observed
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>n</mi><mi>a</mi></msub><annotation encoding="application/x-tex">n_a</annotation></semantics></math>
+is used as the target. The targets are given for a single
+<code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> result with a binomial exposure model; otherwise
+only the sums are shown.</p>
+<p><strong>Weight share (<code>"share"</code>).</strong> With the
+weights sorted from largest to smallest,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mrow><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow></msub><mo>≥</mo><mi>…</mi><mo>≥</mo><msub><mi>w</mi><mrow><mo stretchy="false" form="prefix">(</mo><mi>n</mi><mo stretchy="false" form="postfix">)</mo></mrow></msub></mrow><annotation encoding="application/x-tex">w_{(1)} \ge \dots \ge w_{(n)}</annotation></semantics></math>,
+the curve is the cumulative share
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>∑</mo><mrow><mi>j</mi><mo>≤</mo><mi>k</mi></mrow></msub><msub><mi>w</mi><mrow><mo stretchy="false" form="prefix">(</mo><mi>j</mi><mo stretchy="false" form="postfix">)</mo></mrow></msub><mi>/</mi><msub><mo>∑</mo><mi>j</mi></msub><msub><mi>w</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">\sum_{j \le k} w_{(j)} / \sum_j w_j</annotation></semantics></math>
+against
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mi>/</mi><mi>n</mi></mrow><annotation encoding="application/x-tex">k / n</annotation></semantics></math>.
+The summary gives the share of the largest
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⌈</mo><mn>0.01</mn><mi>n</mi><mo stretchy="false" form="postfix">⌉</mo></mrow><annotation encoding="application/x-tex">\lceil 0.01 n \rceil</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⌈</mo><mn>0.05</mn><mi>n</mi><mo stretchy="false" form="postfix">⌉</mo></mrow><annotation encoding="application/x-tex">\lceil 0.05 n \rceil</annotation></semantics></math>
+weights, the mean weight, and Kish’s effective sample size</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mtext mathvariant="normal">eff</mtext></msub><mo>=</mo><mfrac><mrow><mo stretchy="false" form="prefix">(</mo><munder><mo>∑</mo><mi>i</mi></munder><msub><mi>w</mi><mi>i</mi></msub><msup><mo stretchy="false" form="postfix">)</mo><mn>2</mn></msup></mrow><mrow><munder><mo>∑</mo><mi>i</mi></munder><msubsup><mi>w</mi><mi>i</mi><mn>2</mn></msubsup></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+n_{\text{eff}} = \frac{(\sum_i w_i)^2}{\sum_i w_i^2}.
+</annotation></semantics></math></p>
+<p><strong>Tail index (<code>"tail"</code>).</strong> For the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>=</mo><mo stretchy="false" form="prefix">⌊</mo><mn>0.05</mn><mi>n</mi><mo stretchy="false" form="postfix">⌋</mo></mrow><annotation encoding="application/x-tex">k = \lfloor 0.05 n \rfloor</annotation></semantics></math>
+largest weights (<code>top</code>),
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><mi>j</mi><mi>/</mi><mi>n</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\log(j / n)</annotation></semantics></math>
+against
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mi>w</mi><mrow><mo stretchy="false" form="prefix">(</mo><mi>j</mi><mo stretchy="false" form="postfix">)</mo></mrow></msub></mrow><annotation encoding="application/x-tex">\log w_{(j)}</annotation></semantics></math>.
+A Pareto-type tail,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mo stretchy="false" form="prefix">(</mo><mi>W</mi><mo>&gt;</mo><mi>x</mi><mo stretchy="false" form="postfix">)</mo><mo>∝</mo><msup><mi>x</mi><mrow><mi>−</mi><mi>α</mi></mrow></msup></mrow><annotation encoding="application/x-tex">P(W &gt; x) \propto x^{-\alpha}</annotation></semantics></math>,
+gives a line with slope
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mi>α</mi></mrow><annotation encoding="application/x-tex">-\alpha</annotation></semantics></math>.
+The Hill (1975) estimate is</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>α</mi><mo accent="true">̂</mo></mover><mo>=</mo><mo minsize="180%" maxsize="180%" stretchy="true" form="prefix">{</mo><mfrac><mn>1</mn><mi>k</mi></mfrac><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>k</mi></munderover><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mfrac><msub><mi>w</mi><mrow><mo stretchy="false" form="prefix">(</mo><mi>j</mi><mo stretchy="false" form="postfix">)</mo></mrow></msub><msub><mi>w</mi><mrow><mo stretchy="false" form="prefix">(</mo><mi>k</mi><mo>+</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow></msub></mfrac><msup><mo minsize="180%" maxsize="180%" stretchy="true" form="postfix">}</mo><mrow><mi>−</mi><mn>1</mn></mrow></msup><mo>,</mo></mrow><annotation encoding="application/x-tex">
+\hat\alpha = \Big\{\frac{1}{k} \sum_{j=1}^{k}
+\log\frac{w_{(j)}}{w_{(k+1)}}\Big\}^{-1},
+</annotation></semantics></math></p>
+<p>and the drawn line is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><mi>k</mi><mi>/</mi><mi>n</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mover><mi>α</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">{</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>x</mi><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mi>w</mi><mrow><mo stretchy="false" form="prefix">(</mo><mi>k</mi><mo>+</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow></msub><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">\log(k/n) - \hat\alpha\{\log x - \log w_{(k+1)}\}</annotation></semantics></math>.
+With
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>&lt;</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">\alpha &lt; 2</annotation></semantics></math>
+the weights have an infinite variance; with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mo>≤</mo><mi>α</mi><mo>&lt;</mo><mn>4</mn></mrow><annotation encoding="application/x-tex">2 \le \alpha &lt; 4</annotation></semantics></math>
+the variance is finite but higher moments are not, and normal-theory
+intervals, from <code><a href="../reference/ipwvcov.html">ipwvcov()</a></code> or the bootstrap, can be too
+narrow (section 8). At least 20 weights are needed in the tail.</p>
+<p><strong>Truncation sensitivity (<code>"trunc"</code>).</strong> For
+each level
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>q</mi><annotation encoding="application/x-tex">q</annotation></semantics></math>
+the weights are truncated at their
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>q</mi><annotation encoding="application/x-tex">q</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><mi>q</mi></mrow><annotation encoding="application/x-tex">1 - q</annotation></semantics></math>
+quantiles,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>w</mi><mi>i</mi><mrow><mo stretchy="false" form="prefix">(</mo><mi>q</mi><mo stretchy="false" form="postfix">)</mo></mrow></msubsup><mo>=</mo><mrow><mi mathvariant="normal">min</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">{</mo><mrow><mi mathvariant="normal">max</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>w</mi><mi>i</mi></msub><mo>,</mo><msub><mi>Q</mi><mi>q</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>,</mo><msub><mi>Q</mi><mrow><mn>1</mn><mo>−</mo><mi>q</mi></mrow></msub><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">w_i^{(q)} = \min\{\max(w_i, Q_q), Q_{1-q}\}</annotation></semantics></math>,
+exactly as the <code>trunc</code> argument of <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code>
+and <code><a href="../reference/ipwtm.html">ipwtm()</a></code> does, and the MSM is refitted with
+<code><a href="https://rdrr.io/r/stats/update.html" class="external-link">update()</a></code>. The interval uses a sandwich variance that treats
+the truncated weights as known: HC0 with the factor
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mi>g</mi><mo>−</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">g/(g-1)</annotation></semantics></math>
+of <code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">survey::svyglm()</a></code> for <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code> and
+<code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>g</mi><annotation encoding="application/x-tex">g</annotation></semantics></math>
+people; scores summed within person for long data), and
+<code><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph()</a></code>’s robust variance for Cox models.</p>
+<p><strong>Code.</strong> The new pieces are a few lines each; for
+example, the propensity score balance and the targets:</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># SMD of the propensity score, before and after weighting</span></span>
+<span><span class="va">s</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/switch.html" class="external-link">switch</a></span><span class="op">(</span><span class="va">estimand</span>, ATT <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/sd.html" class="external-link">sd</a></span><span class="op">(</span><span class="va">p</span><span class="op">[</span><span class="va">a</span> <span class="op">==</span> <span class="fl">1</span><span class="op">]</span><span class="op">)</span>, ATC <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/sd.html" class="external-link">sd</a></span><span class="op">(</span><span class="va">p</span><span class="op">[</span><span class="va">a</span> <span class="op">==</span> <span class="fl">0</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>            <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/cor.html" class="external-link">var</a></span><span class="op">(</span><span class="va">p</span><span class="op">[</span><span class="va">a</span> <span class="op">==</span> <span class="fl">0</span><span class="op">]</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/cor.html" class="external-link">var</a></span><span class="op">(</span><span class="va">p</span><span class="op">[</span><span class="va">a</span> <span class="op">==</span> <span class="fl">1</span><span class="op">]</span><span class="op">)</span><span class="op">)</span> <span class="op">/</span> <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">wmean</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">g</span>, <span class="va">ww</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">ww</span><span class="op">[</span><span class="va">a</span> <span class="op">==</span> <span class="va">g</span><span class="op">]</span> <span class="op">*</span> <span class="va">p</span><span class="op">[</span><span class="va">a</span> <span class="op">==</span> <span class="va">g</span><span class="op">]</span><span class="op">)</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">ww</span><span class="op">[</span><span class="va">a</span> <span class="op">==</span> <span class="va">g</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="va">smd</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>unweighted <span class="op">=</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">p</span><span class="op">[</span><span class="va">a</span> <span class="op">==</span> <span class="fl">1</span><span class="op">]</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">p</span><span class="op">[</span><span class="va">a</span> <span class="op">==</span> <span class="fl">0</span><span class="op">]</span><span class="op">)</span><span class="op">)</span> <span class="op">/</span> <span class="va">s</span>,</span>
+<span>         weighted   <span class="op">=</span> <span class="op">(</span><span class="fu">wmean</span><span class="op">(</span><span class="fl">1</span>, <span class="va">w</span><span class="op">)</span> <span class="op">-</span> <span class="fu">wmean</span><span class="op">(</span><span class="fl">0</span>, <span class="va">w</span><span class="op">)</span><span class="op">)</span> <span class="op">/</span> <span class="va">s</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># expected sum of the weights in each group (unexposed, exposed)</span></span>
+<span><span class="va">target</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/switch.html" class="external-link">switch</a></span><span class="op">(</span><span class="va">estimand</span>,</span>
+<span>                 ATE <span class="op">=</span> <span class="kw">if</span> <span class="op">(</span><span class="va">stabilized</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">n0</span>, <span class="va">n1</span><span class="op">)</span> <span class="kw">else</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">n</span>, <span class="va">n</span><span class="op">)</span>,</span>
+<span>                 ATT <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">n1</span>, <span class="va">n1</span><span class="op">)</span>, ATC <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">n0</span>, <span class="va">n0</span><span class="op">)</span>, ATO <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="cn">NA</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Hill estimate of the tail index</span></span>
+<span><span class="va">ws</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="va">w</span>, decreasing <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="va">alpha</span> <span class="op">&lt;-</span> <span class="fl">1</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="va">ws</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="va">k</span><span class="op">]</span> <span class="op">/</span> <span class="va">ws</span><span class="op">[</span><span class="va">k</span> <span class="op">+</span> <span class="fl">1</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p>The plots use base graphics only, so <code><a href="../reference/ipwdiag.html">ipwdiag()</a></code> adds no
+dependencies.</p>
+<p><strong>Why this approach.</strong></p>
+<ul>
+<li>
+<strong>The problem:</strong> weights can look fine in
+<code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> and still be untrustworthy. A misspecified
+exposure model, near-violations of positivity or a handful of extreme
+weights can each bias the estimate or make its interval too narrow, and
+each needs a different check.</li>
+<li>
+<strong>What it does:</strong> one call runs the standard checks and
+prints a short summary with rules of thumb (SMD below 0.1, sums close to
+their targets, a tail index above 4, a stable estimate under
+truncation).</li>
+<li>
+<strong>Why these checks:</strong> they follow the steps taught for
+IPW: check positivity (overlap), check that the weights balance the
+propensity score (overlap after weighting), look at the distribution and
+sum of the weights in each group, and check that the result does not
+hinge on a few people (share, tail, truncation).</li>
+<li>
+<strong>Why the propensity score, not every covariate:</strong>
+balance of each covariate depends on how covariates are coded (factor
+levels, interactions, transformations), and cobalt already does it well
+for any weights (see “Covariate balance” in the <a href="ipw.html">main
+vignette</a>). The propensity score needs only the fitted denominator
+model, which every <code><a href="../reference/ipwpoint.html">ipwpoint()</a></code> result carries, so this check
+always works.</li>
+<li>
+<strong>Why the sum of the weights:</strong> it is a check that
+needs no outcome and no extra assumption. A sum far from its target
+means that the weighted sample does not represent the population it
+should, usually because of a misspecified exposure model or because
+people who would get very large weights are missing from the
+sample.</li>
+<li>
+<strong>Why return the numbers:</strong> the plots are for a first
+look; the returned data let users redraw them for publication, or use
+the summaries in their own reports and simulations.</li>
+</ul>
+<p><strong>Caveats.</strong> All checks are on measured confounders:
+good overlap and balance say nothing about unmeasured confounding.
+Balance of the propensity score is necessary, not sufficient: check each
+confounder too. Stabilized weights with covariates
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>V</mi><annotation encoding="application/x-tex">V</annotation></semantics></math>
+in the numerator leave
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>V</mi><annotation encoding="application/x-tex">V</annotation></semantics></math>
+unbalanced on purpose (they must be adjusted for in the MSM), so then
+the weighted densities need not coincide. For <code><a href="../reference/ipwtm.html">ipwtm()</a></code> the
+overlap plot shows probabilities per interval, which are small when
+intervals are short, and balance should be checked at each time point
+among those at risk, as in the main vignette.</p>
+</div>
+<div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
 <ul>
+<li>Austin PC, Stuart EA (2015). Moving towards best practice when using
+inverse probability of treatment weighting (IPTW) using the propensity
+score to estimate causal treatment effects in observational studies.
+<em>Statistics in Medicine</em> 34, 3661–3679.</li>
 <li>Binder DA (1992). Fitting Cox’s proportional hazards models from
 survey data. <em>Biometrika</em> 79, 139–147.</li>
 <li>Cole SR, Hernán MA (2008). Constructing inverse probability weights
@@ -1048,12 +1366,17 @@ Epidemiology</em> 168, 656–664.</li>
 <li>Graffeo N, Latouche A, Geskus RB, Chevret S (2018). Modeling
 time-varying exposure using inverse probability of treatment weights.
 <em>Biometrical Journal</em> 60, 323–332.</li>
+<li>Greifer N. cobalt: Covariate balance tables and plots. R package. <a href="https://ngreifer.github.io/cobalt/" class="external-link uri">https://ngreifer.github.io/cobalt/</a>
+</li>
+<li>Hill BM (1975). A simple general approach to inference about the
+tail of a distribution. <em>Annals of Statistics</em> 3, 1163–1174.</li>
 <li>Hirano K, Imbens GW (2004). The propensity score with continuous
 treatments. In Gelman A, Meng XL (eds), <em>Applied Bayesian Modeling
 and Causal Inference from Incomplete-Data Perspectives</em>. Wiley.</li>
 <li>Imai K, van Dyk DA (2004). Causal inference with general treatment
 regimes: generalizing the propensity score. <em>Journal of the American
 Statistical Association</em> 99, 854–866.</li>
+<li>Kish L (1965). <em>Survey Sampling</em>. Wiley.</li>
 <li>Li F, Li F (2019). Propensity score weighting for causal inference
 with multiple treatments. <em>Annals of Applied Statistics</em> 13,
 2389–2415.</li>
