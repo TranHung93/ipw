@@ -6,11 +6,13 @@
 #' evaluated.
 #'
 #' Plots that check whether inverse probability weights can be trusted:
-#' overlap of the estimated exposure probabilities (positivity), the share of
-#' the total weight held by the people with the largest weights, the tail of
-#' the weight distribution, and the sensitivity of a marginal structural
-#' model's estimate to truncating the weights. The numbers behind every plot
-#' are returned (invisibly), so the plots can be redrawn with any graphics
+#' overlap of the estimated exposure probabilities (positivity), before and
+#' after weighting, the distribution of the weights in each exposure group
+#' with the size of each weighted group, the share of the total weight held
+#' by the people with the largest weights, the tail of the weight
+#' distribution, and the sensitivity of a marginal structural model's
+#' estimate to truncating the weights. The numbers behind every plot are
+#' returned (invisibly), so the plots can be redrawn with any graphics
 #' package.
 #'
 #' @details
@@ -26,6 +28,38 @@
 #'   when the intervals are short, so that proportion is not by itself a
 #'   warning sign there; look at whether the two groups overlap. For other
 #'   exposure families this plot is skipped with a message.}
+#' \item{\code{"psbalance"}}{The same densities as \code{"overlap"}, but
+#'   weighted by the weights (\code{ipwpoint()} with a binomial exposure
+#'   model only; otherwise skipped with a message). Weighting should make
+#'   the exposure independent of the confounders, and so of the propensity
+#'   score that summarises them: in the weighted sample the two densities
+#'   should (almost) coincide. The summary gives the standardized mean
+#'   difference (SMD) of the estimated probability between the exposed and
+#'   the unexposed, without and with weights: the difference in (weighted)
+#'   means divided by the standard deviation of the unweighted groups, as in
+#'   cobalt (\code{s.d.denom}: pooled, \eqn{\sqrt{(s_1^2 + s_0^2)/2}}, for
+#'   \code{"ATE"} and \code{"ATO"}; that of the exposed for \code{"ATT"};
+#'   that of the unexposed for \code{"ATC"}). Stabilized weights with
+#'   covariates in the numerator model leave those covariates unbalanced on
+#'   purpose (they must be adjusted for in the marginal structural model),
+#'   so then the weighted densities need not coincide. This checks one
+#'   summary of the confounders; check the balance of each confounder with
+#'   cobalt (see "Covariate balance" in \code{vignette("ipw")}).}
+#' \item{\code{"weights"}}{Histograms (density scale) of the weights in each
+#'   exposure group (\code{ipwpoint()} with a binomial exposure model), or of
+#'   all weights otherwise (for \code{ipwtm()} each person's final cumulative
+#'   weight). Large weights belong to people whose exposure was unlikely
+#'   given their covariates. The summary gives, per group, the number of
+#'   people and the mean, median, smallest and largest weight, and the sum
+#'   of the weights: the size of that group in the weighted sample
+#'   (pseudo-population). For a single \code{ipwpoint()} result with a
+#'   binomial exposure model the column \code{target} gives the sum
+#'   expected for these weights if the exposure model is right: \eqn{n} in
+#'   both groups for unstabilized ATE weights (each group stands for the
+#'   whole sample), the size of the group itself for stabilized ATE weights,
+#'   the number exposed for \code{"ATT"} and the number unexposed for
+#'   \code{"ATC"} (no target for \code{"ATO"}). A sum far from its target
+#'   suggests a misspecified exposure model or positivity problems.}
 #' \item{\code{"share"}}{The weights sorted from largest to smallest, with the
 #'   cumulative share of the total weight plotted against the fraction of
 #'   people. With equal weights the curve lies on the diagonal; a curve that
@@ -90,12 +124,15 @@
 #'   censoring weights from \code{ipwtm()} on the same long data, as in
 #'   \code{\link{ipwvcov}}). For a list, \code{"overlap"} uses the first
 #'   element (put the treatment weights first), and the other plots the
-#'   product of the weights.
-#' @param which Plots to draw: any of \code{"overlap"}, \code{"share"},
-#'   \code{"tail"} and \code{"trunc"}. Plots that cannot be drawn (overlap for
-#'   a non-binomial exposure model, truncation without \code{msm}, too few
-#'   weights in the tail) are skipped with a message; asking for
-#'   \code{"overlap"} or \code{"trunc"} explicitly in these cases is an error.
+#'   product of the weights; \code{"psbalance"} and the groups of
+#'   \code{"weights"} use the exposure of the first element.
+#' @param which Plots to draw: any of \code{"overlap"}, \code{"psbalance"},
+#'   \code{"weights"}, \code{"share"}, \code{"tail"} and \code{"trunc"}.
+#'   Plots that cannot be drawn (overlap and propensity score balance without
+#'   a binomial exposure model, propensity score balance for \code{ipwtm()},
+#'   truncation without \code{msm}, too few weights in the tail) are skipped
+#'   with a message; asking for \code{"overlap"}, \code{"psbalance"} or
+#'   \code{"trunc"} explicitly in these cases is an error.
 #' @param msm Optional marginal structural model, fitted with \code{lm()},
 #'   \code{glm()} or \code{survival::coxph()} on the same rows, in the same
 #'   order, as the weights (one row per person for \code{ipwpoint()}, all rows
@@ -112,8 +149,8 @@
 #' @param ask Logical. If \code{TRUE}, each plot is drawn on its own page and
 #'   R asks before showing the next one. If \code{FALSE} (default) and more
 #'   than one plot is drawn, they share one page (side by side for two, a 2 x 2
-#'   layout for three or four), unless a multi-panel layout was already set
-#'   with \code{par(mfrow = )}. The graphical parameters are restored on exit.
+#'   layout for three or four, 2 x 3 for five or six), unless a multi-panel
+#'   layout was already set with \code{par(mfrow = )}. The graphical parameters are restored on exit.
 #' @param ... Graphical parameters set with \code{\link[graphics]{par}} while
 #'   the plots are drawn, e.g. \code{cex = 0.8}.
 #'
@@ -126,6 +163,17 @@
 #'   \code{y}, for exposure 0 and 1), \code{support} (the range where both
 #'   groups have values), \code{exposure} (its name), \code{xlim} (the
 #'   plotted range) and \code{extreme} (as in the summary).}
+#' \item{psbalance}{List: \code{data} (data frame with \code{p},
+#'   \code{exposure} and \code{weight}), \code{density} (weighted densities,
+#'   as for \code{overlap}), \code{exposure}, \code{xlim}, \code{smd} (named
+#'   vector \code{unweighted}, \code{weighted}), \code{sd.denom}
+#'   (\code{"pooled"}, \code{"treated"} or \code{"control"}) and
+#'   \code{numerator.covariates} (\code{TRUE} if the numerator model has
+#'   covariates).}
+#' \item{weights}{List: \code{data} (data frame with \code{weight} and
+#'   \code{group}: the exposure, or \code{"all"}), \code{breaks} (of the
+#'   histograms) and \code{exposure} (its name, or \code{NULL} without
+#'   groups).}
 #' \item{share}{List: \code{data} (data frame with \code{fraction}, the
 #'   fraction of people, and \code{share}, the cumulative share of the total
 #'   weight, starting at 0, 0) and \code{weights} (the weights used, sorted
@@ -139,7 +187,10 @@
 #'   \code{lower} and \code{upper}; attribute \code{"coef"}.}
 #' \item{summary}{List with \code{n} (number of people), \code{unit},
 #'   \code{overlap} (proportion with a probability below 0.05 or above 0.95,
-#'   and the number of rows), \code{share} (named vector \code{top1},
+#'   and the number of rows), \code{psbalance} (\code{smd} above),
+#'   \code{weights} (data frame with one row per group and columns
+#'   \code{group}, \code{n}, \code{mean}, \code{median}, \code{min},
+#'   \code{max}, \code{sum} and \code{target}), \code{share} (named vector \code{top1},
 #'   \code{top5}, \code{max}, \code{mean}, \code{ess}, \code{ess.fraction}),
 #'   \code{tail} (\code{alpha}, \code{k}) and \code{trunc} (the table above),
 #'   for the plots that were computed.}
@@ -176,6 +227,7 @@
 #' d <- ipwdiag(w, msm = msm)
 #' d
 #' # the numbers behind the plots
+#' d$summary$weights   # sum of the weights in each group, and its target
 #' head(d$share$data)
 #' d$trunc
 #'
@@ -192,7 +244,7 @@
 #' ipwdiag(list(w.haart, w.cens), which = c("overlap", "share", "tail"))
 ipwdiag <- function(
     object,
-    which = c("overlap", "share", "tail", "trunc"),
+    which = c("overlap", "psbalance", "weights", "share", "tail", "trunc"),
     msm = NULL,
     trunc = c(0, 0.01, 0.025, 0.05, 0.1),
     coef = NULL,
@@ -203,8 +255,8 @@ ipwdiag <- function(
   # 1. Checks ------------------------------------------------------------------
   explicit <- !missing(which)
   if (!is.character(which) || length(which) == 0) {
-    stop("'which' must be one or more of \"overlap\", \"share\", \"tail\", \"trunc\".",
-         call. = FALSE)
+    stop("'which' must be one or more of \"overlap\", \"psbalance\", \"weights\", ",
+         "\"share\", \"tail\", \"trunc\".", call. = FALSE)
   }
   which <- match.arg(which, several.ok = TRUE)
   if (!is.numeric(top) || length(top) != 1 || is.na(top) || top <= 0 || top >= 0.5) {
@@ -219,6 +271,7 @@ ipwdiag <- function(
     stop("'ask' must be TRUE or FALSE.", call. = FALSE)
   }
   wt <- .diag_weights(object)
+  pb <- .diag_point_binomial(wt)
 
   # 2. Computations ---------------------------------------------------------------
   res <- list()
@@ -230,6 +283,18 @@ ipwdiag <- function(
       res$overlap <- ov
       smry$overlap <- ov$extreme
     }
+  }
+  if ("psbalance" %in% which) {
+    ps <- .diag_psbalance(wt, pb, explicit)
+    if (!is.null(ps)) {
+      res$psbalance <- ps
+      smry$psbalance <- ps$smd
+    }
+  }
+  if ("weights" %in% which) {
+    res$weights <- .diag_wdist(wt, pb)
+    smry$weights <- res$weights$summary
+    res$weights$summary <- NULL
   }
   if ("share" %in% which) {
     res$share <- .diag_share(wt$final)
@@ -258,13 +323,15 @@ ipwdiag <- function(
   class(res) <- "ipwdiag"
 
   # 3. Plots ----------------------------------------------------------------------
-  drawn <- intersect(c("overlap", "share", "tail", "trunc"), names(res))
+  drawn <- intersect(c("overlap", "psbalance", "weights", "share", "tail", "trunc"),
+                     names(res))
   if (length(drawn) > 0) {
     new_par <- list(...)
     if (ask) {
       new_par$ask <- TRUE
     } else if (length(drawn) > 1 && prod(graphics::par("mfrow")) == 1) {
-      new_par$mfrow <- if (length(drawn) == 2) c(1, 2) else c(2, 2)
+      new_par$mfrow <- if (length(drawn) == 2) c(1, 2) else
+        if (length(drawn) <= 4) c(2, 2) else c(2, 3)
       # tighter margins for small panels, unless given in ...
       if (is.null(new_par$mar)) new_par$mar <- c(3.6, 3.6, 2.6, 1) + 0.1
       if (is.null(new_par$mgp)) new_par$mgp <- c(2.3, 0.7, 0)
@@ -275,7 +342,9 @@ ipwdiag <- function(
     }
     for (p in drawn) {
       switch(p,
-             overlap = .plot_overlap(res$overlap),
+             overlap   = .plot_overlap(res$overlap),
+             psbalance = .plot_psbalance(res$psbalance),
+             weights   = .plot_wdist(res$weights, wt$unit),
              share   = .plot_share(res$share, smry$share, wt$unit),
              tail    = .plot_tail(res$tail, top),
              trunc   = .plot_trunc(res$trunc))
@@ -292,6 +361,15 @@ print.ipwdiag <- function(x, digits = 3, ...) {
     cat(sprintf("Overlap:    %.1f%% of %d %s have an estimated probability < 0.05 or > 0.95\n",
                 100 * s$overlap[["proportion"]], s$overlap[["rows"]],
                 if (s$overlap[["rows"]] == s$n) "people" else "rows"))
+  }
+  if (!is.null(s$psbalance)) {
+    cat(sprintf("PS balance: SMD of the estimated probability %.3f unweighted, %.3f weighted\n",
+                s$psbalance[["unweighted"]], s$psbalance[["weighted"]]))
+    if (isTRUE(x$psbalance$numerator.covariates)) {
+      cat("            (the numerator model has covariates, which these weights leave\n",
+          "            unbalanced on purpose, so the weighted SMD need not be near 0)\n",
+          sep = "")
+    }
   }
   if (!is.null(s$share)) {
     sh <- s$share
@@ -313,6 +391,16 @@ print.ipwdiag <- function(x, digits = 3, ...) {
           "            the bootstrap alike) can be too narrow (see ?ipwvcov,\n",
           "            \"Heavy-tailed weights\").\n", sep = "")
     }
+  }
+  if (!is.null(s$weights)) {
+    tab <- s$weights
+    has_target <- any(!is.na(tab$target))
+    if (!has_target) tab$target <- NULL
+    cat("\nWeights ", if (nrow(tab) > 1) "by exposure group " else "",
+        "(sum: size of the weighted group",
+        if (has_target) "; target: the sum expected for these weights" else "",
+        "):\n", sep = "")
+    print(tab, digits = digits, row.names = FALSE)
   }
   if (!is.null(s$trunc)) {
     cat("\nTruncation sensitivity for '", attr(s$trunc, "coef"),
@@ -376,7 +464,8 @@ print.ipwdiag <- function(x, digits = 3, ...) {
     final <- w
     unit <- "people"
   }
-  list(rows = w, final = final, id = id, first = objects[[1]], unit = unit)
+  list(rows = w, final = final, id = id, first = objects[[1]], unit = unit,
+       n.objects = length(objects))
 }
 
 # ---- Overlap -----------------------------------------------------------------
@@ -436,6 +525,148 @@ print.ipwdiag <- function(x, digits = 3, ...) {
                   cex = 0.8 * graphics::par("cex"))
 }
 
+# ---- Point treatment, binomial exposure model ----------------------------------
+
+# For weights from ipwpoint() with a binomial denominator model (one row per
+# person, no ipwtm() result in 'object'): the estimated probability p, the
+# exposure a (0/1), the exposure name and the estimand. NULL otherwise.
+.diag_point_binomial <- function(wt) {
+  obj <- wt$first
+  if (!is.null(wt$id) || !inherits(obj, "ipwpoint")) return(NULL)
+  mod <- obj$den.mod
+  fam <- if (is.list(mod) && !is.null(mod$family)) mod$family$family else NULL
+  if (!identical(fam, "binomial")) return(NULL)
+  p <- as.numeric(mod$fitted.values)
+  a <- as.numeric(mod$y)
+  if (length(p) != length(wt$rows) || length(a) != length(p)) return(NULL)
+  exp_name <- attr(obj, "exposure")
+  if (is.null(exp_name)) exp_name <- deparse(stats::formula(mod)[[2]])
+  estimand <- attr(obj, "estimand")
+  if (is.null(estimand)) estimand <- "ATE"   # results of ipw < 1.4.0
+  list(p = p, a = a, exposure = exp_name, estimand = estimand)
+}
+
+# ---- Propensity score balance ------------------------------------------------
+
+.diag_psbalance <- function(wt, pb, explicit) {
+  if (is.null(pb)) {
+    msg <- paste0("The propensity score balance plot needs ipwpoint() weights with a ",
+                  "binomial exposure model (family = \"binomial\").")
+    if (explicit) stop(msg, call. = FALSE)
+    message("ipwdiag(): ", msg, " It is skipped.")
+    return(NULL)
+  }
+  p <- pb$p
+  a <- pb$a
+  w <- wt$rows
+  # SMD: (weighted) difference in means over the SD of the unweighted groups,
+  # with cobalt's default s.d.denom for each estimand
+  sd_denom <- switch(pb$estimand, ATT = "treated", ATC = "control", "pooled")
+  v <- function(g) if (sum(a == g) > 1) stats::var(p[a == g]) else NA_real_
+  s <- switch(sd_denom, treated = sqrt(v(1)), control = sqrt(v(0)),
+              sqrt((v(0) + v(1)) / 2))
+  wmean <- function(g, ww) sum(ww[a == g] * p[a == g]) / sum(ww[a == g])
+  smd <- c(unweighted = (mean(p[a == 1]) - mean(p[a == 0])) / s,
+           weighted = (wmean(1, w) - wmean(0, w)) / s)
+  smd[!is.finite(smd)] <- NA_real_
+  # same range and bandwidth as the overlap plot; the bandwidth is chosen
+  # from the unweighted values (density() warns when it is not given)
+  pad <- 0.02 * max(diff(range(p)), 0.05)
+  xlim <- c(max(0, min(p) - pad), min(1, max(p) + pad))
+  dens <- lapply(c(0, 1), function(g) {
+    pg <- p[a == g]
+    if (length(pg) < 2) return(data.frame(x = numeric(0), y = numeric(0)))
+    wg <- w[a == g]
+    d <- stats::density(pg, bw = stats::bw.nrd0(pg), weights = wg / sum(wg),
+                        from = xlim[1], to = xlim[2])
+    data.frame(x = d$x, y = d$y)
+  })
+  names(dens) <- c("0", "1")
+  num <- wt$first$num.mod
+  list(data = data.frame(p = p, exposure = a, weight = w), density = dens,
+       exposure = pb$exposure, xlim = xlim, smd = smd, sd.denom = sd_denom,
+       numerator.covariates = !is.null(num) && length(stats::coef(num)) > 1)
+}
+
+.plot_psbalance <- function(ps) {
+  dens <- ps$density
+  ymax <- max(c(dens[["0"]]$y, dens[["1"]]$y, 0.1))
+  graphics::plot(NA, xlim = ps$xlim, ylim = c(0, ymax * 1.08), xaxs = "i",
+                 xlab = sprintf("Estimated P(%s = 1)", ps$exposure),
+                 ylab = "Weighted density", main = "Overlap after weighting")
+  cols <- c("#1F6FB4", "#C8501E")
+  graphics::lines(dens[["0"]]$x, dens[["0"]]$y, col = cols[1], lwd = 2)
+  graphics::lines(dens[["1"]]$x, dens[["1"]]$y, col = cols[2], lwd = 2, lty = 2)
+  graphics::legend("top", legend = paste(ps$exposure, "=", 0:1), col = cols, lwd = 2,
+                   lty = 1:2, bty = "n", cex = 0.85, horiz = TRUE)
+  graphics::mtext(sprintf("SMD %.2f unweighted, %.2f weighted", ps$smd[["unweighted"]],
+                          ps$smd[["weighted"]]),
+                  side = 3, line = 0.2, cex = 0.8 * graphics::par("cex"))
+}
+
+# ---- Distribution of the weights by exposure group ---------------------------
+
+.diag_wdist <- function(wt, pb) {
+  w <- wt$final
+  if (is.null(pb)) {
+    group <- rep("all", length(w))
+    groups <- "all"
+  } else {
+    group <- as.character(pb$a)
+    groups <- c("0", "1")
+  }
+  # expected sum of the weights in each group (single ipwpoint() result only)
+  target <- stats::setNames(rep(NA_real_, length(groups)), groups)
+  if (!is.null(pb) && wt$n.objects == 1) {
+    n <- length(pb$a)
+    n1 <- sum(pb$a == 1)
+    n0 <- n - n1
+    target[] <- switch(pb$estimand,
+                       ATE = if (is.null(wt$first$num.mod)) c(n, n) else c(n0, n1),
+                       ATT = c(n1, n1),
+                       ATC = c(n0, n0),
+                       c(NA_real_, NA_real_))
+  }
+  tab <- do.call(rbind, lapply(groups, function(k) {
+    wk <- w[group == k]
+    data.frame(group = k, n = length(wk), mean = mean(wk), median = stats::median(wk),
+               min = min(wk), max = max(wk), sum = sum(wk), target = target[[k]],
+               stringsAsFactors = FALSE)
+  }))
+  list(data = data.frame(weight = w, group = group, stringsAsFactors = FALSE),
+       breaks = pretty(range(w), n = 30),
+       exposure = if (is.null(pb)) NULL else pb$exposure,
+       summary = tab)
+}
+
+.plot_wdist <- function(wd, unit) {
+  br <- wd$breaks
+  groups <- unique(wd$data$group)
+  groups <- if ("all" %in% groups) "all" else c("0", "1")
+  h <- lapply(groups, function(k) {
+    graphics::hist(wd$data$weight[wd$data$group == k], breaks = br, plot = FALSE)$density
+  })
+  cols <- if (length(groups) == 1) "#1F6FB4" else c("#1F6FB4", "#C8501E")
+  fill <- paste0(cols, "55")
+  graphics::plot(NA, xlim = range(br), ylim = c(0, max(unlist(h), 1e-8) * 1.08),
+                 xaxs = "i", yaxs = "i",
+                 xlab = if (identical(unit, "people")) "Weight" else "Final cumulative weight",
+                 ylab = "Density",
+                 main = if (length(groups) == 1) "Weights" else "Weights by exposure group")
+  for (i in seq_along(groups)) {
+    graphics::rect(br[-length(br)], 0, br[-1], h[[i]], col = fill[i], border = cols[i])
+  }
+  fmt <- function(x) format(x, digits = 3)
+  lab <- if (length(groups) == 1) "all" else paste(wd$exposure, "=", groups)
+  txt <- vapply(groups, function(k) {
+    wk <- wd$data$weight[wd$data$group == k]
+    sprintf("median %s, max %s, sum %s", fmt(stats::median(wk)), fmt(max(wk)),
+            fmt(sum(wk)))
+  }, character(1))
+  if (length(groups) > 1) txt <- paste0(lab, ": ", txt)
+  .inner_text(txt, side = 3, col = cols)
+}
+
 # ---- Share of the total weight ----------------------------------------------
 
 .diag_share <- function(w) {
@@ -468,12 +699,13 @@ print.ipwdiag <- function(x, digits = 3, ...) {
 # Lines of text inside the plot region, right-aligned at the top (side = 3) or
 # bottom (side = 1). mtext() positions them in lines of text, so they keep
 # their spacing when a recorded plot is replayed on a device of another size.
-.inner_text <- function(txt, side, cex = 0.8) {
+.inner_text <- function(txt, side, cex = 0.8, col = "black") {
   k <- length(txt)
   pos <- if (side == 3) seq_len(k) else rev(seq_len(k))
+  col <- rep_len(col, k)
   for (i in seq_len(k)) {
     graphics::mtext(txt[i], side = side, line = -1.1 * pos[i] - 0.2, adj = 0.97,
-                    cex = cex * graphics::par("cex"))
+                    cex = cex * graphics::par("cex"), col = col[i])
   }
 }
 

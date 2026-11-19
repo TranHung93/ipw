@@ -6,7 +6,7 @@
 \usage{
 ipwdiag(
   object,
-  which = c("overlap", "share", "tail", "trunc"),
+  which = c("overlap", "psbalance", "weights", "share", "tail", "trunc"),
   msm = NULL,
   trunc = c(0, 0.01, 0.025, 0.05, 0.1),
   coef = NULL,
@@ -21,13 +21,16 @@ list of such results whose weights multiply (e.g. treatment times
 censoring weights from \code{ipwtm()} on the same long data, as in
 \code{\link{ipwvcov}}). For a list, \code{"overlap"} uses the first
 element (put the treatment weights first), and the other plots the
-product of the weights.}
+product of the weights; \code{"psbalance"} and the groups of
+\code{"weights"} use the exposure of the first element.}
 
-\item{which}{Plots to draw: any of \code{"overlap"}, \code{"share"},
-\code{"tail"} and \code{"trunc"}. Plots that cannot be drawn (overlap for
-a non-binomial exposure model, truncation without \code{msm}, too few
-weights in the tail) are skipped with a message; asking for
-\code{"overlap"} or \code{"trunc"} explicitly in these cases is an error.}
+\item{which}{Plots to draw: any of \code{"overlap"}, \code{"psbalance"},
+\code{"weights"}, \code{"share"}, \code{"tail"} and \code{"trunc"}.
+Plots that cannot be drawn (overlap and propensity score balance without
+a binomial exposure model, propensity score balance for \code{ipwtm()},
+truncation without \code{msm}, too few weights in the tail) are skipped
+with a message; asking for \code{"overlap"}, \code{"psbalance"} or
+\code{"trunc"} explicitly in these cases is an error.}
 
 \item{msm}{Optional marginal structural model, fitted with \code{lm()},
 \code{glm()} or \code{survival::coxph()} on the same rows, in the same
@@ -49,8 +52,8 @@ intercept for \code{lm()} and \code{glm()}, the first for \code{coxph()}.}
 \item{ask}{Logical. If \code{TRUE}, each plot is drawn on its own page and
 R asks before showing the next one. If \code{FALSE} (default) and more
 than one plot is drawn, they share one page (side by side for two, a 2 x 2
-layout for three or four), unless a multi-panel layout was already set
-with \code{par(mfrow = )}. The graphical parameters are restored on exit.}
+layout for three or four, 2 x 3 for five or six), unless a multi-panel
+layout was already set with \code{par(mfrow = )}. The graphical parameters are restored on exit.}
 
 \item{...}{Graphical parameters set with \code{\link[graphics]{par}} while
 the plots are drawn, e.g. \code{cex = 0.8}.}
@@ -65,6 +68,17 @@ Invisibly, a list of class \code{"ipwdiag"} with one element per
   \code{y}, for exposure 0 and 1), \code{support} (the range where both
   groups have values), \code{exposure} (its name), \code{xlim} (the
   plotted range) and \code{extreme} (as in the summary).}
+\item{psbalance}{List: \code{data} (data frame with \code{p},
+  \code{exposure} and \code{weight}), \code{density} (weighted densities,
+  as for \code{overlap}), \code{exposure}, \code{xlim}, \code{smd} (named
+  vector \code{unweighted}, \code{weighted}), \code{sd.denom}
+  (\code{"pooled"}, \code{"treated"} or \code{"control"}) and
+  \code{numerator.covariates} (\code{TRUE} if the numerator model has
+  covariates).}
+\item{weights}{List: \code{data} (data frame with \code{weight} and
+  \code{group}: the exposure, or \code{"all"}), \code{breaks} (of the
+  histograms) and \code{exposure} (its name, or \code{NULL} without
+  groups).}
 \item{share}{List: \code{data} (data frame with \code{fraction}, the
   fraction of people, and \code{share}, the cumulative share of the total
   weight, starting at 0, 0) and \code{weights} (the weights used, sorted
@@ -78,7 +92,10 @@ Invisibly, a list of class \code{"ipwdiag"} with one element per
   \code{lower} and \code{upper}; attribute \code{"coef"}.}
 \item{summary}{List with \code{n} (number of people), \code{unit},
   \code{overlap} (proportion with a probability below 0.05 or above 0.95,
-  and the number of rows), \code{share} (named vector \code{top1},
+  and the number of rows), \code{psbalance} (\code{smd} above),
+  \code{weights} (data frame with one row per group and columns
+  \code{group}, \code{n}, \code{mean}, \code{median}, \code{min},
+  \code{max}, \code{sum} and \code{target}), \code{share} (named vector \code{top1},
   \code{top5}, \code{max}, \code{mean}, \code{ess}, \code{ess.fraction}),
   \code{tail} (\code{alpha}, \code{k}) and \code{trunc} (the table above),
   for the plots that were computed.}
@@ -89,11 +106,13 @@ and output may change in future versions, and the methods are still being
 evaluated.
 
 Plots that check whether inverse probability weights can be trusted:
-overlap of the estimated exposure probabilities (positivity), the share of
-the total weight held by the people with the largest weights, the tail of
-the weight distribution, and the sensitivity of a marginal structural
-model's estimate to truncating the weights. The numbers behind every plot
-are returned (invisibly), so the plots can be redrawn with any graphics
+overlap of the estimated exposure probabilities (positivity), before and
+after weighting, the distribution of the weights in each exposure group
+with the size of each weighted group, the share of the total weight held
+by the people with the largest weights, the tail of the weight
+distribution, and the sensitivity of a marginal structural model's
+estimate to truncating the weights. The numbers behind every plot are
+returned (invisibly), so the plots can be redrawn with any graphics
 package.
 }
 \details{
@@ -109,6 +128,38 @@ package.
   when the intervals are short, so that proportion is not by itself a
   warning sign there; look at whether the two groups overlap. For other
   exposure families this plot is skipped with a message.}
+\item{\code{"psbalance"}}{The same densities as \code{"overlap"}, but
+  weighted by the weights (\code{ipwpoint()} with a binomial exposure
+  model only; otherwise skipped with a message). Weighting should make
+  the exposure independent of the confounders, and so of the propensity
+  score that summarises them: in the weighted sample the two densities
+  should (almost) coincide. The summary gives the standardized mean
+  difference (SMD) of the estimated probability between the exposed and
+  the unexposed, without and with weights: the difference in (weighted)
+  means divided by the standard deviation of the unweighted groups, as in
+  cobalt (\code{s.d.denom}: pooled, \eqn{\sqrt{(s_1^2 + s_0^2)/2}}, for
+  \code{"ATE"} and \code{"ATO"}; that of the exposed for \code{"ATT"};
+  that of the unexposed for \code{"ATC"}). Stabilized weights with
+  covariates in the numerator model leave those covariates unbalanced on
+  purpose (they must be adjusted for in the marginal structural model),
+  so then the weighted densities need not coincide. This checks one
+  summary of the confounders; check the balance of each confounder with
+  cobalt (see "Covariate balance" in \code{vignette("ipw")}).}
+\item{\code{"weights"}}{Histograms (density scale) of the weights in each
+  exposure group (\code{ipwpoint()} with a binomial exposure model), or of
+  all weights otherwise (for \code{ipwtm()} each person's final cumulative
+  weight). Large weights belong to people whose exposure was unlikely
+  given their covariates. The summary gives, per group, the number of
+  people and the mean, median, smallest and largest weight, and the sum
+  of the weights: the size of that group in the weighted sample
+  (pseudo-population). For a single \code{ipwpoint()} result with a
+  binomial exposure model the column \code{target} gives the sum
+  expected for these weights if the exposure model is right: \eqn{n} in
+  both groups for unstabilized ATE weights (each group stands for the
+  whole sample), the size of the group itself for stabilized ATE weights,
+  the number exposed for \code{"ATT"} and the number unexposed for
+  \code{"ATC"} (no target for \code{"ATO"}). A sum far from its target
+  suggests a misspecified exposure model or positivity problems.}
 \item{\code{"share"}}{The weights sorted from largest to smallest, with the
   cumulative share of the total weight plotted against the fraction of
   people. With equal weights the curve lies on the diagonal; a curve that
@@ -181,6 +232,7 @@ msm <- lm(y ~ a, data = simdat, weights = w$ipw.weights)
 d <- ipwdiag(w, msm = msm)
 d
 # the numbers behind the plots
+d$summary$weights   # sum of the weights in each group, and its target
 head(d$share$data)
 d$trunc
 

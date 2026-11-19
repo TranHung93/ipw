@@ -30,7 +30,7 @@ test_that("ipwdiag returns the documented structure for ipwpoint (binomial)", {
   msm <- lm(y ~ a, data = simdat, weights = w$ipw.weights)
   d <- ipwdiag(w, msm = msm)
   expect_s3_class(d, "ipwdiag")
-  expect_named(d, c("overlap", "share", "tail", "trunc", "summary"))
+  expect_named(d, c("overlap", "psbalance", "weights", "share", "tail", "trunc", "summary"))
   expect_named(d$overlap, c("data", "density", "support", "exposure", "xlim", "extreme"))
   expect_equal(nrow(d$overlap$data), 1000)
   expect_equal(d$overlap$data$p, unname(fitted(w$den.mod)))
@@ -40,13 +40,21 @@ test_that("ipwdiag returns the documented structure for ipwpoint (binomial)", {
   expect_named(d$trunc, c("q", "estimate", "se", "lower", "upper"))
   expect_equal(d$trunc$q, c(0, 0.01, 0.025, 0.05, 0.1))
   expect_equal(attr(d$trunc, "coef"), "a")
-  expect_named(d$summary, c("n", "unit", "overlap", "share", "tail", "trunc"))
+  expect_named(d$psbalance, c("data", "density", "exposure", "xlim", "smd", "sd.denom",
+                              "numerator.covariates"))
+  expect_named(d$weights, c("data", "breaks", "exposure"))
+  expect_named(d$summary, c("n", "unit", "overlap", "psbalance", "weights", "share",
+                            "tail", "trunc"))
+  expect_named(d$summary$weights, c("group", "n", "mean", "median", "min", "max", "sum",
+                                    "target"))
   expect_named(d$summary$share, c("top1", "top5", "max", "mean", "ess", "ess.fraction"))
   p <- fitted(w$den.mod)
   expect_equal(d$summary$overlap[["proportion"]], mean(p < 0.05 | p > 0.95))
   # q = 0 reproduces the MSM
   expect_equal(d$trunc$estimate[1], unname(coef(msm)["a"]))
   expect_output(print(d), "Kish ESS")
+  expect_output(print(d), "PS balance: SMD")
+  expect_output(print(d), "Weights by exposure group")
   expect_output(print(d), "Truncation sensitivity for 'a'")
   expect_output(print(d), "Warning: tail index < 2")
   # invisible result
@@ -64,11 +72,17 @@ test_that("ipwdiag skips the overlap plot for a gaussian ipwpoint exposure", {
   out <- with_messages(ipwdiag(w))
   res <- out$value
   msgs <- out$messages
-  expect_length(msgs, 2)
+  expect_length(msgs, 3)
   expect_match(msgs[1], "overlap plot needs a binomial")
-  expect_match(msgs[2], "no 'msm' given")
+  expect_match(msgs[2], "propensity score balance plot needs")
+  expect_match(msgs[3], "no 'msm' given")
   expect_s3_class(res, "ipwdiag")
-  expect_named(res, c("share", "tail", "summary"))
+  expect_named(res, c("weights", "share", "tail", "summary"))
+  # no exposure groups for a continuous exposure: one row for all weights
+  expect_equal(res$summary$weights$group, "all")
+  expect_equal(res$summary$weights$sum, sum(w$ipw.weights))
+  expect_true(is.na(res$summary$weights$target))
+  expect_error(ipwdiag(w, which = "psbalance"), "binomial exposure model")
   expect_null(res$summary$overlap)
   expect_error(ipwdiag(w, which = "overlap"), "binomial exposure model")
 })
@@ -99,7 +113,11 @@ test_that("ipwdiag works for ipwtm() binomial and survival weights on haartdat",
   out <- with_messages(ipwdiag(ws))
   ds <- out$value
   expect_match(out$messages[1], "overlap plot needs a binomial")
-  expect_named(ds, c("share", "tail", "summary"))
+  expect_named(ds, c("weights", "share", "tail", "summary"))
+  # weights: each person's final cumulative weight, no groups
+  expect_equal(ds$summary$weights$n, n_id)
+  expect_equal(ds$summary$weights$max, max(ws$ipw.weights[last]))
+  expect_error(ipwdiag(wb, which = "psbalance"), "needs ipwpoint\\(\\) weights")
   expect_equal(ds$summary$n, n_id)
   expect_equal(ds$summary$share[["max"]], max(ws$ipw.weights[last]))
 
@@ -369,4 +387,102 @@ test_that("ipwdiag draws one plot per page with ask = TRUE and restores par()", 
   graphics::par(mfrow = c(1, 3))
   suppressMessages(ipwdiag(w, which = c("overlap", "share", "tail")))
   expect_equal(graphics::par("mfrow"), c(1, 3))
+})
+
+test_that("psbalance: SMDs match hand calculations, per estimand", {
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off())
+  # moderate confounding, good overlap
+  set.seed(21)
+  simdat <- data.frame(l = rnorm(1000))
+  simdat$a <- rbinom(1000, 1, plogis(-0.5 + 0.8 * simdat$l))
+  smd_hand <- function(p, a, w, denom) {
+    s <- switch(denom, pooled = sqrt((var(p[a == 1]) + var(p[a == 0])) / 2),
+                treated = sd(p[a == 1]), control = sd(p[a == 0]))
+    wm <- function(g, ww) weighted.mean(p[a == g], ww[a == g])
+    c(unweighted = (mean(p[a == 1]) - mean(p[a == 0])) / s,
+      weighted = (wm(1, w) - wm(0, w)) / s)
+  }
+  for (est in c("ATE", "ATT", "ATC", "ATO")) {
+    w <- ipwpoint(exposure = a, family = "binomial", link = "logit",
+                  denominator = ~ l, data = simdat, estimand = est)
+    d <- ipwdiag(w, which = "psbalance")
+    p <- unname(fitted(w$den.mod))
+    denom <- switch(est, ATT = "treated", ATC = "control", "pooled")
+    expect_equal(d$psbalance$sd.denom, denom)
+    expect_equal(d$summary$psbalance, smd_hand(p, simdat$a, w$ipw.weights, denom))
+    expect_equal(d$psbalance$data$weight, w$ipw.weights)
+    expect_false(d$psbalance$numerator.covariates)
+    # weighting reduces the imbalance in the propensity score
+    expect_lt(abs(d$summary$psbalance[["weighted"]]),
+              abs(d$summary$psbalance[["unweighted"]]))
+    expect_named(d$psbalance$density, c("0", "1"))
+    expect_equal(nrow(d$psbalance$density[["0"]]), 512)
+  }
+  # numerator with covariates is flagged
+  simdat$v <- rbinom(nrow(simdat), 1, 0.5)
+  wn <- ipwpoint(exposure = a, family = "binomial", link = "logit",
+                 numerator = ~ v, denominator = ~ l + v, data = simdat)
+  dn <- ipwdiag(wn, which = "psbalance")
+  expect_true(dn$psbalance$numerator.covariates)
+  expect_output(print(dn), "unbalanced on purpose")
+})
+
+test_that("psbalance agrees with cobalt", {
+  skip_if_not_installed("cobalt")
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off())
+  simdat <- sim_point()
+  w <- ipwpoint(exposure = a, family = "binomial", link = "logit",
+                numerator = ~ 1, denominator = ~ l, data = simdat)
+  d <- ipwdiag(w, which = "psbalance")
+  b <- cobalt::bal.tab(data.frame(p = unname(fitted(w$den.mod))), treat = simdat$a,
+                       weights = w$ipw.weights, method = "weighting",
+                       s.d.denom = "pooled", un = TRUE)$Balance
+  expect_equal(d$summary$psbalance[["unweighted"]], b["p", "Diff.Un"], tolerance = 1e-6)
+  expect_equal(d$summary$psbalance[["weighted"]], b["p", "Diff.Adj"], tolerance = 1e-6)
+})
+
+test_that("weights: table by exposure group and target sums", {
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off())
+  simdat <- sim_point()
+  n <- nrow(simdat)
+  n1 <- sum(simdat$a)
+  n0 <- n - n1
+  fit <- function(...) ipwpoint(exposure = a, family = "binomial", link = "logit",
+                                denominator = ~ l, data = simdat, ...)
+  w <- fit(numerator = ~ 1)
+  tab <- ipwdiag(w, which = "weights")$summary$weights
+  expect_equal(tab$group, c("0", "1"))
+  expect_equal(tab$n, c(n0, n1))
+  for (j in 1:2) {
+    wj <- w$ipw.weights[simdat$a == j - 1]
+    expect_equal(tab$sum[j], sum(wj))
+    expect_equal(tab$mean[j], mean(wj))
+    expect_equal(tab$median[j], median(wj))
+    expect_equal(tab$min[j], min(wj))
+    expect_equal(tab$max[j], max(wj))
+  }
+  # targets: stabilized ATE n_a, unstabilized ATE n, ATT n1, ATC n0, ATO none
+  expect_equal(tab$target, c(n0, n1))
+  expect_equal(ipwdiag(fit(), which = "weights")$summary$weights$target, c(n, n))
+  expect_equal(ipwdiag(fit(estimand = "ATT"), which = "weights")$summary$weights$target,
+               c(n1, n1))
+  expect_equal(ipwdiag(fit(estimand = "ATC"), which = "weights")$summary$weights$target,
+               c(n0, n0))
+  dato <- ipwdiag(fit(estimand = "ATO"), which = "weights")
+  expect_true(all(is.na(dato$summary$weights$target)))
+  expect_false(any(grepl("target", capture.output(print(dato)))))
+  # ATT: the exposed have weight 1, so their sum is n1 exactly
+  tatt <- ipwdiag(fit(estimand = "ATT"), which = "weights")$summary$weights
+  expect_equal(tatt$sum[2], n1)
+  # a list of weight objects: groups from the first, no target
+  w2 <- fit(numerator = ~ 1)
+  tl <- ipwdiag(list(w, w2), which = "weights")$summary$weights
+  expect_equal(tl$sum[1], sum((w$ipw.weights * w2$ipw.weights)[simdat$a == 0]))
+  expect_true(all(is.na(tl$target)))
+  # old objects without den.mod: no groups
+  expect_equal(ipwdiag(fake_point(c(1, 2, 3)), which = "weights")$summary$weights$group,
+               "all")
 })
