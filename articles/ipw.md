@@ -41,7 +41,7 @@ An analysis has three steps:
 | [`ipwprobtm()`](https://tranhung93.github.io/ipw/reference/ipwprobtm.md) | Time-varying weights from probabilities you estimated yourself **(new)** |
 | [`ipwvcov()`](https://tranhung93.github.io/ipw/reference/ipwvcov.md) | Standard errors for the MSM that account for the estimated weights (binary exposures, logistic models) **(new, experimental)** |
 | [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md) | Plot the distribution of the weights |
-| [`ipwdiag()`](https://tranhung93.github.io/ipw/reference/ipwdiag.md) | Diagnostic plots: overlap, weight share, tail index, truncation sensitivity **(new, experimental)** |
+| [`ipwdiag()`](https://tranhung93.github.io/ipw/reference/ipwdiag.md) | Diagnostic plots: overlap before and after weighting, weights by exposure group, weight share, tail index, truncation sensitivity **(new, experimental)** |
 | [`tstartfun()`](https://tranhung93.github.io/ipw/reference/tstartfun.md) | Interval start times for counting-process (Cox) data |
 
 > **New in ipw 1.4.0.** Sections marked **New** describe features added
@@ -923,14 +923,16 @@ remain the established tools for checking the weights.
 Cole & Hernán (2008) and Austin & Stuart (2015) recommend looking
 closely at the weights before trusting a weighted analysis.
 [`ipwdiag()`](https://tranhung93.github.io/ipw/reference/ipwdiag.md)
-draws four plots for a result of
+draws up to six plots for a result of
 [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
 or [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) (or
 a list of them whose weights multiply, such as treatment and censoring
 weights), prints a short summary and returns the numbers behind every
-plot, so they can be redrawn with any graphics package. Checking that
-the weights balance the confounders is a separate step, done with cobalt
-(see [Covariate balance](#covariate-balance) below);
+plot, so they can be redrawn with any graphics package. It checks the
+balance of the propensity score, the one-number summary of the
+confounders; checking that the weights balance each confounder is a
+separate step, done with cobalt (see [Covariate
+balance](#covariate-balance) below);
 [`ipwplot()`](https://tranhung93.github.io/ipw/reference/ipwplot.md)
 shows how time-varying weights change over follow-up.
 
@@ -952,6 +954,7 @@ diag.point
 #> Weight diagnostics for 1000 people 
 #> 
 #> Overlap:    51.9% of 1000 people have an estimated probability < 0.05 or > 0.95
+#> PS balance: SMD of the estimated probability 3.014 unweighted, 0.483 weighted
 #> Weights:    mean 0.909, largest 74.7
 #> Share:      top 1% hold 21.4%, top 5% hold 37.2% of the total weight
 #> Kish ESS:   84.6 (8.5% of n)
@@ -959,6 +962,11 @@ diag.point
 #>             Warning: tail index < 2: the weights have an infinite variance;
 #>             no normal-theory interval can be trusted (see ?ipwvcov,
 #>             "Heavy-tailed weights").
+#> 
+#> Weights by exposure group (sum: size of the weighted group; target: the sum expected for these weights):
+#>  group   n  mean median   min  max sum target
+#>      0 481 1.007   0.51 0.481 74.7 484    481
+#>      1 519 0.819   0.54 0.519 10.8 425    519
 #> 
 #> Truncation sensitivity for 'a' (95% CI: robust, weights treated as known):
 #>      q estimate    se lower upper
@@ -979,6 +987,29 @@ What to look for in each plot:
   or above 0.95, which confirms the poor overlap that the large ATT
   weights showed in section 1. The plot needs a binomial exposure model;
   for other families it is skipped.
+- **Overlap after weighting.** The same densities, weighted by the
+  weights. Weighting should make the exposure independent of the
+  confounders, and so of the propensity score that summarises them, so
+  the two weighted densities should (almost) coincide. The standardized
+  mean difference (SMD) of the propensity score between the exposed and
+  the unexposed goes from 3.01 without weights to 0.48 with weights (the
+  usual rule of thumb is an absolute SMD below 0.1). With covariates in
+  the numerator model, stabilized weights leave those covariates
+  unbalanced on purpose, and the weighted densities need not coincide.
+  The plot needs weights from
+  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  with a binomial exposure model.
+- **Weights by exposure group.** Histograms of the weights in the
+  unexposed and the exposed. The largest weights belong to people whose
+  exposure was unlikely given their covariates. The sum of the weights
+  in a group is the size of that group in the weighted sample (the
+  pseudo-population). For unstabilized ATE weights each group stands for
+  the whole sample, so each sum should be close to n; for stabilized
+  weights, as here, each sum should be close to the size of the group
+  itself (for ATT weights, both sums should be close to the number
+  exposed). Here the unexposed sum to 484 (target 481) and the exposed
+  to 425 (target 519). A sum far from its target points to the same
+  problems as a mean weight far from 1.
 - **Weight share.** The people sorted from the largest weight to the
   smallest, against the cumulative share of the total weight. With equal
   weights the curve lies on the diagonal. Here the top 1% of the people

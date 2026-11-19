@@ -5,19 +5,21 @@ output may change in future versions, and the methods are still being
 evaluated.
 
 Plots that check whether inverse probability weights can be trusted:
-overlap of the estimated exposure probabilities (positivity), the share
-of the total weight held by the people with the largest weights, the
-tail of the weight distribution, and the sensitivity of a marginal
-structural model's estimate to truncating the weights. The numbers
-behind every plot are returned (invisibly), so the plots can be redrawn
-with any graphics package.
+overlap of the estimated exposure probabilities (positivity), before and
+after weighting, the distribution of the weights in each exposure group
+with the size of each weighted group, the share of the total weight held
+by the people with the largest weights, the tail of the weight
+distribution, and the sensitivity of a marginal structural model's
+estimate to truncating the weights. The numbers behind every plot are
+returned (invisibly), so the plots can be redrawn with any graphics
+package.
 
 ## Usage
 
 ``` r
 ipwdiag(
   object,
-  which = c("overlap", "share", "tail", "trunc"),
+  which = c("overlap", "psbalance", "weights", "share", "tail", "trunc"),
   msm = NULL,
   trunc = c(0, 0.01, 0.025, 0.05, 0.1),
   coef = NULL,
@@ -40,15 +42,20 @@ ipwdiag(
   the same long data, as in
   [`ipwvcov`](https://tranhung93.github.io/ipw/reference/ipwvcov.md)).
   For a list, `"overlap"` uses the first element (put the treatment
-  weights first), and the other plots the product of the weights.
+  weights first), and the other plots the product of the weights;
+  `"psbalance"` and the groups of `"weights"` use the exposure of the
+  first element.
 
 - which:
 
-  Plots to draw: any of `"overlap"`, `"share"`, `"tail"` and `"trunc"`.
-  Plots that cannot be drawn (overlap for a non-binomial exposure model,
+  Plots to draw: any of `"overlap"`, `"psbalance"`, `"weights"`,
+  `"share"`, `"tail"` and `"trunc"`. Plots that cannot be drawn (overlap
+  and propensity score balance without a binomial exposure model,
+  propensity score balance for
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md),
   truncation without `msm`, too few weights in the tail) are skipped
-  with a message; asking for `"overlap"` or `"trunc"` explicitly in
-  these cases is an error.
+  with a message; asking for `"overlap"`, `"psbalance"` or `"trunc"`
+  explicitly in these cases is an error.
 
 - msm:
 
@@ -85,8 +92,9 @@ ipwdiag(
   Logical. If `TRUE`, each plot is drawn on its own page and R asks
   before showing the next one. If `FALSE` (default) and more than one
   plot is drawn, they share one page (side by side for two, a 2 x 2
-  layout for three or four), unless a multi-panel layout was already set
-  with `par(mfrow = )`. The graphical parameters are restored on exit.
+  layout for three or four, 2 x 3 for five or six), unless a multi-panel
+  layout was already set with `par(mfrow = )`. The graphical parameters
+  are restored on exit.
 
 - ...:
 
@@ -107,6 +115,20 @@ was drawn, holding its data, and an element `summary`.
   of two data frames `x`, `y`, for exposure 0 and 1), `support` (the
   range where both groups have values), `exposure` (its name), `xlim`
   (the plotted range) and `extreme` (as in the summary).
+
+- psbalance:
+
+  List: `data` (data frame with `p`, `exposure` and `weight`), `density`
+  (weighted densities, as for `overlap`), `exposure`, `xlim`, `smd`
+  (named vector `unweighted`, `weighted`), `sd.denom` (`"pooled"`,
+  `"treated"` or `"control"`) and `numerator.covariates` (`TRUE` if the
+  numerator model has covariates).
+
+- weights:
+
+  List: `data` (data frame with `weight` and `group`: the exposure, or
+  `"all"`), `breaks` (of the histograms) and `exposure` (its name, or
+  `NULL` without groups).
 
 - share:
 
@@ -129,10 +151,12 @@ was drawn, holding its data, and an element `summary`.
 - summary:
 
   List with `n` (number of people), `unit`, `overlap` (proportion with a
-  probability below 0.05 or above 0.95, and the number of rows), `share`
-  (named vector `top1`, `top5`, `max`, `mean`, `ess`, `ess.fraction`),
-  `tail` (`alpha`, `k`) and `trunc` (the table above), for the plots
-  that were computed.
+  probability below 0.05 or above 0.95, and the number of rows),
+  `psbalance` (`smd` above), `weights` (data frame with one row per
+  group and columns `group`, `n`, `mean`, `median`, `min`, `max`, `sum`
+  and `target`), `share` (named vector `top1`, `top5`, `max`, `mean`,
+  `ess`, `ess.fraction`), `tail` (`alpha`, `k`) and `trunc` (the table
+  above), for the plots that were computed.
 
 ## Details
 
@@ -151,6 +175,47 @@ was drawn, holding its data, and an element `summary`.
   short, so that proportion is not by itself a warning sign there; look
   at whether the two groups overlap. For other exposure families this
   plot is skipped with a message.
+
+- `"psbalance"`:
+
+  The same densities as `"overlap"`, but weighted by the weights
+  ([`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  with a binomial exposure model only; otherwise skipped with a
+  message). Weighting should make the exposure independent of the
+  confounders, and so of the propensity score that summarises them: in
+  the weighted sample the two densities should (almost) coincide. The
+  summary gives the standardized mean difference (SMD) of the estimated
+  probability between the exposed and the unexposed, without and with
+  weights: the difference in (weighted) means divided by the standard
+  deviation of the unweighted groups, as in cobalt (`s.d.denom`: pooled,
+  \\\sqrt{(s_1^2 + s_0^2)/2}\\, for `"ATE"` and `"ATO"`; that of the
+  exposed for `"ATT"`; that of the unexposed for `"ATC"`). Stabilized
+  weights with covariates in the numerator model leave those covariates
+  unbalanced on purpose (they must be adjusted for in the marginal
+  structural model), so then the weighted densities need not coincide.
+  This checks one summary of the confounders; check the balance of each
+  confounder with cobalt (see "Covariate balance" in
+  [`vignette("ipw")`](https://tranhung93.github.io/ipw/articles/ipw.md)).
+
+- `"weights"`:
+
+  Histograms (density scale) of the weights in each exposure group
+  ([`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  with a binomial exposure model), or of all weights otherwise (for
+  [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md) each
+  person's final cumulative weight). Large weights belong to people
+  whose exposure was unlikely given their covariates. The summary gives,
+  per group, the number of people and the mean, median, smallest and
+  largest weight, and the sum of the weights: the size of that group in
+  the weighted sample (pseudo-population). For a single
+  [`ipwpoint()`](https://tranhung93.github.io/ipw/reference/ipwpoint.md)
+  result with a binomial exposure model the column `target` gives the
+  sum expected for these weights if the exposure model is right: \\n\\
+  in both groups for unstabilized ATE weights (each group stands for the
+  whole sample), the size of the group itself for stabilized ATE
+  weights, the number exposed for `"ATT"` and the number unexposed for
+  `"ATC"` (no target for `"ATO"`). A sum far from its target suggests a
+  misspecified exposure model or positivity problems.
 
 - `"share"`:
 
@@ -279,6 +344,7 @@ d
 #> Weight diagnostics for 1000 people 
 #> 
 #> Overlap:    51.9% of 1000 people have an estimated probability < 0.05 or > 0.95
+#> PS balance: SMD of the estimated probability 3.014 unweighted, 0.483 weighted
 #> Weights:    mean 0.909, largest 74.7
 #> Share:      top 1% hold 21.4%, top 5% hold 37.2% of the total weight
 #> Kish ESS:   84.6 (8.5% of n)
@@ -286,6 +352,11 @@ d
 #>             Warning: tail index < 2: the weights have an infinite variance;
 #>             no normal-theory interval can be trusted (see ?ipwvcov,
 #>             "Heavy-tailed weights").
+#> 
+#> Weights by exposure group (sum: size of the weighted group; target: the sum expected for these weights):
+#>  group   n  mean median   min  max sum target
+#>      0 481 1.007   0.51 0.481 74.7 484    481
+#>      1 519 0.819   0.54 0.519 10.8 425    519
 #> 
 #> Truncation sensitivity for 'a' (95% CI: robust, weights treated as known):
 #>      q estimate    se lower upper
@@ -295,6 +366,10 @@ d
 #>  0.050     12.8 0.394 12.01  13.6
 #>  0.100     13.3 0.351 12.64  14.0
 # the numbers behind the plots
+d$summary$weights   # sum of the weights in each group, and its target
+#>   group   n      mean    median   min      max      sum target
+#> 1     0 481 1.0071736 0.5096077 0.481 74.69940 484.4505    481
+#> 2     1 519 0.8189108 0.5403238 0.519 10.83815 425.0147    519
 head(d$share$data)
 #>   fraction      share
 #> 1    0.000 0.00000000

@@ -78,10 +78,14 @@ change in future versions, and the methods are still being evaluated.
   and [`ipwtm()`](https://tranhung93.github.io/ipw/reference/ipwtm.md)
   (or a list of them whose weights multiply), in base graphics: overlap
   of the estimated exposure probabilities by exposure group
-  (positivity), the share of the total weight held by the people with
-  the largest weights (with the mean weight and Kish’s effective sample
-  size), the tail of the weights with the Hill estimate of the tail
-  index, and the sensitivity of a marginal structural model’s estimate
+  (positivity), before and after weighting (with the standardized mean
+  difference of the propensity score), the distribution of the weights
+  in each exposure group (with the sum of the weights, the size of each
+  group in the weighted sample, and the sum expected for these weights),
+  the share of the total weight held by the people with the largest
+  weights (with the mean weight and Kish’s effective sample size), the
+  tail of the weights with the Hill estimate of the tail index, and the
+  sensitivity of a marginal structural model’s estimate
   ([`lm()`](https://rdrr.io/r/stats/lm.html),
   [`glm()`](https://rdrr.io/r/stats/glm.html) or
   [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html)) to
